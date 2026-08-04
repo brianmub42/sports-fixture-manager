@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KALIFE Fixture Generator — Demo</title>
+<style>
+:root { --bg: #fff; --fg: #111; --muted: #f3f4f6; --border: #e5e7eb; --accent: #2563eb; --green: #16a34a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0f0f0f; --fg: #f3f4f6; --muted: #1a1a1a; --border: #2a2a2a; } }
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 20px; line-height: 1.5; }
+.container { max-width: 900px; margin: 0 auto; }
+header { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 20px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+p.sub { font-size: 13px; color: #888; margin: 0; }
+.card { border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; background: var(--bg); }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #666; }
+input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg); font-size: 14px; margin-bottom: 4px; }
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.btn { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--muted); color: var(--fg); font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn:hover { opacity: 0.85; }
+.btn-row { display: flex; gap: 10px; margin-top: 16px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+th { text-align: left; padding: 8px 10px; font-weight: 600; color: #888; border-bottom: 1px solid var(--border); }
+td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 6px; background: var(--muted); font-size: 12px; font-weight: 600; }
+.code { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 10px; }
+.summary { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.badge { padding: 6px 14px; border-radius: 8px; background: var(--muted); font-size: 13px; font-weight: 500; }
+.badge strong { color: var(--accent); }
+.scroll { max-height: 500px; overflow-y: auto; }
+@media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>⚽ KALIFE Fixture Generator — Standalone Demo</h1>
+    <p class="sub">No backend required. Pure JavaScript round-robin scheduler. Open this file in any browser.</p>
+  </header>
+
+  <div class="card">
+    <div class="grid-2">
+      <div>
+        <label>Teams (comma-separated)</label>
+        <input type="text" id="teams" value="ZAM, BAR, HAL, SHA, TEH, TOW">
+      </div>
+      <div>
+        <label>Sport</label>
+        <select id="sport">
+          <option>Basketball</option>
+          <option>Volleyball</option>
+          <option>Soccer</option>
+          <option>Tug of War</option>
+          <option>Athletics</option>
+        </select>
+      </div>
+      <div>
+        <label>Start Date & Time</label>
+        <input type="datetime-local" id="startDate" value="2026-08-01T09:00">
+      </div>
+      <div>
+        <label>Match Duration (minutes)</label>
+        <input type="number" id="duration" value="10" min="1" max="120">
+      </div>
+      <div>
+        <label>Break Between Rounds (min)</label>
+        <input type="number" id="breakTime" value="0" min="0" max="60">
+      </div>
+      <div>
+        <label>Format</label>
+        <select id="format">
+          <option value="single">Single Round-Robin</option>
+          <option value="double">Double Round-Robin</option>
+          <option value="group">Group Stage</option>
+        </select>
+      </div>
+      <div>
+        <label>Venues (comma-separated)</label>
+        <input type="text" id="venues" value="BB Court">
+      </div>
+      <div>
+        <label>Matches Per Round (concurrent)</label>
+        <input type="number" id="concurrent" value="1" min="1" max="10">
+      </div>
+      <div id="groupCountWrap" style="display:none">
+        <label>Number of Groups</label>
+        <input type="number" id="groupCount" value="2" min="2" max="4">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="generate()">🪄 Generate Schedule</button>
+      <button class="btn" onclick="downloadCSV()">⬇️ Download CSV</button>
+    </div>
+  </div>
+
+  <div id="results" style="display:none">
+    <div class="card">
+      <div class="summary" id="summary"></div>
+      <div class="scroll">
+        <table id="table">
+          <thead><tr><th>#</th><th>Round</th><th>Time</th><th>Matchup</th><th>Venue</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const colors = { ZAM:'#2563eb', BAR:'#dc2626', HAL:'#16a34a', SHA:'#9333ea', TEH:'#ea580c', TOW:'#0891b2' };
+let generatedFixtures = [];
+
+document.getElementById('format').addEventListener('change', (e) => {
+  document.getElementById('groupCountWrap').style.display = e.target.value === 'group' ? 'block' : 'none';
+});
+
+function roundRobin(teams) {
+  const n = teams.length;
+  if (n % 2 !== 0) teams.push('BYE');
+  const count = teams.length, rounds = count - 1, half = count / 2;
+  const schedule = [];
+  let idx = teams.map((_,i) => i).slice(1);
+  for (let r = 0; r < rounds; r++) {
+    const pairs = [];
+    const next = [0];
+    for (let i = 0; i < idx.length; i++) {
+      const cur = idx[i], nxt = idx[(i+1) % idx.length];
+      if (i === 0) { pairs.push([teams[0], teams[cur]]); next.push(cur); }
+      else { pairs.push([teams[cur], teams[nxt]]); next.push(nxt); }
+    }
+    schedule.push(...pairs);
+    idx = next;
+  }
+  return schedule.filter(p => p[0] !== 'BYE' && p[1] !== 'BYE');
+}
+
+function doubleRR(teams) {
+  const first = roundRobin(teams);
+  return [...first, ...first.map(([a,b]) => [b,a])];
+}
+
+function groupStage(teams, groupCount) {
+  const size = Math.ceil(teams.length / groupCount);
+  const groups = [];
+  for (let i = 0; i < teams.length; i += size) groups.push(teams.slice(i, i + size));
+  const all = [];
+  groups.forEach((g, gi) => {
+    roundRobin(g).forEach(p => all.push({ pair: p, group: gi + 1 }));
+  });
+  return all;
+}
+
+function generate() {
+  const teams = document.getElementById('teams').value.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
+  const sport = document.getElementById('sport').value;
+  const start = new Date(document.getElementById('startDate').value);
+  const duration = parseInt(document.getElementById('duration').value);
+  const breakTime = parseInt(document.getElementById('breakTime').value);
+  const format = document.getElementById('format').value;
+  const venues = document.getElementById('venues').value.split(',').map(v => v.trim()).filter(Boolean);
+  const concurrent = parseInt(document.getElementById('concurrent').value);
+  const groupCount = parseInt(document.getElementById('groupCount').value);
+
+  if (teams.length < 2) { alert('Need at least 2 teams'); return; }
+  if (venues.length === 0) { alert('Need at least 1 venue'); return; }
+
+  let pairs;
+  if (format === 'group') pairs = groupStage(teams, groupCount);
+  else if (format === 'double') pairs = doubleRR(teams);
+  else pairs = roundRobin(teams);
+
+  const rounds = [];
+  for (let i = 0; i < pairs.length; i += concurrent) {
+    const round = [];
+    for (let j = 0; j < concurrent && i + j < pairs.length; j++) {
+      const p = Array.isArray(pairs[i+j]) ? pairs[i+j] : pairs[i+j].pair;
+      const g = pairs[i+j].group ? `Group ${pairs[i+j].group}` : null;
+      round.push({ pair: p, venue: venues[j % venues.length], group: g });
+    }
+    rounds.push(round);
+  }
+
+  let current = new Date(start);
+  generatedFixtures = [];
+  rounds.forEach((round, ri) => {
+    round.forEach(m => {
+      const end = new Date(current.getTime() + duration * 60000);
+      generatedFixtures.push({
+        round: `R${ri + 1}`,
+        startTime: new Date(current),
+        endTime: end,
+        teamA: m.pair[0],
+        teamB: m.pair[1],
+        venue: m.venue,
+        group: m.group,
+        sport
+      });
+    });
+    current = new Date(current.getTime() + (duration + breakTime) * 60000);
+  });
+
+  renderResults();
+}
+
+function renderResults() {
+  const results = document.getElementById('results');
+  results.style.display = 'block';
+  const last = generatedFixtures[generatedFixtures.length - 1];
+  document.getElementById('summary').innerHTML = `
+    <div class="badge">${generatedFixtures.length} matches</div>
+    <div class="badge">Format: ${document.getElementById('format').value}</div>
+    <div class="badge">Ends: <strong>${last.endTime.toLocaleTimeString()}</strong></div>
+  `;
+  const tbody = document.querySelector('#table tbody');
+  tbody.innerHTML = generatedFixtures.map((f, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><strong>${f.round}</strong>${f.group ? ` <span style="color:#888;font-size:11px">(${f.group})</span>` : ''}</td>
+      <td>${f.startTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${f.endTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+      <td>
+        <span class="pill"><span class="code" style="background:${colors[f.teamA]||'#666'}">${f.teamA}</span> ${f.teamA}</span>
+        <span style="color:#888;margin:0 6px">vs</span>
+        <span class="pill"><span class="code" style="background:${colors[f.teamB]||'#666'}">${f.teamB}</span> ${f.teamB}</span>
+      </td>
+      <td>${f.venue}</td>
+    </tr>
+  `).join('');
+}
+
+function downloadCSV() {
+  if (generatedFixtures.length === 0) { alert('Generate a schedule first'); return; }
+  const rows = [
+    ['time', 'round', 'venue', 'sport', 'team_a', 'team_b', 'scheduled_at'],
+    ...generatedFixtures.map(f => [
+      `${f.startTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}-${f.endTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`,
+      f.round, f.venue, f.sport, f.teamA, f.teamB, f.startTime.toISOString()
+    ])
+  ];
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'kalife-fixtures.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>

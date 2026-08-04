@@ -1,0 +1,15 @@
+{
+  "name": "kalife-sports-manager",
+  "version": "1.0.0",
+  "description": "KALIFE 2026 Inter-District Sports Day Manager",
+  "scripts": {
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "db:setup": "cd server && npm run init-db && npm run seed",
+    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
