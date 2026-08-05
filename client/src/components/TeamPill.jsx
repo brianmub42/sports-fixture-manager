@@ -1,4 +1,4 @@
-export default function TeamPill({ code, name, color }) {
+export default function TeamPill({ code, name, color, logoUrl }) {
   const defaultColors = {
     ZAM: '#2563eb', BAR: '#dc2626', HAL: '#16a34a',
     SHA: '#9333ea', TEH: '#ea580c', TOW: '#0891b2'
@@ -6,9 +6,12 @@ export default function TeamPill({ code, name, color }) {
   const bgStyle = color ? { backgroundColor: color } : (defaultColors[code] ? { backgroundColor: defaultColors[code] } : undefined);
   return (
     <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm font-medium">
+      {logoUrl ? (
+        <img src={logoUrl} alt={name} className="w-5 h-5 rounded-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+      ) : null}
       <span 
         style={bgStyle}
-        className={`w-5 h-5 rounded-full ${!bgStyle ? 'bg-gray-500' : ''} flex items-center justify-center text-white text-[10px] font-bold`}
+        className={`w-5 h-5 rounded-full ${!bgStyle ? 'bg-gray-500' : ''} ${logoUrl ? 'hidden' : 'flex'} items-center justify-center text-white text-[10px] font-bold`}
       >
         {code}
       </span>

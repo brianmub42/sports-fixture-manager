@@ -82,9 +82,9 @@ export default function Dashboard() {
                 <SportTag sport={f.sport_name} />
               </div>
               <span className="flex-1 flex items-center gap-2 text-sm font-medium flex-wrap">
-                <TeamPill code={f.team_a_code} name={f.team_a_name} />
+                <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_code.replace("_code", "_logo")} />
                 <span className="text-gray-400 text-xs">vs</span>
-                <TeamPill code={f.team_b_code} name={f.team_b_name} />
+                <TeamPill code={f.team_b_code} name={f.team_b_name} logoUrl={f.team_b_code.replace("_code", "_logo")} />
               </span>
               <span className="text-xs text-gray-400">{f.venue_name}</span>
             </div>

@@ -33,7 +33,7 @@ export default function LogStandings() {
                   <div className="grid grid-cols-10 gap-2 items-center py-2 text-center text-sm hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded">
                     <span className="font-semibold text-gray-500">{i + 1}</span>
                     <span className="text-left col-span-2">
-                      <TeamPill code={d.code} name={d.name} />
+                      <TeamPill code={d.code} name={d.name} logoUrl={d.logo_url} />
                     </span>
                     <span>{d.BB || '—'}</span>
                     <span>{d.VB || '—'}</span>
@@ -78,7 +78,7 @@ export default function LogStandings() {
           <div className="space-y-2">
             {log?.map(d => (
               <div key={d.code} className="flex items-center gap-2 text-sm">
-                <TeamPill code={d.code} name={d.name} />
+                <TeamPill code={d.code} name={d.name} logoUrl={d.logo_url} />
                 <span className="ml-auto flex gap-3">
                   <span className="text-amber-600 font-semibold">{d.gold}G</span>
                   <span className="text-gray-500 font-semibold">{d.silver}S</span>

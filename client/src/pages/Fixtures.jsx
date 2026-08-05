@@ -74,9 +74,9 @@ export default function Fixtures() {
                     <span className="text-sm">{f.team_a_name}</span>
                   ) : (
                     <span className="flex items-center gap-1 flex-wrap">
-                      <TeamPill code={f.team_a_code} name={f.team_a_name} />
+                      <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_code.replace("_code", "_logo")} />
                       <span className="text-gray-400 text-xs">vs</span>
-                      <TeamPill code={f.team_b_code} name={f.team_b_name} />
+                      <TeamPill code={f.team_b_code} name={f.team_b_name} logoUrl={f.team_b_code.replace("_code", "_logo")} />
                     </span>
                   )}
                 </td>
@@ -115,11 +115,11 @@ export default function Fixtures() {
                 <span className="text-sm font-medium">{f.team_a_name}</span>
               ) : (
                 <>
-                  <TeamPill code={f.team_a_code} name={f.team_a_name} />
+                  <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_code.replace("_code", "_logo")} />
                   <span className="text-xs text-gray-400 font-bold">
                     {f.score_a !== null ? `${f.score_a} - ${f.score_b}` : 'vs'}
                   </span>
-                  <TeamPill code={f.team_b_code} name={f.team_b_name} />
+                  <TeamPill code={f.team_b_code} name={f.team_b_name} logoUrl={f.team_b_code.replace("_code", "_logo")} />
                 </>
               )}
             </div>

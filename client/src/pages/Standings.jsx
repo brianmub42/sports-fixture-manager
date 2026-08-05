@@ -69,7 +69,7 @@ export default function Standings() {
               <div key={team.code} className="grid grid-cols-8 gap-2 items-center py-2 px-2 border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded">
                 <span className="text-xs text-gray-400 w-4">{i + 1}</span>
                 <span className="col-span-1">
-                  <TeamPill code={team.code} name={team.name} />
+                  <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
                 </span>
                 <span className="text-center text-sm text-gray-600">{team.played}</span>
                 <span className="text-center text-sm text-gray-600">{team.won}</span>

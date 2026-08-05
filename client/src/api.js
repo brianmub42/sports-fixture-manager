@@ -40,6 +40,14 @@ export const uploadApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  uploadLogo: (districtCode, file) => {
+    const formData = new FormData();
+    formData.append('districtCode', districtCode);
+    formData.append('logo', file);
+    return api.post('/upload/logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
   downloadTemplate: () => api.get('/upload/template', { responseType: 'blob' }),
 };
 

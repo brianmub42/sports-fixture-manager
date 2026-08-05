@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
 
     const result = await query(`
       SELECT 
-        d.code, d.name, d.color,
+        d.code, d.name, d.color, d.logo_url,
         COUNT(*) as played,
         SUM(CASE WHEN f.winner_id = d.id THEN 1 ELSE 0 END) as won,
         SUM(CASE WHEN f.status = 'draw' THEN 1 ELSE 0 END) as drawn,
@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
       JOIN districts d ON d.id IN (f.team_a_id, f.team_b_id)
       JOIN sports s ON f.sport_id = s.id
       WHERE f.status IN ('completed', 'draw') AND s.name = $1 AND f.organization_id = $2
-      GROUP BY d.id, d.code, d.name, d.color
+      GROUP BY d.id, d.code, d.name, d.color, d.logo_url
       ORDER BY points DESC, (SUM(CASE WHEN f.team_a_id = d.id THEN f.score_a ELSE f.score_b END) - 
                SUM(CASE WHEN f.team_a_id = d.id THEN f.score_b ELSE f.score_a END)) DESC
     `, [sport, req.orgId]);
@@ -45,10 +45,10 @@ router.get('/log', async (req, res) => {
     const sports = sportsRes.rows;
 
     const districtPoints = {};
-    const districtsRes = await query('SELECT id, code, name, color FROM districts WHERE organization_id = $1', [req.orgId]);
+    const districtsRes = await query('SELECT id, code, name, color, logo_url FROM districts WHERE organization_id = $1', [req.orgId]);
     districtsRes.rows.forEach(d => {
       districtPoints[d.code] = { 
-        code: d.code, name: d.name, color: d.color,
+        code: d.code, name: d.name, color: d.color, logo_url: d.logo_url,
         BB: 0, VB: 0, SC: 0, TW: 0, AT: 0, NV: 0,
         total: 0, gold: 0, silver: 0, bronze: 0, medals: 0
       };

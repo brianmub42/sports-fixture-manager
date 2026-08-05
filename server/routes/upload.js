@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import xlsx from 'xlsx';
 import { query } from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 const upload = multer({ dest: 'uploads/' });
@@ -82,6 +82,30 @@ router.post('/fixtures', authMiddleware, upload.single('file'), async (req, res)
     }
 
     res.json({ success: true, ...results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/upload/logo
+router.post('/logo', authMiddleware, requireAdmin, upload.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No logo uploaded' });
+    const { districtCode } = req.body;
+    if (!districtCode) return res.status(400).json({ error: 'District code required' });
+
+    const logoUrl = `${process.env.API_URL || 'http://localhost:3000'}/uploads/${req.file.filename}`;
+    
+    const result = await query(
+      'UPDATE districts SET logo_url = $1 WHERE code = $2 AND organization_id = $3 RETURNING *',
+      [logoUrl, districtCode, req.orgId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'District not found' });
+    }
+
+    res.json({ success: true, district: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

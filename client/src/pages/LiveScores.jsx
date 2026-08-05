@@ -31,7 +31,7 @@ export default function LiveScores() {
             </div>
             <div className="flex items-center gap-4 justify-center my-4">
               <div className="text-center flex flex-col items-center">
-                <TeamPill code={f.team_a_code} name={f.team_a_name} />
+                <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_code.replace("_code", "_logo")} />
                 {isAuthenticated && (
                   <input
                     type="number"
@@ -43,7 +43,7 @@ export default function LiveScores() {
               </div>
               <span className="text-lg font-semibold text-gray-400">VS</span>
               <div className="text-center flex flex-col items-center">
-                <TeamPill code={f.team_b_code} name={f.team_b_name} />
+                <TeamPill code={f.team_b_code} name={f.team_b_name} logoUrl={f.team_b_code.replace("_code", "_logo")} />
                 {isAuthenticated && (
                   <input
                     type="number"

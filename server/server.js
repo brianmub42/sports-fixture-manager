@@ -33,6 +33,7 @@ app.use((req, res, next) => {
 app.use(tenantMiddleware);
 
 // Routes
+app.use('/uploads', express.static('uploads'));
 app.use('/api/fixtures', fixtureRoutes);
 app.use('/api/scores', scoreRoutes);
 app.use('/api/standings', standingsRoutes);

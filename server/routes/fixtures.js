@@ -9,8 +9,8 @@ router.get('/', async (req, res) => {
     const { status, sport, district } = req.query;
     let sql = `
       SELECT f.*, 
-        a.code as team_a_code, a.name as team_a_name, a.color as team_a_color,
-        b.code as team_b_code, b.name as team_b_name, b.color as team_b_color,
+        a.code as team_a_code, a.name as team_a_name, a.color as team_a_color, a.logo_url as team_a_logo,
+        b.code as team_b_code, b.name as team_b_name, b.color as team_b_color, b.logo_url as team_b_logo,
         v.name as venue_name, s.name as sport_name
       FROM fixtures f
       JOIN districts a ON f.team_a_id = a.id
@@ -56,8 +56,8 @@ router.get('/:id', async (req, res) => {
 router.get('/district/:code/schedule', async (req, res) => {
   try {
     const result = await query(`
-      SELECT f.*, a.code as team_a_code, a.name as team_a_name, a.color as team_a_color,
-        b.code as team_b_code, b.name as team_b_name, b.color as team_b_color,
+      SELECT f.*, a.code as team_a_code, a.name as team_a_name, a.color as team_a_color, a.logo_url as team_a_logo,
+        b.code as team_b_code, b.name as team_b_name, b.color as team_b_color, b.logo_url as team_b_logo,
         s.name as sport_name, v.name as venue_name
       FROM fixtures f
       JOIN districts a ON f.team_a_id = a.id
