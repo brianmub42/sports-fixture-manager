@@ -60,6 +60,10 @@ export const districtsApi = {
   getAll: () => api.get('/districts'),
 };
 
+export const analyticsApi = {
+  getStats: () => api.get('/analytics'),
+};
+
 export const settingsApi = {
   get: () => api.get('/settings'),
   update: (data) => api.post('/settings', data),

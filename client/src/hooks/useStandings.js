@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { standingsApi } from '../api.js';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { standingsApi, analyticsApi } from '../api.js';
 
 export function useStandings(sport) {
   return useQuery({
@@ -13,5 +13,12 @@ export function useLogStandings() {
   return useQuery({
     queryKey: ['log'],
     queryFn: () => standingsApi.getLog().then(r => r.data),
+  });
+}
+
+export function useAnalytics() {
+  return useQuery({
+    queryKey: ['analytics'],
+    queryFn: () => analyticsApi.getStats().then(r => r.data),
   });
 }

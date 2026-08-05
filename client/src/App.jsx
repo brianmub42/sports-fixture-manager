@@ -8,6 +8,7 @@ import Fixtures from './pages/Fixtures.jsx';
 import LiveScores from './pages/LiveScores.jsx';
 import Standings from './pages/Standings.jsx';
 import LogStandings from './pages/LogStandings.jsx';
+import Analytics from './pages/Analytics.jsx';
 import Districts from './pages/Districts.jsx';
 import UploadPage from './pages/UploadPage.jsx';
 import GeneratePage from './pages/GeneratePage.jsx';
@@ -32,6 +33,7 @@ function App() {
           <Route path="/live" element={<LiveScores />} />
           <Route path="/standings" element={<Standings />} />
           <Route path="/log" element={<LogStandings />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/districts" element={<Districts />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/generate" element={<GeneratePage />} />

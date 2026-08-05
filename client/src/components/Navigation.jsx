@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Trophy, Calendar, Activity, BarChart3, List, MapPin, Upload, Wand2, Settings, Network, Tv } from 'lucide-react';
+import { Trophy, Calendar, Activity, BarChart3, List, MapPin, Upload, Wand2, Settings, Network, Tv, LineChart } from 'lucide-react';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: Trophy },
@@ -8,6 +8,7 @@ const links = [
   { to: '/live', label: 'Live Scores', icon: Activity },
   { to: '/standings', label: 'Standings', icon: BarChart3 },
   { to: '/log', label: 'Log', icon: List },
+  { to: '/analytics', label: 'Analytics', icon: LineChart },
   { to: '/districts', label: 'Districts', icon: MapPin },
   { to: '/generate', label: 'Generate', icon: Wand2 },
   { to: '/upload', label: 'Upload', icon: Upload },
