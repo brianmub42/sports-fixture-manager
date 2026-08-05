@@ -14,6 +14,7 @@ import GeneratePage from './pages/GeneratePage.jsx';
 import Settings from './pages/Settings.jsx';
 import Login from './pages/Login.jsx';
 import Brackets from './pages/Brackets.jsx';
+import TvMode from './pages/TvMode.jsx';
 
 function App() {
   const { activeOrg } = useOrganization();
@@ -38,6 +39,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/brackets" element={<Brackets />} />
         </Route>
+        <Route path="/tv" element={<TvMode />} />
       </Routes>
     </SocketProvider>
   );

@@ -14,6 +14,15 @@ export default {
         sha: '#9333ea',
         teh: '#ea580c',
         tow: '#0891b2',
+      },
+      animation: {
+        'scroll-tv': 'scroll-tv 30s linear infinite',
+      },
+      keyframes: {
+        'scroll-tv': {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-33.33%)' },
+        }
       }
     },
   },
