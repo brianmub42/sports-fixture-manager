@@ -1,18 +1,40 @@
-import { useState } from 'react';
-import { useFixtures } from '../hooks/useFixtures.js';
+import { useState, useMemo } from 'react';
+import { useFixtures, useSettings } from '../hooks/useFixtures.js';
+import { Calendar, Download } from 'lucide-react';
 import SportTag from '../components/SportTag.jsx';
 import TeamPill from '../components/TeamPill.jsx';
+import { exportFixturesToPDF } from '../utils/pdfExport.js';
 
 const sports = ['All', 'Athletics', 'Basketball', 'Volleyball', 'Soccer', 'Tug of War'];
 
 export default function Fixtures() {
   const [filter, setFilter] = useState('All');
   const { data: fixtures, isLoading } = useFixtures(filter === 'All' ? {} : { sport: filter });
+  const { data: settings } = useSettings();
 
   if (isLoading) return <div className="text-center py-12 text-gray-400">Loading fixtures...</div>;
 
   return (
-    <div>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Calendar className="text-blue-500" />
+            Match Fixtures
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400">Complete tournament schedule</p>
+        </div>
+        
+        <button 
+          onClick={() => exportFixturesToPDF(fixtures, settings)}
+          disabled={!fixtures?.length}
+          className="k-btn bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center gap-2"
+        >
+          <Download size={16} />
+          <span className="hidden sm:inline">Download PDF</span>
+        </button>
+      </div>
+
       <div className="flex flex-wrap gap-2 mb-4">
         {sports.map(s => (
           <button

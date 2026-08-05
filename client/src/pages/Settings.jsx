@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSettings, useUpdateSettings, useResetDatabase } from '../hooks/useFixtures.js';
-import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink } from 'lucide-react';
+import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { settingsApi } from '../api.js';
+import { settingsApi, authApi } from '../api.js';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function Settings() {
   const { data: settings, isLoading, refetch } = useSettings();
@@ -16,11 +17,30 @@ export default function Settings() {
   const [resetSuccess, setResetSuccess] = useState(null);
   const [updateSuccess, setUpdateSuccess] = useState(false);
 
-  // Sponsors state
   const [sponsors, setSponsors] = useState([]);
   const [sponsorSaving, setSponsorSaving] = useState(false);
   const [sponsorSuccess, setSponsorSuccess] = useState(false);
   const [newSponsor, setNewSponsor] = useState({ name: '', logoUrl: '', tag: '', website: '' });
+
+  // Team Management State
+  const queryClient = useQueryClient();
+  const { data: teamUsers, isLoading: loadingUsers } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const res = await authApi.getUsers();
+      return res.data;
+    },
+    enabled: isAuthenticated && isAdmin
+  });
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'scorekeeper' });
+  
+  const createUserMutation = useMutation({
+    mutationFn: (data) => authApi.createUser(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setNewUser({ name: '', email: '', password: '', role: 'scorekeeper' });
+    }
+  });
 
   if (!isAuthenticated || !isAdmin) {
     return (
@@ -90,6 +110,15 @@ export default function Settings() {
       alert('Failed to save sponsors: ' + err.message);
     } finally {
       setSponsorSaving(false);
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    try {
+      await createUserMutation.mutateAsync(newUser);
+    } catch (err) {
+      alert('Failed to create user: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -267,6 +296,101 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Team Management */}
+      <div className="k-card">
+        <div className="flex items-center gap-2 mb-1">
+          <Users size={18} className="text-purple-500" />
+          <h2 className="text-lg font-semibold">Team Management</h2>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+          Manage access for your organization. Scorekeepers can update live scores but cannot change settings or generate fixtures.
+        </p>
+
+        {/* Existing Users List */}
+        <div className="space-y-2 mb-6">
+          {loadingUsers ? (
+            <div className="text-xs text-gray-400 italic py-2">Loading users...</div>
+          ) : (
+            teamUsers?.map((u) => (
+              <div key={u.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800">
+                <div>
+                  <p className="text-sm font-semibold">{u.name}</p>
+                  <p className="text-xs text-gray-400">{u.email}</p>
+                </div>
+                <div className={`px-2 py-1 rounded text-xs font-medium ${
+                  u.role === 'admin' 
+                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' 
+                    : u.role === 'scorekeeper'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                }`}>
+                  {u.role.toUpperCase()}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Add User Form */}
+        <form onSubmit={handleCreateUser} className="border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Add New User</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-500">Name *</label>
+              <input
+                type="text"
+                required
+                value={newUser.name}
+                onChange={(e) => setNewUser(s => ({ ...s, name: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                placeholder="John Doe"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-500">Email *</label>
+              <input
+                type="email"
+                required
+                value={newUser.email}
+                onChange={(e) => setNewUser(s => ({ ...s, email: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                placeholder="john@example.com"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-500">Password *</label>
+              <input
+                type="password"
+                required
+                value={newUser.password}
+                onChange={(e) => setNewUser(s => ({ ...s, password: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                placeholder="••••••••"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-500">Role</label>
+              <select
+                value={newUser.role}
+                onChange={(e) => setNewUser(s => ({ ...s, role: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                <option value="scorekeeper">Scorekeeper</option>
+                <option value="admin">Admin</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={createUserMutation.isLoading || !newUser.name || !newUser.email || !newUser.password}
+            className="k-btn flex items-center gap-2 disabled:opacity-40 mt-2"
+          >
+            <Plus size={14} />
+            {createUserMutation.isLoading ? 'Creating...' : 'Create User'}
+          </button>
+        </form>
+      </div>
 
       <div className="k-card border border-red-200 dark:border-red-900/50 bg-red-50/10">
         <div className="flex items-center gap-2 mb-4">

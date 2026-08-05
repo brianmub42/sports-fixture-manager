@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, requireScorekeeperOrAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
 // PATCH /api/scores/:id
-router.patch('/:id', authMiddleware, async (req, res) => {
+router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
   try {
     const { score_a, score_b } = req.body;
     const fixtureId = req.params.id;
@@ -66,7 +66,7 @@ router.patch('/:id', authMiddleware, async (req, res) => {
           `, [winnerId, nextMatch.id]);
           
           if (req.io) {
-            req.io.emit('score-updated', { fixtureId: nextMatch.id, score_a: null, score_b: null, winner_id: null });
+            req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId: nextMatch.id, score_a: null, score_b: null, winner_id: null });
           }
         }
       }
@@ -74,7 +74,7 @@ router.patch('/:id', authMiddleware, async (req, res) => {
 
     // Broadcast update
     if (req.io) {
-      req.io.emit('score-updated', { fixtureId, score_a, score_b, winner_id: winnerId });
+      req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId, score_a, score_b, winner_id: winnerId });
     }
 
     res.json({ success: true, fixtureId, score_a, score_b, status });

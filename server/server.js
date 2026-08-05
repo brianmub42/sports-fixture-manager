@@ -48,6 +48,12 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Dat
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
   socket.on('join-venue', (venue) => socket.join(`venue-${venue}`));
+  socket.on('join-tenant', (orgId) => {
+    if (orgId) {
+      socket.join(`tenant-${orgId}`);
+      console.log(`Client ${socket.id} joined tenant-${orgId}`);
+    }
+  });
   socket.on('disconnect', () => console.log('Client disconnected:', socket.id));
 });
 

@@ -1,15 +1,38 @@
 import { useState } from 'react';
 import { useStandings } from '../hooks/useStandings.js';
+import { useSettings } from '../hooks/useFixtures.js';
 import TeamPill from '../components/TeamPill.jsx';
+import { Download, Trophy } from 'lucide-react';
+import { exportStandingsToPDF } from '../utils/pdfExport.js';
 
 const sports = ['Basketball', 'Volleyball', 'Soccer', 'Tug of War', 'Athletics'];
 
 export default function Standings() {
   const [sport, setSport] = useState('Basketball');
   const { data: standings, isLoading } = useStandings(sport);
+  const { data: settings } = useSettings();
 
   return (
-    <div>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Trophy className="text-purple-500" />
+            Tournament Standings
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400">Current rankings and points</p>
+        </div>
+        
+        <button 
+          onClick={() => exportStandingsToPDF(standings, settings, sport)}
+          disabled={!standings?.length}
+          className="k-btn bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center gap-2"
+        >
+          <Download size={16} />
+          <span className="hidden sm:inline">Download PDF</span>
+        </button>
+      </div>
+
       <div className="flex flex-wrap gap-2 mb-4">
         {sports.map(s => (
           <button

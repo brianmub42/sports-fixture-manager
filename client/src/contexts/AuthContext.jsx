@@ -52,6 +52,7 @@ export function AuthProvider({ children }) {
   };
 
   const isAdmin = user?.role === 'admin';
+  const isScorekeeper = user?.role === 'admin' || user?.role === 'scorekeeper';
   const isAuthenticated = !!user;
 
   return (
@@ -60,6 +61,7 @@ export function AuthProvider({ children }) {
       token,
       isLoading,
       isAdmin,
+      isScorekeeper,
       isAuthenticated,
       login,
       register,

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'kalife-2026-secret-key-change-in-production';
@@ -95,6 +95,47 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', authMiddleware, async (req, res) => {
   res.json({ user: req.user });
+});
+
+// GET /api/auth/users (Protected: Admin)
+router.get('/users', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT id, email, name, role, created_at FROM users WHERE organization_id = $1 ORDER BY created_at DESC',
+      [req.orgId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/users (Protected: Admin) - Create new users with specific roles
+router.post('/users', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { email, password, name, role } = req.body;
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'All fields (email, password, name) are required' });
+    }
+
+    const checkUser = await query('SELECT id FROM users WHERE email = $1', [email]);
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User with this email is already registered' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+    const finalRole = role || 'viewer';
+
+    const result = await query(
+      'INSERT INTO users (organization_id, email, password_hash, name, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, role, created_at',
+      [req.orgId, email, passwordHash, name, finalRole]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

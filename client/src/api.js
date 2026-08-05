@@ -68,4 +68,6 @@ export const authApi = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   me: () => api.get('/auth/me'),
+  getUsers: () => api.get('/auth/users'),
+  createUser: (userData) => api.post('/auth/users', userData),
 };

@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import Navigation from './Navigation.jsx';
 import SponsorsRibbon from './SponsorsRibbon.jsx';
 import { useSettings } from '../hooks/useFixtures.js';
+import { useLiveUpdates } from '../hooks/useLiveUpdates.js';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { LogOut, Key, UserCheck } from 'lucide-react';
@@ -12,6 +13,9 @@ export default function Layout() {
   const { clearOrg } = useOrganization();
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // Enable global real-time updates for all pages within the layout
+  useLiveUpdates();
 
   const orgName = settings?.org_name || 'KALIFE 2026 Sports Day';
   const eventTitle = settings?.event_title || 'Inter-District Championship';
