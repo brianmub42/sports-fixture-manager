@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useFixtures, useSettings } from '../hooks/useFixtures.js';
 import { useLiveUpdates } from '../hooks/useLiveUpdates.js';
 import TeamPill from '../components/TeamPill.jsx';
+import MatchTimerDisplay from '../components/MatchTimerDisplay.jsx';
 import { Trophy, Clock, Tv } from 'lucide-react';
 
 export default function TvMode() {
@@ -99,7 +100,10 @@ export default function TvMode() {
                         <span className="text-gray-600 text-5xl">-</span>
                         <span className={f.score_b > f.score_a ? 'text-white' : 'text-gray-400'}>{f.score_b ?? 0}</span>
                       </div>
-                      <span className="text-red-500 font-bold tracking-widest text-sm uppercase mt-4 animate-pulse">Live</span>
+                      <div className="flex flex-col items-center gap-2 mt-4">
+                        <span className="text-red-500 font-bold tracking-widest text-sm uppercase animate-pulse">Live</span>
+                        <MatchTimerDisplay fixtureId={f.id} defaultMinutes={f.duration_minutes || 10} />
+                      </div>
                     </div>
 
                     <div className="flex flex-col items-center gap-4 w-1/3">

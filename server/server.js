@@ -57,6 +57,15 @@ io.on('connection', (socket) => {
       console.log(`Client ${socket.id} joined tenant-${orgId}`);
     }
   });
+  
+  socket.on('timer-update', (data) => {
+    if (data.orgId) {
+      socket.to(`tenant-${data.orgId}`).emit('timer-update', data);
+    } else {
+      socket.broadcast.emit('timer-update', data);
+    }
+  });
+
   socket.on('disconnect', () => console.log('Client disconnected:', socket.id));
 });
 

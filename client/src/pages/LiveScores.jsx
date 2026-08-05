@@ -1,6 +1,7 @@
 import { useFixtures, useUpdateScore } from '../hooks/useFixtures.js';
 import SportTag from '../components/SportTag.jsx';
 import TeamPill from '../components/TeamPill.jsx';
+import MatchTimerControl from '../components/MatchTimerControl.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function LiveScores() {
@@ -73,6 +74,9 @@ export default function LiveScores() {
                 Forfeit A (0-20)
               </button>
             </div>
+            )}
+            {isAuthenticated && (
+              <MatchTimerControl fixtureId={f.id} defaultMinutes={f.duration_minutes || 10} />
             )}
           </div>
         ))}
