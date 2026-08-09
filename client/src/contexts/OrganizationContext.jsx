@@ -5,6 +5,12 @@ const OrganizationContext = createContext(null);
 
 export function OrganizationProvider({ children }) {
   const [currentOrgSlug, setCurrentOrgSlug] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlSlug = params.get('workspace');
+    if (urlSlug) {
+      localStorage.setItem('organization_slug', urlSlug);
+      return urlSlug;
+    }
     return localStorage.getItem('organization_slug') || '';
   });
 
@@ -22,21 +28,25 @@ export function OrganizationProvider({ children }) {
   }, [currentOrgSlug]);
 
   const selectOrg = (slug) => {
+    localStorage.removeItem('token'); // Clear old tenant token to prevent cross-tenant permission conflicts
+    localStorage.setItem('organization_slug', slug); // Synchronously save to prevent race condition
     setCurrentOrgSlug(slug);
-    // Reload page or refetch queries to apply headers
     window.location.reload();
   };
 
   const clearOrg = () => {
     setCurrentOrgSlug('');
     localStorage.removeItem('organization_slug');
+    localStorage.removeItem('token'); // Clear token when switching back to workspace selection
     window.location.reload();
   };
 
   const createOrg = async (name, eventTitle) => {
     const newOrg = await createOrgMutation.mutateAsync({ name, event_title: eventTitle });
+    localStorage.removeItem('token'); // Clear old tenant token
+    localStorage.setItem('organization_slug', newOrg.slug); // Synchronously save to prevent race condition
     setCurrentOrgSlug(newOrg.slug);
-    window.location.reload();
+    window.location.href = '/login?register=true'; // Redirect to register as the admin of the new workspace
   };
 
   return (

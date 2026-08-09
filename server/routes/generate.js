@@ -6,13 +6,13 @@ import { detectConflicts } from '../lib/conflictDetector.js';
 
 const router = Router();
 
-async function getOrCreateDistrict(orgId, identifier) {
+async function getOrCreateTeam(orgId, identifier) {
   const cleanId = identifier.trim();
   if (!cleanId) return null;
 
   // 1. Try to find by code (exact match, uppercase) or name (case-insensitive)
   const exactRes = await query(
-    'SELECT id, code, name, color FROM districts WHERE (UPPER(code) = $1 OR UPPER(name) = $2) AND organization_id = $3',
+    'SELECT id, code, name, color FROM teams WHERE (UPPER(code) = $1 OR UPPER(name) = $2) AND organization_id = $3',
     [cleanId.toUpperCase(), cleanId.toUpperCase(), orgId]
   );
 
@@ -39,7 +39,7 @@ async function getOrCreateDistrict(orgId, identifier) {
     let suffix = 1;
     let isUnique = false;
     while (!isUnique) {
-      const checkRes = await query('SELECT id FROM districts WHERE code = $1 AND organization_id = $2', [candidate, orgId]);
+      const checkRes = await query('SELECT id FROM teams WHERE code = $1 AND organization_id = $2', [candidate, orgId]);
       if (checkRes.rows.length === 0) {
         isUnique = true;
       } else {
@@ -62,7 +62,7 @@ async function getOrCreateDistrict(orgId, identifier) {
   const color = colors[Math.floor(Math.random() * colors.length)];
 
   const insertRes = await query(
-    'INSERT INTO districts (organization_id, code, name, color) VALUES ($1, $2, $3, $4) RETURNING id, code, name, color',
+    'INSERT INTO teams (organization_id, code, name, color) VALUES ($1, $2, $3, $4) RETURNING id, code, name, color',
     [orgId, code, name, color]
   );
   
@@ -108,6 +108,14 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'At least 1 venue required' });
     }
 
+    const concurrentNum = parseInt(concurrent) || 1;
+    if (concurrentNum > venues.length) {
+      return res.status(400).json({ error: `Matches Per Round (${concurrentNum}) cannot exceed the number of venues (${venues.length}).` });
+    }
+    if (concurrentNum * 2 > teams.length) {
+      return res.status(400).json({ error: `Matches Per Round (${concurrentNum}) requires at least ${concurrentNum * 2} active teams, but only ${teams.length} team(s) were provided.` });
+    }
+
     // Get sport ID (auto-create missing)
     let sportRes = await query('SELECT id, win_points, draw_points FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
     if (sportRes.rows.length === 0) {
@@ -128,17 +136,17 @@ router.post('/', authMiddleware, async (req, res) => {
       venueIds.push({ id: vRes.rows[0].id, name: venueName });
     }
 
-    // Resolve all input team names/codes to district database objects (creating them if missing)
-    const districtMap = {}; // Maps input string -> district object
+    // Resolve all input team names/codes to team database objects (creating them if missing)
+    const teamMap = {}; // Maps input string -> team object
     const allTeamInputs = groups ? groups.flat() : teams;
     for (const input of allTeamInputs) {
-      const district = await getOrCreateDistrict(req.orgId, input);
-      districtMap[input] = district;
+      const teamObj = await getOrCreateTeam(req.orgId, input);
+      teamMap[input] = teamObj;
     }
 
     // Map scheduler input to use unique codes
-    const teamsForScheduler = teams.map(t => districtMap[t].code);
-    const groupsForScheduler = groups ? groups.map(group => group.map(t => districtMap[t].code)) : null;
+    const teamsForScheduler = teams.map(t => teamMap[t].code);
+    const groupsForScheduler = groups ? groups.map(group => group.map(t => teamMap[t].code)) : null;
 
     // Generate schedule
     const schedule = generateSchedule({
@@ -152,17 +160,17 @@ router.post('/', authMiddleware, async (req, res) => {
       groups: groupsForScheduler
     });
 
-    // Create a map from code to district object to look up by match.pair codes
-    const districtByCode = {};
-    Object.values(districtMap).forEach(d => {
-      districtByCode[d.code] = d;
+    // Create a map from code to team object to look up by match.pair codes
+    const teamByCode = {};
+    Object.values(teamMap).forEach(t => {
+      teamByCode[t.code] = t;
     });
 
     // Build response fixtures
     const fixtures = schedule.map((match, idx) => {
       // For playoff brackets, future-round teams may be null until previous round is played
-      const teamA = match.pair[0] ? districtByCode[match.pair[0]] : null;
-      const teamB = match.pair[1] ? districtByCode[match.pair[1]] : null;
+      const teamA = match.pair[0] ? teamByCode[match.pair[0]] : null;
+      const teamB = match.pair[1] ? teamByCode[match.pair[1]] : null;
       return {
         id: `gen-${idx}`,
         round: match.round,
@@ -196,8 +204,8 @@ router.post('/', authMiddleware, async (req, res) => {
       FROM fixtures f
       JOIN venues v ON f.venue_id = v.id
       JOIN sports s ON f.sport_id = s.id
-      JOIN districts a ON f.team_a_id = a.id
-      JOIN districts b ON f.team_b_id = b.id
+      JOIN teams a ON f.team_a_id = a.id
+      JOIN teams b ON f.team_b_id = b.id
       WHERE f.organization_id = $1
     `, [req.orgId]);
 
@@ -240,16 +248,6 @@ router.post('/', authMiddleware, async (req, res) => {
     console.error('Generate error:', err);
     res.status(500).json({ error: err.message });
   }
-});
-
-/**
- * POST /api/generate/preview
- * Same as above but never saves to DB — for preview only
- */
-router.post('/preview', async (req, res) => {
-  req.body.saveToDb = false;
-  // Forward to main handler
-  return router.handle(req, res); // Actually we'll just call the logic directly
 });
 
 export default router;

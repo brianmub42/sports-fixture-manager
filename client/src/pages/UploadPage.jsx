@@ -44,7 +44,7 @@ export default function UploadPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'kalife-fixtures-template.xlsx';
+      a.download = 'fixturegrid-fixtures-template.xlsx';
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
@@ -175,13 +175,13 @@ export default function UploadPage() {
                 <td className="py-2 px-2 font-mono">team_a</td>
                 <td className="py-2 px-2">Yes</td>
                 <td className="py-2 px-2 font-mono">ZAM, BAR, HAL</td>
-                <td className="py-2 px-2">District code</td>
+                <td className="py-2 px-2">Team code</td>
               </tr>
               <tr className="border-b border-gray-100 dark:border-gray-800/50">
                 <td className="py-2 px-2 font-mono">team_b</td>
                 <td className="py-2 px-2">Yes</td>
-                <td className="py-2 px-2 font-mono">TOW, All Districts</td>
-                <td className="py-2 px-2">Use "All Districts" for track</td>
+                <td className="py-2 px-2 font-mono">TOW, All Teams</td>
+                <td className="py-2 px-2">Use "All Teams" for track</td>
               </tr>
               <tr className="border-b border-gray-100 dark:border-gray-800/50">
                 <td className="py-2 px-2 font-mono">scheduled_at</td>

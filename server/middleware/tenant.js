@@ -3,12 +3,12 @@ import { query } from '../db.js';
 export async function tenantMiddleware(req, res, next) {
   try {
     const path = req.path;
-    if (path === '/api/organizations' || path.startsWith('/api/auth') || path === '/api/health') {
+    if (path === '/api/organizations' || path === '/api/health') {
       return next();
     }
 
     const slugHeader = req.headers['x-organization-slug'];
-    const slug = slugHeader || 'kalife-2026';
+    const slug = slugHeader || 'demo-tournament';
 
     const orgRes = await query('SELECT id, name, event_title FROM organizations WHERE slug = $1', [slug]);
     if (orgRes.rows.length === 0) {

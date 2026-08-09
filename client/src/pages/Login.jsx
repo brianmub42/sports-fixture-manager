@@ -1,20 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { useNavigate } from 'react-router-dom';
+import { useSettings } from '../hooks/useFixtures.js';
 import { Lock, Mail, User, ShieldAlert, ArrowLeft, Loader2 } from 'lucide-react';
 
 export default function Login() {
   const { login, register, isAuthenticated } = useAuth();
   const { activeOrg } = useOrganization();
   const navigate = useNavigate();
-
-  const [isRegister, setIsRegister] = useState(false);
+  const { data: settings } = useSettings();
+ 
+  const [isRegister, setIsRegister] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('register') === 'true';
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // If a tenant already has users registered, disable public registration.
+  useEffect(() => {
+    if (settings?.has_users && isRegister) {
+      setIsRegister(false);
+      setError('Registration is closed for this workspace. Please sign in or contact your administrator.');
+    }
+  }, [settings, isRegister]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -142,16 +155,18 @@ export default function Login() {
         </form>
 
         {/* Form selector */}
-        <div className="text-center pt-4 border-t border-gray-150 dark:border-gray-800">
-          <button
-            onClick={() => setIsRegister(!isRegister)}
-            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            {isRegister
-              ? 'Already have an official account? Sign In'
-              : 'Register as first official / admin'}
-          </button>
-        </div>
+        {!settings?.has_users && (
+          <div className="text-center pt-4 border-t border-gray-150 dark:border-gray-800">
+            <button
+              onClick={() => setIsRegister(!isRegister)}
+              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              {isRegister
+                ? 'Already have an official account? Sign In'
+                : 'Register as first official / admin'}
+            </button>
+          </div>
+        )}
 
       </div>
     </div>

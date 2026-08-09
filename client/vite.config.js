@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'Sports Day Manager',
-        short_name: 'Sports',
-        description: 'Live sports tournament scoring and management app',
+        name: 'FixtureGrid Tournament Manager',
+        short_name: 'FixtureGrid',
+        description: 'Multi-tenant sports fixture management, live scoring, and championship tracking platform.',
         theme_color: '#2563eb',
         background_color: '#ffffff',
         display: 'standalone',

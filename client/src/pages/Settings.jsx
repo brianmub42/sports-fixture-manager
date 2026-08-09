@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useSettings, useUpdateSettings, useResetDatabase } from '../hooks/useFixtures.js';
-import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users } from 'lucide-react';
+import { useSettings, useUpdateSettings, useResetDatabase, useVenues, useCreateVenue, useDeleteVenue } from '../hooks/useFixtures.js';
+import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { settingsApi, authApi } from '../api.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -10,8 +11,9 @@ export default function Settings() {
   const updateSettings = useUpdateSettings();
   const resetDb = useResetDatabase();
   const { isAdmin, isAuthenticated } = useAuth();
+  const { currentOrgSlug } = useOrganization();
 
-  const [form, setForm] = useState({ org_name: '', event_title: '' });
+  const [form, setForm] = useState({ org_name: '', event_title: '', enable_player_registration: false });
   const [resetType, setResetType] = useState('fixtures_only');
   const [confirmText, setConfirmText] = useState('');
   const [resetSuccess, setResetSuccess] = useState(null);
@@ -33,14 +35,47 @@ export default function Settings() {
     enabled: isAuthenticated && isAdmin
   });
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'scorekeeper' });
+  const [createdUserCredentials, setCreatedUserCredentials] = useState(null);
   
   const createUserMutation = useMutation({
     mutationFn: (data) => authApi.createUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      setCreatedUserCredentials({
+        name: newUser.name,
+        email: newUser.email,
+        password: newUser.password,
+        role: newUser.role
+      });
       setNewUser({ name: '', email: '', password: '', role: 'scorekeeper' });
     }
   });
+
+  // Venue Management State
+  const { data: venues, isLoading: loadingVenues } = useVenues();
+  const [newVenue, setNewVenue] = useState({ name: '', type: 'court' });
+  const createVenueMutation = useCreateVenue();
+  const deleteVenueMutation = useDeleteVenue();
+
+  const handleCreateVenue = async (e) => {
+    e.preventDefault();
+    if (!newVenue.name.trim()) return;
+    try {
+      await createVenueMutation.mutateAsync(newVenue);
+      setNewVenue({ name: '', type: 'court' });
+    } catch (err) {
+      alert('Failed to add venue: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleDeleteVenue = async (id) => {
+    if (!confirm('Are you sure you want to delete this venue?')) return;
+    try {
+      await deleteVenueMutation.mutateAsync(id);
+    } catch (err) {
+      alert('Failed to delete venue: ' + (err.response?.data?.error || err.message));
+    }
+  };
 
   if (!isAuthenticated || !isAdmin) {
     return (
@@ -54,7 +89,11 @@ export default function Settings() {
 
   useEffect(() => {
     if (settings) {
-      setForm({ org_name: settings.org_name || '', event_title: settings.event_title || '' });
+      setForm({
+        org_name: settings.org_name || '',
+        event_title: settings.event_title || '',
+        enable_player_registration: !!settings.enable_player_registration
+      });
       setSponsors(settings.sponsors || []);
     }
   }, [settings]);
@@ -147,7 +186,7 @@ export default function Settings() {
               value={form.org_name}
               onChange={(e) => setForm({ ...form, org_name: e.target.value })}
               className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-              placeholder="e.g. KALIFE 2026 Sports Day"
+              placeholder="e.g. Oakridge High Sports"
             />
           </div>
 
@@ -161,6 +200,19 @@ export default function Settings() {
               className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               placeholder="e.g. Inter-District Championship"
             />
+          </div>
+
+          <div className="flex items-center gap-2 mt-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+            <input
+              type="checkbox"
+              id="enable_player_registration"
+              checked={form.enable_player_registration}
+              onChange={(e) => setForm({ ...form, enable_player_registration: e.target.checked })}
+              className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 cursor-pointer"
+            />
+            <label htmlFor="enable_player_registration" className="text-sm font-medium select-none cursor-pointer">
+              Enable Player Registration & Team Sheets (Lineups)
+            </label>
           </div>
         </div>
 
@@ -388,6 +440,116 @@ export default function Settings() {
           >
             <Plus size={14} />
             {createUserMutation.isLoading ? 'Creating...' : 'Create User'}
+          </button>
+        </form>
+
+        {createdUserCredentials && (
+          <div className="mt-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-3">
+            <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">User Created Successfully!</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Copy the invitation details below to share with <strong>{createdUserCredentials.name}</strong>:
+            </p>
+            <div className="p-3 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-800 text-xs font-mono select-all whitespace-pre-wrap">
+              {`Hello ${createdUserCredentials.name}!
+
+You have been added as a ${createdUserCredentials.role.toUpperCase()} for the "${form.org_name}" workspace.
+
+Workspace Link: ${window.location.origin}/login?workspace=${currentOrgSlug}
+Email: ${createdUserCredentials.email}
+Password: ${createdUserCredentials.password}
+
+Please log in to manage fixtures and scores.`}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const text = `Hello ${createdUserCredentials.name}!\n\nYou have been added as a ${createdUserCredentials.role.toUpperCase()} for the "${form.org_name}" workspace.\n\nWorkspace Link: ${window.location.origin}/login?workspace=${currentOrgSlug}\nEmail: ${createdUserCredentials.email}\nPassword: ${createdUserCredentials.password}\n\nPlease log in to manage fixtures and scores.`;
+                navigator.clipboard.writeText(text);
+                alert('Invitation copied to clipboard!');
+              }}
+              className="k-btn bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-1.5 px-3 rounded-lg cursor-pointer"
+            >
+              Copy Invitation Text
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Venue Management */}
+      <div className="k-card">
+        <div className="flex items-center gap-2 mb-1">
+          <MapPin size={18} className="text-emerald-500" />
+          <h2 className="text-lg font-semibold">Venue Management</h2>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+          Configure physical courts, fields, and pitches available for scheduling fixtures in this organization.
+        </p>
+
+        {/* Existing Venues List */}
+        <div className="space-y-2 mb-6">
+          {loadingVenues ? (
+            <div className="text-xs text-gray-400 italic py-2">Loading venues...</div>
+          ) : venues?.length === 0 ? (
+            <p className="text-xs text-gray-400 italic py-3 border border-dashed border-gray-200 dark:border-gray-800 rounded-lg text-center">
+              No venues registered yet. Generate fixtures to create them or add new ones below.
+            </p>
+          ) : (
+            venues?.map((v) => (
+              <div key={v.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800">
+                <div>
+                  <p className="text-sm font-semibold">{v.name}</p>
+                  <p className="text-xs text-gray-400 capitalize">{v.type}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteVenue(v.id)}
+                  className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  title="Delete Venue"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Add Venue Form */}
+        <form onSubmit={handleCreateVenue} className="border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Add New Venue</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-500">Venue Name *</label>
+              <input
+                type="text"
+                required
+                value={newVenue.name}
+                onChange={(e) => setNewVenue(s => ({ ...s, name: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                placeholder="e.g. Soccer Pitch A, VB Court 1"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-500">Venue Type</label>
+              <select
+                value={newVenue.type}
+                onChange={(e) => setNewVenue(s => ({ ...s, type: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                <option value="court">Court</option>
+                <option value="pitch">Pitch</option>
+                <option value="field">Field</option>
+                <option value="track">Track</option>
+                <option value="area">Area</option>
+              </select>
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={createVenueMutation.isLoading || !newVenue.name.trim()}
+            className="k-btn flex items-center gap-2 disabled:opacity-40 mt-2"
+          >
+            <Plus size={14} />
+            {createVenueMutation.isLoading ? 'Adding...' : 'Add Venue'}
           </button>
         </form>
       </div>

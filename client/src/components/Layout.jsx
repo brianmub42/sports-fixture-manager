@@ -17,9 +17,9 @@ export default function Layout() {
   // Enable global real-time updates for all pages within the layout
   useLiveUpdates();
 
-  const orgName = settings?.org_name || 'KALIFE 2026 Sports Day';
-  const eventTitle = settings?.event_title || 'Inter-District Championship';
-  const districtsCount = settings?.districts_count !== undefined ? settings.districts_count : 6;
+  const orgName = settings?.org_name || 'FixtureGrid Workspace';
+  const eventTitle = settings?.event_title || 'Tournament Championship';
+  const teamsCount = settings?.teams_count !== undefined ? settings.teams_count : (settings?.districts_count !== undefined ? settings.districts_count : 6);
   const sportsCount = settings?.sports_count !== undefined ? settings.sports_count : 5;
 
   return (
@@ -28,7 +28,7 @@ export default function Layout() {
         <div className="min-w-0">
           <h1 className="text-base sm:text-xl font-semibold truncate">{orgName}</h1>
           <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
-            {eventTitle} · {districtsCount} {districtsCount === 1 ? 'Team' : 'Teams'} · {sportsCount} {sportsCount === 1 ? 'Sport' : 'Sports'}
+            {eventTitle} · {teamsCount} {teamsCount === 1 ? 'Team' : 'Teams'} · {sportsCount} {sportsCount === 1 ? 'Sport' : 'Sports'}
           </p>
         </div>
         <div className="flex items-center gap-3 ml-auto flex-wrap">

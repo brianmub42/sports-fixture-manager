@@ -173,12 +173,12 @@ export async function generateAndSave(options) {
     venueIds[vName] = vRes.rows[0].id;
   }
 
-  // Get district IDs
-  const districtIds = {};
+  // Get team IDs
+  const teamIds = {};
   for (const code of teams) {
-    const dRes = await query('SELECT id FROM districts WHERE code = $1', [code]);
-    if (dRes.rows.length === 0) throw new Error(`District not found: ${code}`);
-    districtIds[code] = dRes.rows[0].id;
+    const tRes = await query('SELECT id FROM teams WHERE code = $1', [code]);
+    if (tRes.rows.length === 0) throw new Error(`Team not found: ${code}`);
+    teamIds[code] = tRes.rows[0].id;
   }
 
   let pairs;
@@ -218,8 +218,8 @@ export async function generateAndSave(options) {
       sportId,
       venueIds[s.venue],
       s.round,
-      districtIds[teamA],
-      districtIds[teamB],
+      teamIds[teamA],
+      teamIds[teamB],
       s.scheduledAt,
       s.duration,
       note,

@@ -64,7 +64,7 @@ export const exportStandingsToPDF = (standings, settings, currentSport) => {
   standings.forEach((team, index) => {
     tableRows.push([
       index + 1,
-      team.district_name || team.team_name,
+      team.name || team.team_name || team.district_name,
       team.played,
       team.won,
       team.drawn,

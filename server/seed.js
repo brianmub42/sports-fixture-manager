@@ -5,18 +5,18 @@ async function seed() {
 
   // Create default organization
   const orgRes = await query(
-    "INSERT INTO organizations (name, slug, event_title) VALUES ('KALIFE 2026 Sports Day', 'kalife-2026', 'Inter-District Championship') ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name RETURNING id"
+    "INSERT INTO organizations (name, slug, event_title) VALUES ('FixtureGrid Demo Tournament', 'demo-tournament', 'Inter-District Championship') ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name RETURNING id"
   );
   const orgId = orgRes.rows[0].id;
   console.log('Organization created/resolved with ID:', orgId);
 
   // Settings
-  await query("INSERT INTO settings (organization_id, key, value) VALUES ($1, 'org_name', 'KALIFE 2026 Sports Day') ON CONFLICT (organization_id, key) DO UPDATE SET value = EXCLUDED.value", [orgId]);
+  await query("INSERT INTO settings (organization_id, key, value) VALUES ($1, 'org_name', 'FixtureGrid Demo Tournament') ON CONFLICT (organization_id, key) DO UPDATE SET value = EXCLUDED.value", [orgId]);
   await query("INSERT INTO settings (organization_id, key, value) VALUES ($1, 'event_title', 'Inter-District Championship') ON CONFLICT (organization_id, key) DO UPDATE SET value = EXCLUDED.value", [orgId]);
   console.log('Branding settings seeded');
 
-  // Districts
-  const districts = [
+  // Teams
+  const teams = [
     ['ZAM', 'Zamar', '#2563eb'],
     ['BAR', 'Barak', '#dc2626'],
     ['HAL', 'Halal', '#16a34a'],
@@ -25,10 +25,10 @@ async function seed() {
     ['TOW', 'Towdah', '#0891b2']
   ];
 
-  for (const [code, name, color] of districts) {
-    await query('INSERT INTO districts (organization_id, code, name, color) VALUES ($1, $2, $3, $4) ON CONFLICT (organization_id, code) DO NOTHING', [orgId, code, name, color]);
+  for (const [code, name, color] of teams) {
+    await query('INSERT INTO teams (organization_id, code, name, color) VALUES ($1, $2, $3, $4) ON CONFLICT (organization_id, code) DO NOTHING', [orgId, code, name, color]);
   }
-  console.log('Districts seeded');
+  console.log('Teams seeded');
 
   // Sports
   const sports = [
@@ -79,17 +79,17 @@ async function seedFixtures(orgId) {
 
   const sportIds = {};
   const venueIds = {};
-  const districtIds = {};
+  const teamIds = {};
 
-  const [sportsRes, venuesRes, districtsRes] = await Promise.all([
+  const [sportsRes, venuesRes, teamsRes] = await Promise.all([
     query('SELECT id, name FROM sports WHERE organization_id = $1', [orgId]),
     query('SELECT id, name FROM venues WHERE organization_id = $1', [orgId]),
-    query('SELECT id, code FROM districts WHERE organization_id = $1', [orgId])
+    query('SELECT id, code FROM teams WHERE organization_id = $1', [orgId])
   ]);
 
   sportsRes.rows.forEach(s => sportIds[s.name] = s.id);
   venuesRes.rows.forEach(v => venueIds[v.name] = v.id);
-  districtsRes.rows.forEach(d => districtIds[d.code] = d.id);
+  teamsRes.rows.forEach(t => teamIds[t.code] = t.id);
 
   // Basketball
   for (let i = 0; i < bbPairs.length; i++) {
@@ -100,7 +100,7 @@ async function seedFixtures(orgId) {
       INSERT INTO fixtures (organization_id, sport_id, venue_id, round, team_a_id, team_b_id, scheduled_at, duration_minutes, status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, 10, 'upcoming')
       ON CONFLICT DO NOTHING
-    `, [orgId, sportIds['Basketball'], venueIds['BB Court'], `R${i+1}`, districtIds[a], districtIds[b], time]);
+    `, [orgId, sportIds['Basketball'], venueIds['BB Court'], `R${i+1}`, teamIds[a], teamIds[b], time]);
   }
 
   // Volleyball
@@ -113,7 +113,7 @@ async function seedFixtures(orgId) {
       INSERT INTO fixtures (organization_id, sport_id, venue_id, round, team_a_id, team_b_id, scheduled_at, duration_minutes, status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, 10, 'upcoming')
       ON CONFLICT DO NOTHING
-    `, [orgId, sportIds['Volleyball'], venueIds[vbCourts[i % 2]], `R${i+1}`, districtIds[a], districtIds[b], time]);
+    `, [orgId, sportIds['Volleyball'], venueIds[vbCourts[i % 2]], `R${i+1}`, teamIds[a], teamIds[b], time]);
   }
 
   // Soccer
@@ -126,7 +126,7 @@ async function seedFixtures(orgId) {
       INSERT INTO fixtures (organization_id, sport_id, venue_id, round, team_a_id, team_b_id, scheduled_at, duration_minutes, status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, 10, 'upcoming')
       ON CONFLICT DO NOTHING
-    `, [orgId, sportIds['Soccer'], venueIds[scPitches[i % 2]], `SR${i+1}`, districtIds[a], districtIds[b], time]);
+    `, [orgId, sportIds['Soccer'], venueIds[scPitches[i % 2]], `SR${i+1}`, teamIds[a], teamIds[b], time]);
   }
 
   // Tug of War
@@ -147,7 +147,7 @@ async function seedFixtures(orgId) {
       INSERT INTO fixtures (organization_id, sport_id, venue_id, round, team_a_id, team_b_id, scheduled_at, duration_minutes, status, notes)
       VALUES ($1, $2, $3, $4, $5, $6, $7, 10, 'upcoming', $8)
       ON CONFLICT DO NOTHING
-    `, [orgId, sportIds['Tug of War'], venueIds[venue], round, districtIds[a], districtIds[b], time, note]);
+    `, [orgId, sportIds['Tug of War'], venueIds[venue], round, teamIds[a], teamIds[b], time, note]);
   }
 
   console.log('Fixtures seeded');

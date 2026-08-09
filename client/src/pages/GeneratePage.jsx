@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateApi } from '../api.js';
 import { Wand2, Save, Clock, Users, MapPin, Calendar, RotateCcw, CheckCircle, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useVenues } from '../hooks/useFixtures.js';
 
 const SPORTS = ['Basketball', 'Volleyball', 'Soccer', 'Tug of War', 'Athletics', 'Novelty'];
 const FORMATS = [
@@ -13,6 +14,7 @@ const FORMATS = [
 
 export default function GeneratePage() {
   const { isAuthenticated } = useAuth();
+  const { data: registeredVenues } = useVenues();
   const [form, setForm] = useState({
     teams: 'ZAM, BAR, HAL, SHA, TEH, TOW',
     sport: 'Basketball',
@@ -29,6 +31,12 @@ export default function GeneratePage() {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (registeredVenues && registeredVenues.length > 0 && form.venues === 'BB Court') {
+      setForm(prev => ({ ...prev, venues: registeredVenues.map(v => v.name).join(', ') }));
+    }
+  }, [registeredVenues]);
 
   if (!isAuthenticated) {
     return (
@@ -50,13 +58,25 @@ export default function GeneratePage() {
   const parseTeams = () => form.teams.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
   const parseVenues = () => form.venues.split(',').map(v => v.trim()).filter(Boolean);
 
+  const validateParams = (teams, venues, concurrent) => {
+    if (concurrent > venues.length) {
+      throw new Error(`Matches Per Round (${concurrent}) cannot exceed the number of venues (${venues.length}). Please add more venues or reduce Matches Per Round.`);
+    }
+    if (concurrent * 2 > teams.length) {
+      throw new Error(`Matches Per Round (${concurrent}) requires at least ${concurrent * 2} teams playing concurrently, but only ${teams.length} team(s) were provided. Please reduce Matches Per Round or add more teams.`);
+    }
+  };
+
   const buildPayload = () => {
     const teams = parseTeams();
     const venues = parseVenues();
+    const concurrent = parseInt(form.concurrent);
 
     if (form.format === 'playoff' && teams.length !== 4 && teams.length !== 8) {
       throw new Error('Playoff format currently requires exactly 4 or 8 teams.');
     }
+
+    validateParams(teams, venues, concurrent);
 
     const payload = {
       teams,
@@ -66,7 +86,7 @@ export default function GeneratePage() {
       breakMinutes: parseInt(form.breakTime),
       format: form.format,
       venues,
-      concurrent: parseInt(form.concurrent),
+      concurrent,
     };
 
     if (form.format === 'group') {
@@ -224,6 +244,50 @@ export default function GeneratePage() {
               />
             </div>
             <p className="text-xs text-gray-400 mt-1">{parseVenues().length} venues detected</p>
+
+            {registeredVenues && registeredVenues.length > 0 && (
+              <div className="mt-2 space-y-1.5">
+                <span className="text-xs text-gray-400 block font-medium">Or select from registered venues:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {registeredVenues.map(v => {
+                    const currentList = parseVenues().map(n => n.toUpperCase());
+                    const isSelected = currentList.includes(v.name.toUpperCase());
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => {
+                          const normalList = parseVenues();
+                          let newList;
+                          if (isSelected) {
+                            newList = normalList.filter(name => name.toUpperCase() !== v.name.toUpperCase());
+                          } else {
+                            newList = [...normalList, v.name];
+                          }
+                          handleChange('venues', newList.join(', '));
+                        }}
+                        className={`px-2 py-1 rounded text-xs font-medium border transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400'
+                            : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400'
+                        }`}
+                      >
+                        {v.name}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleChange('venues', registeredVenues.map(v => v.name).join(', '));
+                    }}
+                    className="px-2 py-1 rounded text-xs font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Concurrent */}

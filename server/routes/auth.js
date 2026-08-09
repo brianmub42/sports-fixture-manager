@@ -25,8 +25,11 @@ router.post('/register', async (req, res) => {
     const orgUsersCount = await query('SELECT count(*)::int as count FROM users WHERE organization_id = $1', [req.orgId]);
     const isFirstUser = orgUsersCount.rows[0].count === 0;
 
-    // Default first user of workspace to admin, others to viewer (or role if specified)
-    const finalRole = isFirstUser ? 'admin' : (role || 'viewer');
+    if (!isFirstUser) {
+      return res.status(400).json({ error: 'Registration is closed for this workspace. Please contact your administrator to get an account.' });
+    }
+
+    const finalRole = 'admin';
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);

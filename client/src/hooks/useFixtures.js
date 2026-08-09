@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fixturesApi, scoresApi, districtsApi, settingsApi, organizationsApi } from '../api.js';
+import { fixturesApi, scoresApi, teamsApi, settingsApi, organizationsApi, venuesApi } from '../api.js';
 
 export function useOrganizations() {
   return useQuery({
@@ -25,32 +25,37 @@ export function useFixtures(filters = {}) {
   });
 }
 
-export function useDistrictSchedule(code) {
+export function useTeamSchedule(code) {
   return useQuery({
     queryKey: ['schedule', code],
-    queryFn: () => fixturesApi.getDistrictSchedule(code).then(r => r.data),
+    queryFn: () => fixturesApi.getTeamSchedule(code).then(r => r.data),
     enabled: !!code,
   });
 }
 
+export const useDistrictSchedule = useTeamSchedule;
+
 export function useUpdateScore() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, score_a, score_b }) => scoresApi.update(id, { score_a, score_b }),
+    mutationFn: ({ id, ...data }) => scoresApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries(['fixtures']);
       queryClient.invalidateQueries(['standings']);
       queryClient.invalidateQueries(['log']);
+      queryClient.invalidateQueries(['analytics']);
     },
   });
 }
 
-export function useDistricts() {
+export function useTeams() {
   return useQuery({
-    queryKey: ['districts'],
-    queryFn: () => districtsApi.getAll().then(r => r.data),
+    queryKey: ['teams'],
+    queryFn: () => teamsApi.getAll().then(r => r.data),
   });
 }
+
+export const useDistricts = useTeams;
 
 export function useSettings() {
   return useQuery({
@@ -75,6 +80,33 @@ export function useResetDatabase() {
     mutationFn: (type) => settingsApi.reset(type),
     onSuccess: () => {
       queryClient.invalidateQueries();
+    },
+  });
+}
+
+export function useVenues() {
+  return useQuery({
+    queryKey: ['venues'],
+    queryFn: () => venuesApi.getAll().then(r => r.data),
+  });
+}
+
+export function useCreateVenue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => venuesApi.create(data).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['venues']);
+    },
+  });
+}
+
+export function useDeleteVenue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => venuesApi.delete(id).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['venues']);
     },
   });
 }

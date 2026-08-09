@@ -26,8 +26,8 @@ router.post('/fixtures', authMiddleware, upload.single('file'), async (req, res)
         const round = row.round || row.Round || row.ROUND || '';
         const venueName = row.venue || row.Venue || row.VENUE;
         const sportName = row.sport || row.Sport || row.SPORT;
-        const teamA = row.team_a || row.teamA || row['Team A'] || row['Team A'];
-        const teamB = row.team_b || row.teamB || row['Team B'] || row['Team B'];
+        const teamA = row.team_a || row.teamA || row['Team A'];
+        const teamB = row.team_b || row.teamB || row['Team B'];
         const scheduledAt = row.scheduled_at || row.scheduledAt || row['Scheduled At'];
 
         if (!sportName || !teamA || !teamB) {
@@ -51,18 +51,18 @@ router.post('/fixtures', authMiddleware, upload.single('file'), async (req, res)
           venueId = newVenue.rows[0].id;
         }
 
-        const teamARes = await query('SELECT id FROM districts WHERE code = $1 AND organization_id = $2', [teamA, req.orgId]);
+        const teamARes = await query('SELECT id FROM teams WHERE code = $1 AND organization_id = $2', [teamA, req.orgId]);
         if (teamARes.rows.length === 0) {
-          results.errors.push(`District not found: ${teamA}`);
+          results.errors.push(`Team not found: ${teamA}`);
           continue;
         }
         const teamAId = teamARes.rows[0].id;
 
         let teamBId = null;
-        if (teamB !== 'All Districts') {
-          const teamBRes = await query('SELECT id FROM districts WHERE code = $1 AND organization_id = $2', [teamB, req.orgId]);
+        if (teamB !== 'All Teams' && teamB !== 'All Districts') {
+          const teamBRes = await query('SELECT id FROM teams WHERE code = $1 AND organization_id = $2', [teamB, req.orgId]);
           if (teamBRes.rows.length === 0) {
-            results.errors.push(`District not found: ${teamB}`);
+            results.errors.push(`Team not found: ${teamB}`);
             continue;
           }
           teamBId = teamBRes.rows[0].id;
@@ -91,21 +91,22 @@ router.post('/fixtures', authMiddleware, upload.single('file'), async (req, res)
 router.post('/logo', authMiddleware, requireAdmin, upload.single('logo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No logo uploaded' });
-    const { districtCode } = req.body;
-    if (!districtCode) return res.status(400).json({ error: 'District code required' });
+    const { teamCode, districtCode } = req.body;
+    const targetCode = teamCode || districtCode;
+    if (!targetCode) return res.status(400).json({ error: 'Team code required' });
 
     const logoUrl = `${process.env.API_URL || 'http://localhost:3000'}/uploads/${req.file.filename}`;
     
     const result = await query(
-      'UPDATE districts SET logo_url = $1 WHERE code = $2 AND organization_id = $3 RETURNING *',
-      [logoUrl, districtCode, req.orgId]
+      'UPDATE teams SET logo_url = $1 WHERE code = $2 AND organization_id = $3 RETURNING *',
+      [logoUrl, targetCode, req.orgId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'District not found' });
+      return res.status(404).json({ error: 'Team not found' });
     }
 
-    res.json({ success: true, district: result.rows[0] });
+    res.json({ success: true, team: result.rows[0], district: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -124,7 +125,7 @@ router.get('/template', (req, res) => {
   xlsx.utils.book_append_sheet(wb, ws, 'Fixtures');
 
   const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  res.setHeader('Content-Disposition', 'attachment; filename=kalife-fixtures-template.xlsx');
+  res.setHeader('Content-Disposition', 'attachment; filename=fixtures-template.xlsx');
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.send(buffer);
 });

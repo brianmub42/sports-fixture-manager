@@ -7,7 +7,7 @@ const router = Router();
 // PATCH /api/scores/:id
 router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
   try {
-    const { score_a, score_b } = req.body;
+    const { score_a, score_b, playerId, pointsScored } = req.body;
     const fixtureId = req.params.id;
 
     // Get fixture details
@@ -35,6 +35,14 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
       INSERT INTO score_logs (fixture_id, old_score_a, old_score_b, new_score_a, new_score_b)
       VALUES ($1, $2, $3, $4, $5)
     `, [fixtureId, fixture.score_a, fixture.score_b, score_a, score_b]);
+
+    // Record player stat if provided
+    if (playerId) {
+      await query(`
+        INSERT INTO player_stats (fixture_id, player_id, points_scored)
+        VALUES ($1, $2, $3)
+      `, [fixtureId, playerId, pointsScored || 1]);
+    }
 
     // Auto-advance playoff winner if applicable
     if (winnerId && fixture.round) {

@@ -13,11 +13,14 @@ router.get('/', async (req, res) => {
       settings[r.key] = r.value;
     });
 
-    const districtsCountRes = await query('SELECT count(*)::int as count FROM districts WHERE organization_id = $1', [req.orgId]);
+    const teamsCountRes = await query('SELECT count(*)::int as count FROM teams WHERE organization_id = $1', [req.orgId]);
     const sportsCountRes = await query('SELECT count(*)::int as count FROM sports WHERE organization_id = $1', [req.orgId]);
+    const usersCountRes = await query('SELECT count(*)::int as count FROM users WHERE organization_id = $1', [req.orgId]);
+    const hasUsers = usersCountRes.rows[0].count > 0;
 
     const orgName = settings.org_name || req.orgInfo.name;
     const eventTitle = settings.event_title || req.orgInfo.event_title;
+    const enablePlayerRegistration = settings.enable_player_registration === 'true';
 
     // Parse sponsors JSON safely
     let sponsors = [];
@@ -26,9 +29,12 @@ router.get('/', async (req, res) => {
     res.json({
       org_name: orgName,
       event_title: eventTitle,
-      districts_count: districtsCountRes.rows[0].count,
+      teams_count: teamsCountRes.rows[0].count,
+      districts_count: teamsCountRes.rows[0].count, // backward compatibility
       sports_count: sportsCountRes.rows[0].count,
-      sponsors
+      sponsors,
+      enable_player_registration: enablePlayerRegistration,
+      has_users: hasUsers
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -38,7 +44,7 @@ router.get('/', async (req, res) => {
 // POST /api/settings
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { org_name, event_title } = req.body;
+    const { org_name, event_title, enable_player_registration } = req.body;
     if (org_name !== undefined) {
       await query(
         "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'org_name', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
@@ -52,6 +58,12 @@ router.post('/', authMiddleware, async (req, res) => {
         [req.orgId, event_title]
       );
       await query("UPDATE organizations SET event_title = $1 WHERE id = $2", [event_title, req.orgId]);
+    }
+    if (enable_player_registration !== undefined) {
+      await query(
+        "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'enable_player_registration', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
+        [req.orgId, enable_player_registration ? 'true' : 'false']
+      );
     }
     res.json({ success: true });
   } catch (err) {
@@ -86,7 +98,7 @@ router.post('/reset', authMiddleware, requireAdmin, async (req, res) => {
       await query('DELETE FROM fixtures WHERE organization_id = $1', [req.orgId]);
       await query('DELETE FROM athletics_events WHERE organization_id = $1', [req.orgId]);
       await query('DELETE FROM venues WHERE organization_id = $1', [req.orgId]);
-      await query('DELETE FROM districts WHERE organization_id = $1', [req.orgId]);
+      await query('DELETE FROM teams WHERE organization_id = $1', [req.orgId]);
       await query('DELETE FROM sports WHERE organization_id = $1', [req.orgId]);
     } else {
       await query('DELETE FROM score_logs WHERE fixture_id IN (SELECT id FROM fixtures WHERE organization_id = $1)', [req.orgId]);
@@ -94,7 +106,7 @@ router.post('/reset', authMiddleware, requireAdmin, async (req, res) => {
       await query('DELETE FROM fixtures WHERE organization_id = $1', [req.orgId]);
       await query('DELETE FROM athletics_events WHERE organization_id = $1', [req.orgId]);
       await query('DELETE FROM venues WHERE organization_id = $1', [req.orgId]);
-      await query('DELETE FROM districts WHERE organization_id = $1', [req.orgId]);
+      await query('DELETE FROM teams WHERE organization_id = $1', [req.orgId]);
     }
 
     res.json({ success: true, message: 'Database reset completed successfully' });

@@ -9,11 +9,12 @@ import scoreRoutes from './routes/scores.js';
 import standingsRoutes from './routes/standings.js';
 import uploadRoutes from './routes/upload.js';
 import generateRoutes from './routes/generate.js';
-import districtRoutes from './routes/districts.js';
+import teamRoutes from './routes/teams.js';
 import settingsRoutes from './routes/settings.js';
 import organizationRoutes from './routes/organizations.js';
 import authRoutes from './routes/auth.js';
 import analyticsRoutes from './routes/analytics.js';
+import venueRoutes from './routes/venues.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 
 dotenv.config();
@@ -40,11 +41,12 @@ app.use('/api/scores', scoreRoutes);
 app.use('/api/standings', standingsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/generate', generateRoutes);
-app.use('/api/districts', districtRoutes);
+app.use('/api/teams', teamRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/venues', venueRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

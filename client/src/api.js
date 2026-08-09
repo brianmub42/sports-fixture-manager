@@ -20,7 +20,10 @@ api.interceptors.request.use((config) => {
 export const fixturesApi = {
   getAll: (params) => api.get('/fixtures', { params }),
   getById: (id) => api.get(`/fixtures/${id}`),
+  getTeamSchedule: (code) => api.get(`/fixtures/team/${code}/schedule`),
   getDistrictSchedule: (code) => api.get(`/fixtures/district/${code}/schedule`),
+  getLineups: (id) => api.get(`/fixtures/${id}/lineups`),
+  saveLineup: (id, data) => api.post(`/fixtures/${id}/lineups`, data),
 };
 
 export const scoresApi = {
@@ -56,9 +59,14 @@ export const generateApi = {
   generateAndSave: (data) => api.post('/generate', { ...data, saveToDb: true }),
 };
 
-export const districtsApi = {
-  getAll: () => api.get('/districts'),
+export const teamsApi = {
+  getAll: () => api.get('/teams'),
+  getPlayers: (id) => api.get(`/teams/${id}/players`),
+  addPlayer: (id, data) => api.post(`/teams/${id}/players`, data),
+  deletePlayer: (id, playerId) => api.delete(`/teams/${id}/players/${playerId}`),
 };
+
+export const districtsApi = teamsApi;
 
 export const analyticsApi = {
   getStats: () => api.get('/analytics'),
@@ -69,6 +77,12 @@ export const settingsApi = {
   update: (data) => api.post('/settings', data),
   reset: (type) => api.post('/settings/reset', { type }),
   saveSponsors: (sponsors) => api.post('/settings/sponsors', { sponsors }),
+};
+
+export const venuesApi = {
+  getAll: () => api.get('/venues'),
+  create: (data) => api.post('/venues', data),
+  delete: (id) => api.delete(`/venues/${id}`),
 };
 
 export const organizationsApi = {

@@ -10,7 +10,7 @@ import LiveScores from './pages/LiveScores.jsx';
 import Standings from './pages/Standings.jsx';
 import LogStandings from './pages/LogStandings.jsx';
 import Analytics from './pages/Analytics.jsx';
-import Districts from './pages/Districts.jsx';
+import Teams from './pages/Teams.jsx';
 import UploadPage from './pages/UploadPage.jsx';
 import GeneratePage from './pages/GeneratePage.jsx';
 import Settings from './pages/Settings.jsx';
@@ -36,7 +36,7 @@ function App() {
             <Route path="/standings" element={<Standings />} />
             <Route path="/log" element={<LogStandings />} />
             <Route path="/analytics" element={<Analytics />} />
-            <Route path="/districts" element={<Districts />} />
+            <Route path="/teams" element={<Teams />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/generate" element={<GeneratePage />} />
             <Route path="/settings" element={<Settings />} />

@@ -21,7 +21,7 @@ export default function LogStandings() {
           <div className="min-w-[600px]">
             <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 font-medium mb-2 text-center">
               <span>#</span>
-              <span className="text-left col-span-2">District</span>
+              <span className="text-left col-span-2">Team</span>
               <span>BB</span><span>VB</span><span>SC</span><span>TOW</span><span>ATH</span><span>NOV</span>
               <span>Total</span>
             </div>

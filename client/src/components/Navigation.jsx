@@ -9,7 +9,7 @@ const links = [
   { to: '/standings', label: 'Standings', icon: BarChart3 },
   { to: '/log', label: 'Log', icon: List },
   { to: '/analytics', label: 'Analytics', icon: LineChart },
-  { to: '/districts', label: 'Districts', icon: MapPin },
+  { to: '/teams', label: 'Teams', icon: MapPin },
   { to: '/generate', label: 'Generate', icon: Wand2 },
   { to: '/upload', label: 'Upload', icon: Upload },
   { to: '/settings', label: 'Settings', icon: Settings },
