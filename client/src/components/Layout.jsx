@@ -6,7 +6,7 @@ import { useSettings } from '../hooks/useFixtures.js';
 import { useLiveUpdates } from '../hooks/useLiveUpdates.js';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { LogOut, Key, UserCheck } from 'lucide-react';
+import { LogOut, Key, UserCheck, Settings as SettingsIcon } from 'lucide-react';
 
 export default function Layout() {
   const { data: settings } = useSettings();
@@ -38,6 +38,16 @@ export default function Layout() {
                 <UserCheck className="w-3.5 h-3.5 text-blue-500" />
                 Logged in: <strong className="text-gray-800 dark:text-gray-200">{user.name}</strong> ({user.role})
               </span>
+              {user.role === 'admin' && (
+                <button 
+                  onClick={() => navigate('/settings')}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 transition-colors cursor-pointer"
+                  title="Workspace Settings"
+                >
+                  <SettingsIcon className="w-3.5 h-3.5" />
+                  <span>Settings</span>
+                </button>
+              )}
               <button 
                 onClick={logout} 
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-red-200 dark:border-red-950/30 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
