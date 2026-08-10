@@ -17,6 +17,7 @@ import Settings from './pages/Settings.jsx';
 import Login from './pages/Login.jsx';
 import Brackets from './pages/Brackets.jsx';
 import TvMode from './pages/TvMode.jsx';
+import AthleticsPage from './pages/AthleticsPage.jsx';
 
 function App() {
   const { activeOrg } = useOrganization();
@@ -42,6 +43,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/login" element={<Login />} />
             <Route path="/brackets" element={<Brackets />} />
+            <Route path="/athletics" element={<AthleticsPage />} />
           </Route>
           <Route path="/tv" element={<TvMode />} />
         </Routes>

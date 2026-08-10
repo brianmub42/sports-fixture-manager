@@ -46,8 +46,8 @@ export default function Brackets() {
       </div>
     );
 
-    const isWinnerA = match.status === 'completed' && match.winner_id === match.team_a_id;
-    const isWinnerB = match.status === 'completed' && match.winner_id === match.team_b_id;
+    const isWinnerA = (match.status === 'completed' || match.status === 'draw') && match.winner_id === match.team_a_id;
+    const isWinnerB = (match.status === 'completed' || match.status === 'draw') && match.winner_id === match.team_b_id;
 
     return (
       <div className="k-card relative hover:shadow-md transition-shadow flex flex-col justify-between h-[120px]">
@@ -68,7 +68,7 @@ export default function Brackets() {
             renderPlaceholder(match.notes, 'team_a')
           )}
           <span className={`text-sm font-bold ${isWinnerA ? 'text-green-500' : 'text-gray-400'}`}>
-            {match.status === 'completed' ? match.score_a : '-'}
+            {match.status === 'completed' || match.status === 'draw' ? match.score_a : '-'}
           </span>
         </div>
 
@@ -83,7 +83,7 @@ export default function Brackets() {
             renderPlaceholder(match.notes, 'team_b')
           )}
           <span className={`text-sm font-bold ${isWinnerB ? 'text-green-500' : 'text-gray-400'}`}>
-            {match.status === 'completed' ? match.score_b : '-'}
+            {match.status === 'completed' || match.status === 'draw' ? match.score_b : '-'}
           </span>
         </div>
       </div>

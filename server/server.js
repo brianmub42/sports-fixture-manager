@@ -15,6 +15,7 @@ import organizationRoutes from './routes/organizations.js';
 import authRoutes from './routes/auth.js';
 import analyticsRoutes from './routes/analytics.js';
 import venueRoutes from './routes/venues.js';
+import athleticsRoutes from './routes/athletics.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 
 dotenv.config();
@@ -47,6 +48,7 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/venues', venueRoutes);
+app.use('/api/athletics', athleticsRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

@@ -54,4 +54,12 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+/* Projector Mode Timer Bar Animation */
+@keyframes projectorTimer {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
 
+.animate-projector-timer {
+  animation: projectorTimer var(--timer-duration, 5s) linear forwards;
+}

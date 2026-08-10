@@ -151,6 +151,23 @@ async function seedFixtures(orgId) {
   }
 
   console.log('Fixtures seeded');
+
+  // Seed Athletics & Novelty events
+  const placementEvents = [
+    ['100m Sprint', 'Men', 'Athletics', 'Track', '2026-08-01T10:00:00', 'upcoming'],
+    ['100m Sprint', 'Women', 'Athletics', 'Track', '2026-08-01T10:15:00', 'upcoming'],
+    ['400m Relay', 'Mixed', 'Athletics', 'Track', '2026-08-01T11:00:00', 'upcoming'],
+    ['Sack Race', 'Mixed', 'Novelty', 'Field 1', '2026-08-01T14:00:00', 'upcoming'],
+    ['Egg and Spoon Race', 'Mixed', 'Novelty', 'Field 2', '2026-08-01T14:30:00', 'upcoming']
+  ];
+
+  for (const [name, category, sportName, venueName, timeStr, status] of placementEvents) {
+    await query(`
+      INSERT INTO athletics_events (organization_id, sport_id, venue_id, name, category, scheduled_at, duration_minutes, status)
+      VALUES ($1, $2, $3, $4, $5, $6, 15, $7)
+    `, [orgId, sportIds[sportName], venueIds[venueName], name, category, new Date(timeStr), status]);
+  }
+  console.log('Athletics and Novelty events seeded');
 }
 
 seed().catch(err => {

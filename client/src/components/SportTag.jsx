@@ -1,4 +1,5 @@
-export default function SportTag({ sport }) {
+export default function SportTag({ sport, size }) {
+  const isLg = size === 'lg';
   const styles = {
     Basketball: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     Volleyball: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -9,7 +10,7 @@ export default function SportTag({ sport }) {
   };
   const abbrev = { Basketball: 'BB', Volleyball: 'VB', Soccer: 'SC', 'Tug of War': 'TOW', Athletics: 'ATH', Novelty: 'NOV' };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${styles[sport] || styles.Athletics}`}>
+    <span className={`inline-flex items-center ${isLg ? 'px-3 py-1 text-sm' : 'px-2 py-0.5 text-xs'} rounded-md font-semibold ${styles[sport] || styles.Athletics}`}>
       {abbrev[sport] || sport}
     </span>
   );

@@ -1,9 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { Trophy, Calendar, Activity, BarChart3, List, MapPin, Upload, Wand2, Settings, Network, Tv, LineChart } from 'lucide-react';
+import { Trophy, Calendar, Activity, BarChart3, List, MapPin, Upload, Wand2, Settings, Network, Tv, LineChart, Award } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: Trophy },
   { to: '/fixtures', label: 'Fixtures', icon: Calendar },
+  { to: '/athletics', label: 'Athletics & Novelty', icon: Award },
   { to: '/brackets', label: 'Brackets', icon: Network },
   { to: '/live', label: 'Live Scores', icon: Activity },
   { to: '/standings', label: 'Standings', icon: BarChart3 },
@@ -17,10 +19,19 @@ const links = [
 ];
 
 export default function Navigation() {
+  const { isAdmin } = useAuth();
+
+  const filteredLinks = links.filter(link => {
+    if (['/generate', '/upload', '/settings'].includes(link.to)) {
+      return isAdmin;
+    }
+    return true;
+  });
+
   return (
     <nav className="border-b border-gray-200 dark:border-gray-800 mb-4 overflow-x-auto nav-scroll">
       <div className="flex gap-0.5 sm:gap-1 min-w-max">
-        {links.map(({ to, label, icon: Icon }) => (
+        {filteredLinks.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

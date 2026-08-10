@@ -16,7 +16,7 @@ async function init() {
     // Drop old tables first to ensure the new schema is applied cleanly
     console.log('Dropping old tables...');
     await query(`
-      DROP TABLE IF EXISTS score_logs, fixture_lineups, athletics_results, fixtures, athletics_events, users, venues, sports, teams, settings, organizations CASCADE;
+      DROP TABLE IF EXISTS score_logs, fixture_lineups, player_stats, players, athletics_results, fixtures, athletics_events, users, venues, sports, teams, settings, organizations CASCADE;
     `);
 
     await query(sql);

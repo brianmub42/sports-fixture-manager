@@ -16,9 +16,9 @@ export function useLogStandings() {
   });
 }
 
-export function useAnalytics() {
+export function useAnalytics(sport) {
   return useQuery({
-    queryKey: ['analytics'],
-    queryFn: () => analyticsApi.getStats().then(r => r.data),
+    queryKey: ['analytics', sport],
+    queryFn: () => analyticsApi.getStats({ sport }).then(r => r.data),
   });
 }

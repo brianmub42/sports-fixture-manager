@@ -9,28 +9,115 @@ router.get('/', async (req, res) => {
   try {
     const { status, sport, team, district } = req.query;
     const teamFilter = team || district;
-    let sql = `
-      SELECT f.*, 
-        a.code as team_a_code, a.name as team_a_name, a.color as team_a_color, a.logo_url as team_a_logo,
-        b.code as team_b_code, b.name as team_b_name, b.color as team_b_color, b.logo_url as team_b_logo,
-        v.name as venue_name, s.name as sport_name
-      FROM fixtures f
-      JOIN teams a ON f.team_a_id = a.id
-      JOIN teams b ON f.team_b_id = b.id
-      JOIN venues v ON f.venue_id = v.id
-      JOIN sports s ON f.sport_id = s.id
-      WHERE f.organization_id = $1
-    `;
+
+    const isPlacementSport = sport === 'Athletics' || sport === 'Novelty';
+    const isAllSports = !sport;
+
+    let sqlParts = [];
     const params = [req.orgId];
     let idx = 2;
 
-    if (status) { sql += ` AND f.status = $${idx++}`; params.push(status); }
-    if (sport) { sql += ` AND s.name = $${idx++}`; params.push(sport); }
-    if (teamFilter) { sql += ` AND (a.code = $${idx} OR b.code = $${idx})`; params.push(teamFilter); }
+    // 1. Build Fixtures Query (for points-based sports)
+    if (isAllSports || (!isPlacementSport && sport)) {
+      let fixturesSql = `
+        SELECT f.id, f.organization_id, f.sport_id, f.venue_id, f.scheduled_at, f.duration_minutes, f.status,
+          a.name as team_a_name, a.code as team_a_code, a.color as team_a_color, a.logo_url as team_a_logo,
+          b.name as team_b_name, b.code as team_b_code, b.color as team_b_color, b.logo_url as team_b_logo,
+          f.score_a, f.score_b, f.winner_id, f.notes, f.created_at, f.updated_at,
+          v.name as venue_name, s.name as sport_name
+        FROM fixtures f
+        JOIN teams a ON f.team_a_id = a.id
+        JOIN teams b ON f.team_b_id = b.id
+        JOIN venues v ON f.venue_id = v.id
+        JOIN sports s ON f.sport_id = s.id
+        WHERE f.organization_id = $1
+      `;
+      let fIdx = idx;
+      let fParams = [...params];
+      if (status) { fixturesSql += ` AND f.status = $${fIdx++}`; fParams.push(status); }
+      if (sport) { fixturesSql += ` AND s.name = $${fIdx++}`; fParams.push(sport); }
+      if (teamFilter) { fixturesSql += ` AND (a.code = $${fIdx} OR b.code = $${fIdx})`; fParams.push(teamFilter); }
+      sqlParts.push({ sql: fixturesSql, params: fParams });
+    }
 
-    sql += ' ORDER BY f.scheduled_at ASC';
-    const result = await query(sql, params);
-    res.json(result.rows);
+    // 2. Build Athletics Events Query (for placement-based sports)
+    if (isAllSports || isPlacementSport) {
+      let athleticsSql = `
+        SELECT 
+          ae.id,
+          ae.organization_id,
+          ae.sport_id,
+          ae.venue_id,
+          ae.scheduled_at,
+          ae.duration_minutes,
+          ae.status,
+          ae.name || ' (' || ae.category || ')' as team_a_name,
+          NULL as team_a_code,
+          NULL as team_a_color,
+          NULL as team_a_logo,
+          (
+            SELECT string_agg(t.code || ': ' || ar.placement, ', ' ORDER BY ar.placement ASC)
+            FROM athletics_results ar
+            JOIN teams t ON ar.team_id = t.id
+            WHERE ar.event_id = ae.id AND ar.placement <= 3
+          ) as team_b_name,
+          NULL as team_b_code,
+          NULL as team_b_color,
+          NULL as team_b_logo,
+          NULL as score_a,
+          NULL as score_b,
+          NULL as winner_id,
+          NULL as notes,
+          ae.created_at,
+          ae.created_at as updated_at,
+          v.name as venue_name,
+          s.name as sport_name
+        FROM athletics_events ae
+        JOIN venues v ON ae.venue_id = v.id
+        JOIN sports s ON ae.sport_id = s.id
+        WHERE ae.organization_id = $1
+      `;
+      let aIdx = idx;
+      let aParams = [...params];
+      if (status) {
+        if (status === 'completed') {
+          athleticsSql += ` AND ae.status = 'completed'`;
+        } else if (status === 'upcoming') {
+          athleticsSql += ` AND ae.status = 'upcoming'`;
+        } else {
+          athleticsSql += ` AND ae.status = $${aIdx++}`;
+          aParams.push(status);
+        }
+      }
+      if (sport) {
+        athleticsSql += ` AND s.name = $${aIdx++}`;
+        aParams.push(sport);
+      }
+      if (teamFilter) {
+        athleticsSql += ` AND EXISTS (
+          SELECT 1 FROM athletics_results ar
+          JOIN teams t2 ON ar.team_id = t2.id
+          WHERE ar.event_id = ae.id AND t2.code = $${aIdx++}
+        )`;
+        aParams.push(teamFilter);
+      }
+      sqlParts.push({ sql: athleticsSql, params: aParams });
+    }
+
+    // Execute queries and merge results
+    let finalRows = [];
+    if (sqlParts.length === 1) {
+      const queryRes = await query(sqlParts[0].sql + ' ORDER BY scheduled_at ASC', sqlParts[0].params);
+      finalRows = queryRes.rows;
+    } else {
+      // Execute both separately to avoid param index conflicts in union
+      const resFixtures = await query(sqlParts[0].sql, sqlParts[0].params);
+      const resAthletics = await query(sqlParts[1].sql, sqlParts[1].params);
+      finalRows = [...resFixtures.rows, ...resAthletics.rows];
+      finalRows.sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+    }
+
+    res.json(finalRows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -58,8 +145,10 @@ router.get('/:id', async (req, res) => {
 router.get('/team/:code/schedule', async (req, res) => {
   try {
     const result = await query(`
-      SELECT f.*, a.code as team_a_code, a.name as team_a_name, a.color as team_a_color, a.logo_url as team_a_logo,
-        b.code as team_b_code, b.name as team_b_name, b.color as team_b_color, b.logo_url as team_b_logo,
+      SELECT f.id, f.organization_id, f.sport_id, f.venue_id, f.scheduled_at, f.duration_minutes, f.status,
+        a.name as team_a_name, a.code as team_a_code, a.color as team_a_color, a.logo_url as team_a_logo,
+        b.name as team_b_name, b.code as team_b_code, b.color as team_b_color, b.logo_url as team_b_logo,
+        f.score_a, f.score_b, f.winner_id, f.notes, f.created_at, f.updated_at,
         s.name as sport_name, v.name as venue_name
       FROM fixtures f
       JOIN teams a ON f.team_a_id = a.id
@@ -67,7 +156,49 @@ router.get('/team/:code/schedule', async (req, res) => {
       JOIN sports s ON f.sport_id = s.id
       JOIN venues v ON f.venue_id = v.id
       WHERE (a.code = $1 OR b.code = $1) AND f.organization_id = $2
-      ORDER BY f.scheduled_at ASC
+
+      UNION ALL
+
+      SELECT 
+        ae.id,
+        ae.organization_id,
+        ae.sport_id,
+        ae.venue_id,
+        ae.scheduled_at,
+        ae.duration_minutes,
+        ae.status,
+        ae.name || ' (' || ae.category || ')' as team_a_name,
+        NULL as team_a_code,
+        NULL as team_a_color,
+        NULL as team_a_logo,
+        (
+          SELECT string_agg(t.code || ': ' || ar.placement, ', ' ORDER BY ar.placement ASC)
+          FROM athletics_results ar
+          JOIN teams t ON ar.team_id = t.id
+          WHERE ar.event_id = ae.id AND ar.placement <= 3
+        ) as team_b_name,
+        NULL as team_b_code,
+        NULL as team_b_color,
+        NULL as team_b_logo,
+        NULL as score_a,
+        NULL as score_b,
+        NULL as winner_id,
+        NULL as notes,
+        ae.created_at,
+        ae.created_at as updated_at,
+        s.name as sport_name,
+        v.name as venue_name
+      FROM athletics_events ae
+      JOIN venues v ON ae.venue_id = v.id
+      JOIN sports s ON ae.sport_id = s.id
+      WHERE ae.organization_id = $2
+        AND EXISTS (
+          SELECT 1 FROM athletics_results ar
+          JOIN teams t2 ON ar.team_id = t2.id
+          WHERE ar.event_id = ae.id AND t2.code = $1
+        )
+
+      ORDER BY scheduled_at ASC
     `, [req.params.code, req.orgId]);
     res.json(result.rows);
   } catch (err) {
@@ -79,8 +210,10 @@ router.get('/team/:code/schedule', async (req, res) => {
 router.get('/district/:code/schedule', async (req, res) => {
   try {
     const result = await query(`
-      SELECT f.*, a.code as team_a_code, a.name as team_a_name, a.color as team_a_color, a.logo_url as team_a_logo,
-        b.code as team_b_code, b.name as team_b_name, b.color as team_b_color, b.logo_url as team_b_logo,
+      SELECT f.id, f.organization_id, f.sport_id, f.venue_id, f.scheduled_at, f.duration_minutes, f.status,
+        a.name as team_a_name, a.code as team_a_code, a.color as team_a_color, a.logo_url as team_a_logo,
+        b.name as team_b_name, b.code as team_b_code, b.color as team_b_color, b.logo_url as team_b_logo,
+        f.score_a, f.score_b, f.winner_id, f.notes, f.created_at, f.updated_at,
         s.name as sport_name, v.name as venue_name
       FROM fixtures f
       JOIN teams a ON f.team_a_id = a.id
@@ -88,7 +221,49 @@ router.get('/district/:code/schedule', async (req, res) => {
       JOIN sports s ON f.sport_id = s.id
       JOIN venues v ON f.venue_id = v.id
       WHERE (a.code = $1 OR b.code = $1) AND f.organization_id = $2
-      ORDER BY f.scheduled_at ASC
+
+      UNION ALL
+
+      SELECT 
+        ae.id,
+        ae.organization_id,
+        ae.sport_id,
+        ae.venue_id,
+        ae.scheduled_at,
+        ae.duration_minutes,
+        ae.status,
+        ae.name || ' (' || ae.category || ')' as team_a_name,
+        NULL as team_a_code,
+        NULL as team_a_color,
+        NULL as team_a_logo,
+        (
+          SELECT string_agg(t.code || ': ' || ar.placement, ', ' ORDER BY ar.placement ASC)
+          FROM athletics_results ar
+          JOIN teams t ON ar.team_id = t.id
+          WHERE ar.event_id = ae.id AND ar.placement <= 3
+        ) as team_b_name,
+        NULL as team_b_code,
+        NULL as team_b_color,
+        NULL as team_b_logo,
+        NULL as score_a,
+        NULL as score_b,
+        NULL as winner_id,
+        NULL as notes,
+        ae.created_at,
+        ae.created_at as updated_at,
+        s.name as sport_name,
+        v.name as venue_name
+      FROM athletics_events ae
+      JOIN venues v ON ae.venue_id = v.id
+      JOIN sports s ON ae.sport_id = s.id
+      WHERE ae.organization_id = $2
+        AND EXISTS (
+          SELECT 1 FROM athletics_results ar
+          JOIN teams t2 ON ar.team_id = t2.id
+          WHERE ar.event_id = ae.id AND t2.code = $1
+        )
+
+      ORDER BY scheduled_at ASC
     `, [req.params.code, req.orgId]);
     res.json(result.rows);
   } catch (err) {

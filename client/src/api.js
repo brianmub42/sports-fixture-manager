@@ -69,7 +69,16 @@ export const teamsApi = {
 export const districtsApi = teamsApi;
 
 export const analyticsApi = {
-  getStats: () => api.get('/analytics'),
+  getStats: (params) => api.get('/analytics', { params }),
+};
+
+export const athleticsApi = {
+  getSports: () => api.get('/athletics/sports'),
+  getEvents: () => api.get('/athletics/events'),
+  createEvent: (data) => api.post('/athletics/events', data),
+  updateEvent: (id, data) => api.put(`/athletics/events/${id}`, data),
+  deleteEvent: (id) => api.delete(`/athletics/events/${id}`),
+  saveResults: (id, results) => api.post(`/athletics/events/${id}/results`, { results }),
 };
 
 export const settingsApi = {

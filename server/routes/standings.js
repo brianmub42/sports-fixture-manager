@@ -8,6 +8,31 @@ router.get('/', async (req, res) => {
   try {
     const { sport } = req.query;
 
+    const sportRes = await query('SELECT * FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
+    const sportRow = sportRes.rows[0];
+    if (!sportRow) return res.status(404).json({ error: 'Sport not found' });
+
+    if (sportRow.scoring_type === 'placement') {
+      const result = await query(`
+        SELECT 
+          t.code, t.name, t.color, t.logo_url,
+          COUNT(DISTINCT ae.id) as played,
+          SUM(CASE WHEN ar.placement = 1 THEN 1 ELSE 0 END) as won,
+          0 as drawn,
+          0 as lost,
+          0 as pf,
+          0 as pa,
+          COALESCE(SUM(ar.points), 0) as points
+        FROM teams t
+        LEFT JOIN athletics_results ar ON t.id = ar.team_id
+        LEFT JOIN athletics_events ae ON ar.event_id = ae.id AND ae.sport_id = $1 AND ae.organization_id = $2
+        WHERE t.organization_id = $2
+        GROUP BY t.id, t.code, t.name, t.color, t.logo_url
+        ORDER BY points DESC, won DESC, t.code ASC
+      `, [sportRow.id, req.orgId]);
+      return res.json(result.rows);
+    }
+
     const result = await query(`
       SELECT 
         t.code, t.name, t.color, t.logo_url,
@@ -40,8 +65,8 @@ router.get('/', async (req, res) => {
 // GET /api/standings/log — Overall championship
 router.get('/log', async (req, res) => {
   try {
-    // Get per-sport rankings
-    const sportsRes = await query("SELECT id, name FROM sports WHERE name != 'Athletics' AND organization_id = $1", [req.orgId]);
+    // Get all sports
+    const sportsRes = await query("SELECT id, name, scoring_type FROM sports WHERE organization_id = $1", [req.orgId]);
     const sports = sportsRes.rows;
 
     const teamPoints = {};
@@ -54,29 +79,44 @@ router.get('/log', async (req, res) => {
       };
     });
 
-    const pointMap = { 1: 10, 2: 7, 3: 5, 4: 3, 5: 2, 6: 1 };
+    const pointMap = { 1: 10, 2: 7, 3: 5, 4: 3, 5: 2 };
 
     for (const sport of sports) {
-      const standingsRes = await query(`
-        SELECT t.code,
-          COALESCE(SUM(CASE WHEN f.winner_id = t.id THEN s.win_points WHEN f.status = 'draw' THEN s.draw_points ELSE 0 END), 0) as pts
-        FROM teams t
-        LEFT JOIN fixtures f ON t.id IN (f.team_a_id, f.team_b_id) AND f.sport_id = $1 AND f.status IN ('completed', 'draw') AND f.organization_id = $2
-        LEFT JOIN sports s ON f.sport_id = s.id
-        WHERE t.organization_id = $2
-        GROUP BY t.id, t.code
-        ORDER BY pts DESC, t.code ASC
-      `, [sport.id, req.orgId]);
+      let standingsRes;
+      if (sport.scoring_type === 'points') {
+        standingsRes = await query(`
+          SELECT t.code,
+            COALESCE(SUM(CASE WHEN f.winner_id = t.id THEN s.win_points WHEN f.status = 'draw' THEN s.draw_points ELSE 0 END), 0) as pts
+          FROM teams t
+          LEFT JOIN fixtures f ON t.id IN (f.team_a_id, f.team_b_id) AND f.sport_id = $1 AND f.status IN ('completed', 'draw') AND f.organization_id = $2
+          LEFT JOIN sports s ON f.sport_id = s.id
+          WHERE t.organization_id = $2
+          GROUP BY t.id, t.code
+          ORDER BY pts DESC, t.code ASC
+        `, [sport.id, req.orgId]);
+      } else {
+        // Placement-based sport (e.g. Athletics, Novelty)
+        standingsRes = await query(`
+          SELECT t.code, COALESCE(SUM(ar.points), 0) as pts
+          FROM teams t
+          LEFT JOIN athletics_results ar ON t.id = ar.team_id
+          LEFT JOIN athletics_events ae ON ar.event_id = ae.id AND ae.sport_id = $1 AND ae.organization_id = $2
+          WHERE t.organization_id = $2
+          GROUP BY t.id, t.code
+          ORDER BY pts DESC, t.code ASC
+        `, [sport.id, req.orgId]);
+      }
 
       const key = sport.name === 'Basketball' ? 'BB' : 
                   sport.name === 'Volleyball' ? 'VB' : 
                   sport.name === 'Soccer' ? 'SC' : 
                   sport.name === 'Tug of War' ? 'TW' :
+                  sport.name === 'Athletics' ? 'AT' :
                   sport.name === 'Novelty' ? 'NV' : null;
 
       standingsRes.rows.forEach((row, idx) => {
         const rank = idx + 1;
-        const pts = pointMap[rank] || 0;
+        const pts = rank in pointMap ? pointMap[rank] : 1;
         if (teamPoints[row.code]) {
           if (key) teamPoints[row.code][key] = pts;
           teamPoints[row.code].total += pts;
@@ -87,30 +127,6 @@ router.get('/log', async (req, res) => {
         }
       });
     }
-
-    // Athletics: Dynamically sum up points from results
-    const athStandingsRes = await query(`
-      SELECT t.code, COALESCE(SUM(ar.points), 0) as total_pts
-      FROM teams t
-      LEFT JOIN athletics_results ar ON t.id = ar.team_id
-      LEFT JOIN athletics_events ae ON ar.event_id = ae.id AND ae.organization_id = $1
-      WHERE t.organization_id = $1
-      GROUP BY t.id, t.code
-      ORDER BY total_pts DESC, t.code ASC
-    `, [req.orgId]);
-
-    athStandingsRes.rows.forEach((row, idx) => {
-      const rank = idx + 1;
-      const pts = pointMap[rank] || 0;
-      if (teamPoints[row.code]) {
-        teamPoints[row.code].AT = pts;
-        teamPoints[row.code].total += pts;
-        if (rank === 1) teamPoints[row.code].gold++;
-        if (rank === 2) teamPoints[row.code].silver++;
-        if (rank === 3) teamPoints[row.code].bronze++;
-        if (rank <= 3) teamPoints[row.code].medals++;
-      }
-    });
 
     const sorted = Object.values(teamPoints).sort((a, b) => {
       if (b.total !== a.total) return b.total - a.total;

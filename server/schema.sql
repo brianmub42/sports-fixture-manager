@@ -61,8 +61,11 @@ CREATE TABLE IF NOT EXISTS fixtures (
 CREATE TABLE IF NOT EXISTS athletics_events (
     id SERIAL PRIMARY KEY,
     organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+    sport_id INT REFERENCES sports(id) ON DELETE CASCADE,
+    venue_id INT REFERENCES venues(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
     category VARCHAR(20),
+    status VARCHAR(20) DEFAULT 'upcoming',
     scheduled_at TIMESTAMP,
     duration_minutes INT DEFAULT 4,
     created_at TIMESTAMP DEFAULT NOW()

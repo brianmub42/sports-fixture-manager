@@ -92,7 +92,7 @@ export default function Fixtures() {
                     <td className="py-3 px-4"><SportTag sport={f.sport_name} /></td>
                     <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{f.venue_name}</td>
                     <td className="py-3 px-4">
-                      {f.sport_name === 'Athletics' ? (
+                      {f.sport_name === 'Athletics' || f.sport_name === 'Novelty' ? (
                         <span className="text-sm font-semibold">{f.team_a_name}</span>
                       ) : (
                         <span className="flex items-center gap-2 flex-wrap">
@@ -103,10 +103,16 @@ export default function Fixtures() {
                       )}
                     </td>
                     <td className="py-3 px-4 font-bold tabular-nums">
-                      {f.score_a !== null ? `${f.score_a} - ${f.score_b}` : '—'}
+                      {f.sport_name === 'Athletics' || f.sport_name === 'Novelty' ? (
+                        f.status === 'completed' ? (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">{f.team_b_name || 'Done'}</span>
+                        ) : '—'
+                      ) : (
+                        f.score_a !== null ? `${f.score_a} - ${f.score_b}` : '—'
+                      )}
                     </td>
                     <td className="py-3 px-4">
-                      {f.status === 'completed' ? (
+                      {f.status === 'completed' || f.status === 'draw' ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50 dark:bg-green-950/20">Done</span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-400 bg-gray-50 dark:bg-gray-800/40">Upcoming</span>
@@ -136,7 +142,7 @@ export default function Fixtures() {
       <div className="sm:hidden space-y-2">
         {fixtures?.map(f => {
           const isExpanded = expandedMatchId === f.id;
-          const hasTeams = f.sport_name !== 'Athletics';
+          const hasTeams = f.sport_name !== 'Athletics' && f.sport_name !== 'Novelty';
           return (
             <div key={f.id} className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
               <div 
@@ -146,7 +152,7 @@ export default function Fixtures() {
                 <div className="flex justify-between items-center">
                   <SportTag sport={f.sport_name} />
                   <div className="flex items-center gap-2">
-                    {f.status === 'completed' ? (
+                    {f.status === 'completed' || f.status === 'draw' ? (
                       <span className="text-[10px] font-semibold text-green-600 bg-green-50 dark:bg-green-950/20 px-2 py-0.5 rounded-full">Done</span>
                     ) : (
                       <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-850 px-2 py-0.5 rounded-full">Upcoming</span>
@@ -159,8 +165,13 @@ export default function Fixtures() {
                   </div>
                 </div>
                 <div className="flex items-center justify-center gap-3 py-1">
-                  {f.sport_name === 'Athletics' ? (
-                    <span className="text-sm font-semibold text-center">{f.team_a_name}</span>
+                  {f.sport_name === 'Athletics' || f.sport_name === 'Novelty' ? (
+                    <div className="flex flex-col items-center gap-1 w-full">
+                      <span className="text-sm font-semibold text-center">{f.team_a_name}</span>
+                      {f.status === 'completed' && (
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-normal text-center">{f.team_b_name}</span>
+                      )}
+                    </div>
                   ) : (
                     <>
                       <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_logo} />
@@ -227,7 +238,7 @@ function FixtureDetails({ fixture }) {
   }
 
   const handleTogglePlayer = (teamSide, playerId) => {
-    if (fixture.status === 'completed') return; // Read-only once match finishes
+    if (fixture.status === 'completed' || fixture.status === 'draw') return; // Read-only once match finishes
     if (teamSide === 'A') {
       setSelectedA(prev => 
         prev.includes(playerId) ? prev.filter(id => id !== playerId) : [...prev, playerId]
@@ -254,7 +265,7 @@ function FixtureDetails({ fixture }) {
   };
 
   const renderRosterSelector = (teamSide, teamName, roster, selectedIds, setSuccess) => {
-    const isCompleted = fixture.status === 'completed';
+    const isCompleted = fixture.status === 'completed' || fixture.status === 'draw';
     const canEdit = isScorekeeper && !isCompleted;
     
     // Filter active players for display
