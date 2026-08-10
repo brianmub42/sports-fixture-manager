@@ -18,8 +18,8 @@ router.get('/', async (req, res) => {
         SUM(CASE WHEN f.team_a_id = t.id THEN f.score_a ELSE f.score_b END) as pf,
         SUM(CASE WHEN f.team_a_id = t.id THEN f.score_b ELSE f.score_a END) as pa,
         SUM(CASE 
-          WHEN f.winner_id = t.id THEN 3 
-          WHEN f.status = 'draw' THEN 1 
+          WHEN f.winner_id = t.id THEN s.win_points 
+          WHEN f.status = 'draw' THEN s.draw_points 
           ELSE 0 
         END) as points
       FROM fixtures f
@@ -59,9 +59,10 @@ router.get('/log', async (req, res) => {
     for (const sport of sports) {
       const standingsRes = await query(`
         SELECT t.code,
-          COALESCE(SUM(CASE WHEN f.winner_id = t.id THEN 3 WHEN f.status = 'draw' THEN 1 ELSE 0 END), 0) as pts
+          COALESCE(SUM(CASE WHEN f.winner_id = t.id THEN s.win_points WHEN f.status = 'draw' THEN s.draw_points ELSE 0 END), 0) as pts
         FROM teams t
         LEFT JOIN fixtures f ON t.id IN (f.team_a_id, f.team_b_id) AND f.sport_id = $1 AND f.status IN ('completed', 'draw') AND f.organization_id = $2
+        LEFT JOIN sports s ON f.sport_id = s.id
         WHERE t.organization_id = $2
         GROUP BY t.id, t.code
         ORDER BY pts DESC, t.code ASC
