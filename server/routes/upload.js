@@ -184,7 +184,7 @@ router.post('/logo', authMiddleware, requireAdmin, upload.single('logo'), async 
     const targetCode = teamCode || districtCode;
     if (!targetCode) return res.status(400).json({ error: 'Team code required' });
 
-    const logoUrl = `${process.env.API_URL || 'http://localhost:3000'}/uploads/${req.file.filename}`;
+    const logoUrl = `/uploads/${req.file.filename}`;
     
     const result = await query(
       'UPDATE teams SET logo_url = $1 WHERE code = $2 AND organization_id = $3 RETURNING *',
