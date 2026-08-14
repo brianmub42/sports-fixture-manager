@@ -141,4 +141,68 @@ router.post('/users', authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/auth/users/:id (Protected: Admin) - Update user details
+router.put('/users/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { email, password, name, role } = req.body;
+    const userId = req.params.id;
+
+    // Check if user exists in the organization
+    const userCheck = await query('SELECT id FROM users WHERE id = $1 AND organization_id = $2', [userId, req.orgId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found in this organization' });
+    }
+
+    // If email changed, check for duplicate email
+    if (email) {
+      const emailCheck = await query('SELECT id FROM users WHERE email = $1 AND id <> $2', [email, userId]);
+      if (emailCheck.rows.length > 0) {
+        return res.status(400).json({ error: 'User with this email is already registered' });
+      }
+    }
+
+    let updateQuery = 'UPDATE users SET name = $1, email = $2, role = $3';
+    let params = [name, email, role, req.orgId, userId];
+
+    if (password && password.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
+      updateQuery += ', password_hash = $6 WHERE id = $5 AND organization_id = $4 RETURNING id, email, name, role, created_at';
+      params.push(passwordHash);
+    } else {
+      updateQuery += ' WHERE id = $5 AND organization_id = $4 RETURNING id, email, name, role, created_at';
+    }
+
+    const result = await query(updateQuery, params);
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/auth/users/:id (Protected: Admin) - Delete a user
+router.delete('/users/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Prevent self-deletion
+    if (parseInt(userId) === req.user.id) {
+      return res.status(400).json({ error: 'You cannot delete your own user account.' });
+    }
+
+    const result = await query(
+      'DELETE FROM users WHERE id = $1 AND organization_id = $2 RETURNING id',
+      [userId, req.orgId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found in this organization' });
+    }
+
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

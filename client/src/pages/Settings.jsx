@@ -36,6 +36,8 @@ export default function Settings() {
   });
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'scorekeeper' });
   const [createdUserCredentials, setCreatedUserCredentials] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '', password: '', role: 'scorekeeper' });
   
   const createUserMutation = useMutation({
     mutationFn: (data) => authApi.createUser(data),
@@ -50,6 +52,61 @@ export default function Settings() {
       setNewUser({ name: '', email: '', password: '', role: 'scorekeeper' });
     }
   });
+
+  const updateUserMutation = useMutation({
+    mutationFn: ({ id, data }) => authApi.updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setEditingUser(null);
+      setEditForm({ name: '', email: '', password: '', role: 'scorekeeper' });
+      alert('User updated successfully!');
+    }
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id) => authApi.deleteUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      alert('User deleted successfully!');
+    }
+  });
+
+  const handleEditUserClick = (u) => {
+    setEditingUser(u);
+    setEditForm({
+      name: u.name,
+      email: u.email,
+      password: '',
+      role: u.role
+    });
+  };
+
+  const handleUpdateUserSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    try {
+      await updateUserMutation.mutateAsync({
+        id: editingUser.id,
+        data: {
+          name: editForm.name,
+          email: editForm.email,
+          password: editForm.password,
+          role: editForm.role
+        }
+      });
+    } catch (err) {
+      alert('Failed to update user: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleDeleteUserClick = async (id) => {
+    if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
+    try {
+      await deleteUserMutation.mutateAsync(id);
+    } catch (err) {
+      alert('Failed to delete user: ' + (err.response?.data?.error || err.message));
+    }
+  };
 
   // Venue Management State
   const { data: venues, isLoading: loadingVenues } = useVenues();
@@ -390,84 +447,177 @@ export default function Settings() {
             <div className="text-xs text-gray-400 italic py-2">Loading users...</div>
           ) : (
             teamUsers?.map((u) => (
-              <div key={u.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800">
+              <div key={u.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 flex-wrap sm:flex-nowrap gap-2">
                 <div>
                   <p className="text-sm font-semibold">{u.name}</p>
                   <p className="text-xs text-gray-400">{u.email}</p>
                 </div>
-                <div className={`px-2 py-1 rounded text-xs font-medium ${
-                  u.role === 'admin' 
-                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' 
-                    : u.role === 'scorekeeper'
-                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
-                }`}>
-                  {u.role.toUpperCase()}
+                <div className="flex items-center gap-3 ml-auto sm:ml-0">
+                  <div className={`px-2 py-1 rounded text-xs font-medium ${
+                    u.role === 'admin' 
+                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' 
+                      : u.role === 'scorekeeper'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                  }`}>
+                    {u.role.toUpperCase()}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleEditUserClick(u)}
+                    className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                    title="Edit User"
+                  >
+                    <SettingsIcon className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteUserClick(u.id)}
+                    className="p-1 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                    title="Delete User"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        {/* Add User Form */}
-        <form onSubmit={handleCreateUser} className="border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Add New User</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium mb-1 text-gray-500">Name *</label>
-              <input
-                type="text"
-                required
-                value={newUser.name}
-                onChange={(e) => setNewUser(s => ({ ...s, name: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                placeholder="John Doe"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1 text-gray-500">Email *</label>
-              <input
-                type="email"
-                required
-                value={newUser.email}
-                onChange={(e) => setNewUser(s => ({ ...s, email: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                placeholder="john@example.com"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1 text-gray-500">Password *</label>
-              <input
-                type="password"
-                required
-                value={newUser.password}
-                onChange={(e) => setNewUser(s => ({ ...s, password: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                placeholder="••••••••"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1 text-gray-500">Role</label>
-              <select
-                value={newUser.role}
-                onChange={(e) => setNewUser(s => ({ ...s, role: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+        {/* Edit/Add User Form Toggle */}
+        {editingUser ? (
+          <form onSubmit={handleUpdateUserSubmit} className="border border-solid border-blue-500 dark:border-blue-700 rounded-xl p-4 space-y-3 bg-blue-500/5">
+            <div className="flex justify-between items-center mb-1">
+              <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Edit User: {editingUser.name}</p>
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-semibold cursor-pointer"
               >
-                <option value="scorekeeper">Scorekeeper</option>
-                <option value="admin">Admin</option>
-                <option value="viewer">Viewer</option>
-              </select>
+                Cancel
+              </button>
             </div>
-          </div>
-          <button
-            type="submit"
-            disabled={createUserMutation.isLoading || !newUser.name || !newUser.email || !newUser.password}
-            className="k-btn flex items-center gap-2 disabled:opacity-40 mt-2"
-          >
-            <Plus size={14} />
-            {createUserMutation.isLoading ? 'Creating...' : 'Create User'}
-          </button>
-        </form>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.name}
+                  onChange={(e) => setEditForm(s => ({ ...s, name: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={editForm.email}
+                  onChange={(e) => setEditForm(s => ({ ...s, email: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">New Password (leave blank to keep current)</label>
+                <input
+                  type="password"
+                  value={editForm.password}
+                  onChange={(e) => setEditForm(s => ({ ...s, password: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  placeholder="••••••••"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">Role</label>
+                <select
+                  value={editForm.role}
+                  onChange={(e) => setEditForm(s => ({ ...s, role: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                >
+                  <option value="scorekeeper">Scorekeeper</option>
+                  <option value="admin">Admin</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={updateUserMutation.isLoading}
+                className="k-btn k-btn-primary flex items-center gap-2 text-xs font-semibold py-1.5 px-3 rounded-lg cursor-pointer"
+              >
+                {updateUserMutation.isLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                className="k-btn border border-gray-200 dark:border-gray-700 text-xs font-semibold py-1.5 px-3 rounded-lg cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleCreateUser} className="border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 space-y-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Add New User</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newUser.name}
+                  onChange={(e) => setNewUser(s => ({ ...s, name: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  placeholder="John Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={newUser.email}
+                  onChange={(e) => setNewUser(s => ({ ...s, email: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  placeholder="john@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">Password *</label>
+                <input
+                  type="password"
+                  required
+                  value={newUser.password}
+                  onChange={(e) => setNewUser(s => ({ ...s, password: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  placeholder="••••••••"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">Role</label>
+                <select
+                  value={newUser.role}
+                  onChange={(e) => setNewUser(s => ({ ...s, role: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                >
+                  <option value="scorekeeper">Scorekeeper</option>
+                  <option value="admin">Admin</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={createUserMutation.isLoading || !newUser.name || !newUser.email || !newUser.password}
+              className="k-btn flex items-center gap-2 disabled:opacity-40 mt-2 cursor-pointer"
+            >
+              <Plus size={14} />
+              {createUserMutation.isLoading ? 'Creating...' : 'Create User'}
+            </button>
+          </form>
+        )}
 
         {createdUserCredentials && (
           <div className="mt-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-3">
