@@ -104,7 +104,7 @@ export default function LiveScores() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 max-h-[700px] overflow-y-auto pr-2">
+      <div className="grid grid-cols-1 gap-6 md:max-h-[700px] md:overflow-y-auto pr-2">
         {filteredFixtures.map(f => (
           <LiveMatchCard 
             key={f.id} 

@@ -29,8 +29,8 @@ export default function Navigation() {
   });
 
   return (
-    <nav className="border-b border-gray-200 dark:border-gray-800 mb-4">
-      <div className="flex flex-wrap gap-1 sm:gap-2">
+    <nav className="border-b border-gray-200 dark:border-gray-800 mb-4 overflow-x-auto nav-scroll -mx-3 px-3 sm:mx-0 sm:px-0">
+      <div className="flex flex-nowrap gap-1 sm:gap-2 pb-1">
         {filteredLinks.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
@@ -46,7 +46,7 @@ export default function Navigation() {
             }
           >
             <Icon size={14} className="shrink-0" />
-            <span className="hidden sm:inline">{label}</span>
+            <span>{label}</span>
           </NavLink>
         ))}
       </div>

@@ -62,30 +62,35 @@ export default function Standings() {
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
             {sport} — {sport === 'Athletics' ? 'Track Events' : 'Round-Robin Standings'}
           </div>
-          <div className="grid grid-cols-8 gap-2 text-xs text-gray-400 font-medium mb-2 px-2">
-            <span className="col-span-2">Team</span>
-            <span className="text-center">P</span>
-            <span className="text-center">W</span>
-            <span className="text-center">L</span>
-            <span className="text-center">PF</span>
-            <span className="text-center">PA</span>
-            <span className="text-center">PTS</span>
-          </div>
-          <div className="space-y-1">
-            {standings?.map((team, i) => (
-              <div key={team.code} className="grid grid-cols-8 gap-2 items-center py-2 px-2 border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded">
-                <span className="text-xs text-gray-400 w-4">{i + 1}</span>
-                <span className="col-span-1">
-                  <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
-                </span>
-                <span className="text-center text-sm text-gray-600">{team.played}</span>
-                <span className="text-center text-sm text-gray-600">{team.won}</span>
-                <span className="text-center text-sm text-gray-600">{team.lost}</span>
-                <span className="text-center text-sm text-gray-600">{team.pf}</span>
-                <span className="text-center text-sm text-gray-600">{team.pa}</span>
-                <span className="text-center text-sm font-semibold">{team.points}</span>
+          <div className="overflow-x-auto">
+            <div className="min-w-[600px]">
+              <div className="grid grid-cols-9 gap-2 text-xs text-gray-400 font-medium mb-2 px-2 text-center">
+                <span>Rank</span>
+                <span className="text-left col-span-2">Team</span>
+                <span>P</span>
+                <span>W</span>
+                <span>L</span>
+                <span>PF</span>
+                <span>PA</span>
+                <span>PTS</span>
               </div>
-            ))}
+              <div className="space-y-1">
+                {standings?.map((team, i) => (
+                  <div key={team.code} className="grid grid-cols-9 gap-2 items-center py-2 px-2 border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded text-center">
+                    <span className="text-xs text-gray-400 font-semibold">{i + 1}</span>
+                    <span className="text-left col-span-2">
+                      <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
+                    </span>
+                    <span className="text-sm text-gray-600">{team.played}</span>
+                    <span className="text-sm text-gray-600">{team.won}</span>
+                    <span className="text-sm text-gray-600">{team.lost}</span>
+                    <span className="text-sm text-gray-600">{team.pf}</span>
+                    <span className="text-sm text-gray-600">{team.pa}</span>
+                    <span className="text-sm font-semibold">{team.points}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -389,7 +389,7 @@ export default function GeneratePage() {
             </div>
           )}
 
-          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+          <div className="overflow-x-auto md:max-h-[500px] md:overflow-y-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-800">
