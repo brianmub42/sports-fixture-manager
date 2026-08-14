@@ -82,6 +82,25 @@ router.get('/log', async (req, res) => {
     const pointMap = { 1: 10, 2: 7, 3: 5, 4: 3, 5: 2 };
 
     for (const sport of sports) {
+      let hasResults = false;
+      if (sport.scoring_type === 'points') {
+        const countRes = await query(
+          "SELECT COUNT(*)::int as count FROM fixtures WHERE sport_id = $1 AND status IN ('completed', 'draw') AND organization_id = $2",
+          [sport.id, req.orgId]
+        );
+        hasResults = countRes.rows[0].count > 0;
+      } else {
+        const countRes = await query(
+          "SELECT COUNT(*)::int as count FROM athletics_events WHERE sport_id = $1 AND status = 'completed' AND organization_id = $2",
+          [sport.id, req.orgId]
+        );
+        hasResults = countRes.rows[0].count > 0;
+      }
+
+      if (!hasResults) {
+        continue;
+      }
+
       let standingsRes;
       if (sport.scoring_type === 'points') {
         standingsRes = await query(`
