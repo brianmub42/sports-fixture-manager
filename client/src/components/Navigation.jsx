@@ -29,8 +29,8 @@ export default function Navigation() {
   });
 
   return (
-    <nav className="border-b border-gray-200 dark:border-gray-800 mb-4 overflow-x-auto nav-scroll -mx-3 px-3 sm:mx-0 sm:px-0">
-      <div className="flex flex-nowrap gap-1 sm:gap-2 pb-1">
+    <nav className="border-b border-gray-200 dark:border-gray-800 mb-4 overflow-x-auto sm:overflow-x-visible nav-scroll -mx-3 px-3 sm:mx-0 sm:px-0">
+      <div className="flex flex-nowrap sm:flex-wrap gap-1 sm:gap-2 pb-1">
         {filteredLinks.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
