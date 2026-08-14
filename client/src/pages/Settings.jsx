@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useSettings, useUpdateSettings, useResetDatabase, useVenues, useCreateVenue, useDeleteVenue } from '../hooks/useFixtures.js';
-import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin } from 'lucide-react';
+import { useSettings, useUpdateSettings, useResetDatabase, useVenues, useCreateVenue, useDeleteVenue, useSports, useCreateSport, useDeleteSport } from '../hooks/useFixtures.js';
+import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { settingsApi, authApi } from '../api.js';
@@ -56,6 +56,32 @@ export default function Settings() {
   const [newVenue, setNewVenue] = useState({ name: '', type: 'court' });
   const createVenueMutation = useCreateVenue();
   const deleteVenueMutation = useDeleteVenue();
+
+  // Sport Management State
+  const { data: sports, isLoading: loadingSports } = useSports();
+  const [newSport, setNewSport] = useState({ name: '', scoring_type: 'points', win_points: 3, draw_points: 1 });
+  const createSportMutation = useCreateSport();
+  const deleteSportMutation = useDeleteSport();
+
+  const handleCreateSport = async (e) => {
+    e.preventDefault();
+    if (!newSport.name.trim()) return;
+    try {
+      await createSportMutation.mutateAsync(newSport);
+      setNewSport({ name: '', scoring_type: 'points', win_points: 3, draw_points: 1 });
+    } catch (err) {
+      alert('Failed to add sport: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleDeleteSport = async (id) => {
+    if (!confirm('Are you sure you want to delete this sport? All fixtures associated with it will also be deleted.')) return;
+    try {
+      await deleteSportMutation.mutateAsync(id);
+    } catch (err) {
+      alert('Failed to delete sport: ' + (err.response?.data?.error || err.message));
+    }
+  };
 
   const handleCreateVenue = async (e) => {
     e.preventDefault();
@@ -550,6 +576,110 @@ Please log in to manage fixtures and scores.`}
           >
             <Plus size={14} />
             {createVenueMutation.isLoading ? 'Adding...' : 'Add Venue'}
+          </button>
+        </form>
+      </div>
+
+      {/* Sport Management */}
+      <div className="k-card">
+        <div className="flex items-center gap-2 mb-1">
+          <Award size={18} className="text-blue-500" />
+          <h2 className="text-lg font-semibold">Sporting Disciplines</h2>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+          Configure sporting disciplines and custom scoring formats (Points-based or Placement-based) for this organization.
+        </p>
+
+        {/* Existing Sports List */}
+        <div className="space-y-2 mb-6">
+          {loadingSports ? (
+            <div className="text-xs text-gray-400 italic py-2">Loading sports...</div>
+          ) : sports?.length === 0 ? (
+            <p className="text-xs text-gray-400 italic py-3 border border-dashed border-gray-200 dark:border-gray-800 rounded-lg text-center">
+              No sports registered yet. Add a new sport below to get started.
+            </p>
+          ) : (
+            sports?.map((s) => (
+              <div key={s.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800">
+                <div>
+                  <p className="text-sm font-semibold">{s.name}</p>
+                  <p className="text-xs text-gray-400 capitalize">
+                    {s.scoring_type === 'points' ? `Points (Win: ${s.win_points} pts, Draw: ${s.draw_points} pts)` : 'Placement / Novelty'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteSport(s.id)}
+                  className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  title="Delete Sport"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Add Sport Form */}
+        <form onSubmit={handleCreateSport} className="border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Add New Sport</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-500">Sport Name *</label>
+              <input
+                type="text"
+                required
+                value={newSport.name}
+                onChange={(e) => setNewSport(s => ({ ...s, name: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                placeholder="e.g. Netball, Table Tennis"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-500">Scoring Format</label>
+              <select
+                value={newSport.scoring_type}
+                onChange={(e) => setNewSport(s => ({ ...s, scoring_type: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                <option value="points">Points-based (Round-Robin matches)</option>
+                <option value="placement">Placement-based (Athletics / Novelty runs)</option>
+              </select>
+            </div>
+          </div>
+
+          {newSport.scoring_type === 'points' && (
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">Win Points</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={newSport.win_points}
+                  onChange={(e) => setNewSport(s => ({ ...s, win_points: parseInt(e.target.value) || 0 }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 text-gray-500">Draw Points</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={newSport.draw_points}
+                  onChange={(e) => setNewSport(s => ({ ...s, draw_points: parseInt(e.target.value) || 0 }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                />
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={createSportMutation.isLoading || !newSport.name.trim()}
+            className="k-btn flex items-center gap-2 disabled:opacity-40 mt-2"
+          >
+            <Plus size={14} />
+            {createSportMutation.isLoading ? 'Adding...' : 'Add Sport'}
           </button>
         </form>
       </div>

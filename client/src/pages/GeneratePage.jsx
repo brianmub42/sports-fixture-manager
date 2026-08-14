@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { generateApi } from '../api.js';
 import { Wand2, Save, Clock, Users, MapPin, Calendar, RotateCcw, CheckCircle, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { useVenues } from '../hooks/useFixtures.js';
-
-const SPORTS = ['Basketball', 'Volleyball', 'Soccer', 'Tug of War', 'Athletics', 'Novelty'];
+import { useVenues, useSports } from '../hooks/useFixtures.js';
 const FORMATS = [
   { value: 'single', label: 'Single Round-Robin', desc: 'Each pair plays once' },
   { value: 'double', label: 'Double Round-Robin', desc: 'Each pair plays twice (home + away)' },
@@ -15,9 +13,10 @@ const FORMATS = [
 export default function GeneratePage() {
   const { isAuthenticated } = useAuth();
   const { data: registeredVenues } = useVenues();
+  const { data: sports, isLoading: loadingSports } = useSports();
   const [form, setForm] = useState({
     teams: 'ZAM, BAR, HAL, SHA, TEH, TOW',
-    sport: 'Basketball',
+    sport: '',
     startDate: '2026-08-01T09:00',
     duration: 10,
     breakTime: 0,
@@ -37,6 +36,12 @@ export default function GeneratePage() {
       setForm(prev => ({ ...prev, venues: registeredVenues.map(v => v.name).join(', ') }));
     }
   }, [registeredVenues]);
+
+  useEffect(() => {
+    if (sports && sports.length > 0 && !form.sport) {
+      setForm(prev => ({ ...prev, sport: sports[0].name }));
+    }
+  }, [sports, form.sport]);
 
   if (!isAuthenticated) {
     return (
@@ -164,13 +169,21 @@ export default function GeneratePage() {
           {/* Sport */}
           <div>
             <label className="block text-sm font-medium mb-1.5">Sport</label>
-            <select
-              value={form.sport}
-              onChange={(e) => handleChange('sport', e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-            >
-              {SPORTS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            {loadingSports ? (
+              <div className="text-xs text-gray-400 py-2.5">Loading sports...</div>
+            ) : sports && sports.length === 0 ? (
+              <div className="text-xs text-red-500 font-semibold py-2">
+                No sports registered. Please add a sport in Settings first.
+              </div>
+            ) : (
+              <select
+                value={form.sport}
+                onChange={(e) => handleChange('sport', e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                {sports?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+              </select>
+            )}
           </div>
 
           {/* Start Date */}

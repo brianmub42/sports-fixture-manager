@@ -29,8 +29,8 @@ export default function Navigation() {
   });
 
   return (
-    <nav className="border-b border-gray-200 dark:border-gray-800 mb-4 overflow-x-auto nav-scroll">
-      <div className="flex gap-0.5 sm:gap-1 min-w-max">
+    <nav className="border-b border-gray-200 dark:border-gray-800 mb-4">
+      <div className="flex flex-wrap gap-1 sm:gap-2">
         {filteredLinks.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fixturesApi, scoresApi, teamsApi, settingsApi, organizationsApi, venuesApi } from '../api.js';
+import { fixturesApi, scoresApi, teamsApi, settingsApi, organizationsApi, venuesApi, sportsApi } from '../api.js';
 
 export function useOrganizations() {
   return useQuery({
@@ -107,6 +107,35 @@ export function useDeleteVenue() {
     mutationFn: (id) => venuesApi.delete(id).then(r => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries(['venues']);
+    },
+  });
+}
+
+export function useSports() {
+  return useQuery({
+    queryKey: ['sports'],
+    queryFn: () => sportsApi.getAll().then(r => r.data),
+  });
+}
+
+export function useCreateSport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => sportsApi.create(data).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['sports']);
+      queryClient.invalidateQueries(['settings']);
+    },
+  });
+}
+
+export function useDeleteSport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => sportsApi.delete(id).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['sports']);
+      queryClient.invalidateQueries(['settings']);
     },
   });
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useFixtures, useSettings } from '../hooks/useFixtures.js';
+import { useFixtures, useSettings, useSports } from '../hooks/useFixtures.js';
 import { usePlayers, useLineups, useSaveLineup } from '../hooks/usePlayers.js';
 import { Calendar, Download, ChevronDown, ChevronUp, Save, Users } from 'lucide-react';
 import SportTag from '../components/SportTag.jsx';
@@ -7,15 +7,16 @@ import TeamPill from '../components/TeamPill.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { exportFixturesToPDF } from '../utils/pdfExport.js';
 
-const sports = ['All', 'Athletics', 'Basketball', 'Volleyball', 'Soccer', 'Tug of War'];
-
 export default function Fixtures() {
   const [filter, setFilter] = useState('All');
   const { data: fixtures, isLoading } = useFixtures(filter === 'All' ? {} : { sport: filter });
   const { data: settings } = useSettings();
+  const { data: sportsData, isLoading: loadingSports } = useSports();
   const [expandedMatchId, setExpandedMatchId] = useState(null);
 
-  if (isLoading) return <div className="text-center py-12 text-gray-400">Loading fixtures...</div>;
+  const sports = ['All', ...(sportsData?.map(s => s.name) || [])];
+
+  if (isLoading || loadingSports) return <div className="text-center py-12 text-gray-400">Loading fixtures...</div>;
 
   const toggleExpand = (id) => {
     setExpandedMatchId(expandedMatchId === id ? null : id);
@@ -92,7 +93,7 @@ export default function Fixtures() {
                     <td className="py-3 px-4"><SportTag sport={f.sport_name} /></td>
                     <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{f.venue_name}</td>
                     <td className="py-3 px-4">
-                      {f.sport_name === 'Athletics' || f.sport_name === 'Novelty' ? (
+                      {f.scoring_type === 'placement' ? (
                         <span className="text-sm font-semibold">{f.team_a_name}</span>
                       ) : (
                         <span className="flex items-center gap-2 flex-wrap">
@@ -103,7 +104,7 @@ export default function Fixtures() {
                       )}
                     </td>
                     <td className="py-3 px-4 font-bold tabular-nums">
-                      {f.sport_name === 'Athletics' || f.sport_name === 'Novelty' ? (
+                      {f.scoring_type === 'placement' ? (
                         f.status === 'completed' ? (
                           <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">{f.team_b_name || 'Done'}</span>
                         ) : '—'
@@ -142,7 +143,7 @@ export default function Fixtures() {
       <div className="sm:hidden space-y-2">
         {fixtures?.map(f => {
           const isExpanded = expandedMatchId === f.id;
-          const hasTeams = f.sport_name !== 'Athletics' && f.sport_name !== 'Novelty';
+          const hasTeams = f.scoring_type !== 'placement';
           return (
             <div key={f.id} className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
               <div 
@@ -165,7 +166,7 @@ export default function Fixtures() {
                   </div>
                 </div>
                 <div className="flex items-center justify-center gap-3 py-1">
-                  {f.sport_name === 'Athletics' || f.sport_name === 'Novelty' ? (
+                  {f.scoring_type === 'placement' ? (
                     <div className="flex flex-col items-center gap-1 w-full">
                       <span className="text-sm font-semibold text-center">{f.team_a_name}</span>
                       {f.status === 'completed' && (

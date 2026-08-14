@@ -1,16 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStandings } from '../hooks/useStandings.js';
-import { useSettings } from '../hooks/useFixtures.js';
+import { useSettings, useSports } from '../hooks/useFixtures.js';
 import TeamPill from '../components/TeamPill.jsx';
 import { Download, Trophy } from 'lucide-react';
 import { exportStandingsToPDF } from '../utils/pdfExport.js';
 
-const sports = ['Basketball', 'Volleyball', 'Soccer', 'Tug of War', 'Athletics'];
-
 export default function Standings() {
-  const [sport, setSport] = useState('Basketball');
+  const [sport, setSport] = useState('');
+  const { data: sportsData, isLoading: loadingSports } = useSports();
   const { data: standings, isLoading } = useStandings(sport);
   const { data: settings } = useSettings();
+
+  const sports = sportsData?.map(s => s.name) || [];
+
+  useEffect(() => {
+    if (sports.length > 0 && !sport) {
+      setSport(sports[0]);
+    }
+  }, [sports, sport]);
 
   return (
     <div className="space-y-6">

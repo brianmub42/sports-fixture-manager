@@ -94,6 +94,12 @@ export const venuesApi = {
   delete: (id) => api.delete(`/venues/${id}`),
 };
 
+export const sportsApi = {
+  getAll: () => api.get('/sports'),
+  create: (data) => api.post('/sports', data),
+  delete: (id) => api.delete(`/sports/${id}`),
+};
+
 export const organizationsApi = {
   getAll: () => api.get('/organizations'),
   create: (data) => api.post('/organizations', data),

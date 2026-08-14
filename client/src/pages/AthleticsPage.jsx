@@ -226,8 +226,8 @@ export default function AthleticsPage() {
           {/* Sport Filter */}
           <div className="space-y-1">
             <label className="text-[10px] uppercase font-bold text-gray-400">Sport</label>
-            <div className="flex gap-1.5">
-              {['All', 'Athletics', 'Novelty'].map(sport => (
+            <div className="flex flex-wrap gap-1.5">
+              {['All', ...(sports?.map(s => s.name) || [])].map(sport => (
                 <button
                   key={sport}
                   onClick={() => setSelectedSport(sport)}

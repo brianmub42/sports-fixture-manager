@@ -6,7 +6,7 @@ import { Network, Trophy, HelpCircle, GitFork } from 'lucide-react';
 
 export default function Brackets() {
   const { data: fixtures, isLoading } = useFixtures();
-  const [selectedSport, setSelectedSport] = useState('Basketball');
+  const [selectedSport, setSelectedSport] = useState('');
 
   if (isLoading) return <div className="text-center py-12 text-gray-400">Loading bracket details...</div>;
 
@@ -19,7 +19,7 @@ export default function Brackets() {
     )
   );
 
-  const activeSport = selectedSport || sportsWithPlayoffs[0] || 'Basketball';
+  const activeSport = selectedSport || sportsWithPlayoffs[0] || '';
   const sportFixtures = fixtures?.filter(f => f.sport_name === activeSport) || [];
 
   // Group by round

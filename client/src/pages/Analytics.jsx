@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useAnalytics } from '../hooks/useStandings.js';
+import { useSports } from '../hooks/useFixtures.js';
 import TeamPill from '../components/TeamPill.jsx';
 import SportTag from '../components/SportTag.jsx';
 import { Activity, ArrowUpRight, ArrowDownRight, Zap, Target, Award, Info } from 'lucide-react';
 
-const sports = ['All', 'Basketball', 'Volleyball', 'Soccer', 'Tug of War'];
-
 export default function Analytics() {
   const [filter, setFilter] = useState('All');
+  const { data: sportsData, isLoading: loadingSports } = useSports();
   const { data, isLoading, error } = useAnalytics(filter);
 
-  if (isLoading) return <div className="p-8 text-center text-gray-500">Loading analytics...</div>;
+  const sports = ['All', ...(sportsData?.filter(s => s.scoring_type === 'points').map(s => s.name) || [])];
+
+  if (isLoading || loadingSports) return <div className="p-8 text-center text-gray-500">Loading analytics...</div>;
   if (error) return <div className="p-8 text-center text-red-500">Failed to load analytics</div>;
 
   const { teamMetrics, records, topScorers } = data;

@@ -10,7 +10,13 @@ router.get('/', async (req, res) => {
     const { status, sport, team, district } = req.query;
     const teamFilter = team || district;
 
-    const isPlacementSport = sport === 'Athletics' || sport === 'Novelty';
+    let isPlacementSport = false;
+    if (sport) {
+      const spRes = await query('SELECT scoring_type FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
+      if (spRes.rows.length > 0 && spRes.rows[0].scoring_type === 'placement') {
+        isPlacementSport = true;
+      }
+    }
     const isAllSports = !sport;
 
     let sqlParts = [];
@@ -24,7 +30,7 @@ router.get('/', async (req, res) => {
           a.name as team_a_name, a.code as team_a_code, a.color as team_a_color, a.logo_url as team_a_logo,
           b.name as team_b_name, b.code as team_b_code, b.color as team_b_color, b.logo_url as team_b_logo,
           f.score_a, f.score_b, f.winner_id, f.notes, f.created_at, f.updated_at,
-          v.name as venue_name, s.name as sport_name
+          v.name as venue_name, s.name as sport_name, s.scoring_type as scoring_type
         FROM fixtures f
         JOIN teams a ON f.team_a_id = a.id
         JOIN teams b ON f.team_b_id = b.id
@@ -71,7 +77,8 @@ router.get('/', async (req, res) => {
           ae.created_at,
           ae.created_at as updated_at,
           v.name as venue_name,
-          s.name as sport_name
+          s.name as sport_name,
+          s.scoring_type as scoring_type
         FROM athletics_events ae
         JOIN venues v ON ae.venue_id = v.id
         JOIN sports s ON ae.sport_id = s.id

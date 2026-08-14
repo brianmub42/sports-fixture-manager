@@ -17,14 +17,14 @@ export default function LiveScores() {
 
   const availableSports = fixtures 
     ? ['All', ...new Set(fixtures
-        .filter(f => f.sport_name !== 'Athletics' && f.sport_name !== 'Novelty')
+        .filter(f => f.scoring_type !== 'placement')
         .map(f => f.sport_name)
       )]
     : ['All'];
 
   const filteredFixtures = fixtures?.filter(f => {
     // Exclude placement-based sports (Athletics and Novelty) from live match cards
-    const isPlacement = f.sport_name === 'Athletics' || f.sport_name === 'Novelty';
+    const isPlacement = f.scoring_type === 'placement';
     if (isPlacement) return false;
     
     // Status filter
@@ -69,7 +69,7 @@ export default function LiveScores() {
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}
           >
-            Active & Upcoming ({fixtures?.filter(f => f.status === 'upcoming' && f.sport_name !== 'Athletics' && f.sport_name !== 'Novelty').length || 0})
+            Active & Upcoming ({fixtures?.filter(f => f.status === 'upcoming' && f.scoring_type !== 'placement').length || 0})
           </button>
           <button
             onClick={() => {
@@ -82,7 +82,7 @@ export default function LiveScores() {
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}
           >
-            Completed & Draws ({fixtures?.filter(f => (f.status === 'completed' || f.status === 'draw') && f.sport_name !== 'Athletics' && f.sport_name !== 'Novelty').length || 0})
+            Completed & Draws ({fixtures?.filter(f => (f.status === 'completed' || f.status === 'draw') && f.scoring_type !== 'placement').length || 0})
           </button>
         </div>
 
