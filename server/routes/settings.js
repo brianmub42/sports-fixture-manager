@@ -100,6 +100,13 @@ router.post('/reset', authMiddleware, requireAdmin, async (req, res) => {
       await query('DELETE FROM venues WHERE organization_id = $1', [req.orgId]);
       await query('DELETE FROM teams WHERE organization_id = $1', [req.orgId]);
       await query('DELETE FROM sports WHERE organization_id = $1', [req.orgId]);
+    } else if (type === 'results_only') {
+      await query('DELETE FROM score_logs WHERE fixture_id IN (SELECT id FROM fixtures WHERE organization_id = $1)', [req.orgId]);
+      await query('DELETE FROM player_stats WHERE fixture_id IN (SELECT id FROM fixtures WHERE organization_id = $1)', [req.orgId]);
+      await query('DELETE FROM fixture_lineups WHERE fixture_id IN (SELECT id FROM fixtures WHERE organization_id = $1)', [req.orgId]);
+      await query('DELETE FROM athletics_results WHERE event_id IN (SELECT id FROM athletics_events WHERE organization_id = $1)', [req.orgId]);
+      await query('UPDATE fixtures SET score_a = NULL, score_b = NULL, status = \'upcoming\', winner_id = NULL WHERE organization_id = $1', [req.orgId]);
+      await query('UPDATE athletics_events SET status = \'upcoming\' WHERE organization_id = $1', [req.orgId]);
     } else {
       await query('DELETE FROM score_logs WHERE fixture_id IN (SELECT id FROM fixtures WHERE organization_id = $1)', [req.orgId]);
       await query('DELETE FROM athletics_results WHERE event_id IN (SELECT id FROM athletics_events WHERE organization_id = $1)', [req.orgId]);

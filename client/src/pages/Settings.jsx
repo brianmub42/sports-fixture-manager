@@ -14,7 +14,7 @@ export default function Settings() {
   const { currentOrgSlug } = useOrganization();
 
   const [form, setForm] = useState({ org_name: '', event_title: '', enable_player_registration: false });
-  const [resetType, setResetType] = useState('fixtures_only');
+  const [resetType, setResetType] = useState('results_only');
   const [confirmText, setConfirmText] = useState('');
   const [resetSuccess, setResetSuccess] = useState(null);
   const [updateSuccess, setUpdateSuccess] = useState(false);
@@ -846,7 +846,26 @@ Please log in to manage fixtures and scores.`}
         <form onSubmit={handleReset} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2">Select Reset Scope</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <label className={`flex flex-col p-3 border rounded-lg cursor-pointer ${
+                resetType === 'results_only'
+                  ? 'border-red-500 bg-red-50/30 dark:bg-red-950/20'
+                  : 'border-gray-200 dark:border-gray-800'
+              }`}>
+                <div className="flex items-center gap-2 font-semibold text-sm">
+                  <input
+                    type="radio"
+                    name="reset_type"
+                    value="results_only"
+                    checked={resetType === 'results_only'}
+                    onChange={() => setResetType('results_only')}
+                    className="text-red-600 cursor-pointer"
+                  />
+                  Clear Results Only
+                </div>
+                <span className="text-xs text-gray-400 mt-1">Resets scores and event placements. Keeps fixtures, teams, venues, and custom sports intact.</span>
+              </label>
+
               <label className={`flex flex-col p-3 border rounded-lg cursor-pointer ${
                 resetType === 'fixtures_only'
                   ? 'border-red-500 bg-red-50/30 dark:bg-red-950/20'
@@ -859,7 +878,7 @@ Please log in to manage fixtures and scores.`}
                     value="fixtures_only"
                     checked={resetType === 'fixtures_only'}
                     onChange={() => setResetType('fixtures_only')}
-                    className="text-red-600"
+                    className="text-red-600 cursor-pointer"
                   />
                   Reset Fixtures & Teams
                 </div>
@@ -878,7 +897,7 @@ Please log in to manage fixtures and scores.`}
                     value="full"
                     checked={resetType === 'full'}
                     onChange={() => setResetType('full')}
-                    className="text-red-600"
+                    className="text-red-600 cursor-pointer"
                   />
                   Full Reset
                 </div>
