@@ -24,6 +24,7 @@ export const fixturesApi = {
   getDistrictSchedule: (code) => api.get(`/fixtures/district/${code}/schedule`),
   getLineups: (id) => api.get(`/fixtures/${id}/lineups`),
   saveLineup: (id, data) => api.post(`/fixtures/${id}/lineups`, data),
+  delete: (id) => api.delete(`/fixtures/${id}`),
 };
 
 export const scoresApi = {

@@ -26,8 +26,8 @@ export default function Layout() {
     <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 sm:py-4 pb-16">
       <header className="flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-2 sm:gap-4">
         <div className="min-w-0">
-          <h1 className="text-base sm:text-xl font-semibold truncate">{orgName}</h1>
-          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
+          <h1 className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white truncate">{orgName}</h1>
+          <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-300 truncate">
             {eventTitle} · {teamsCount} {teamsCount === 1 ? 'Team' : 'Teams'} · {sportsCount} {sportsCount === 1 ? 'Sport' : 'Sports'}
           </p>
         </div>

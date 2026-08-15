@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useFixtures, useUpdateScore, useSettings } from '../hooks/useFixtures.js';
+import { useFixtures, useUpdateScore, useSettings, useDeleteFixture } from '../hooks/useFixtures.js';
 import { useLineups } from '../hooks/usePlayers.js';
 import SportTag from '../components/SportTag.jsx';
 import TeamPill from '../components/TeamPill.jsx';
 import MatchTimerControl from '../components/MatchTimerControl.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { Target, ShieldAlert, Award, Check } from 'lucide-react';
+import { Target, ShieldAlert, Award, Check, Trash2 } from 'lucide-react';
 
 export default function LiveScores() {
   const { data: fixtures, isLoading } = useFixtures();
@@ -132,6 +132,7 @@ export default function LiveScores() {
 
 function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
   const updateScore = useUpdateScore();
+  const deleteFixture = useDeleteFixture();
   
   // Local score states for input bindings
   const [scoreA, setScoreA] = useState(fixture.score_a || 0);
@@ -208,6 +209,22 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
     } else {
       setScoreB(newScoreB);
       setSelectedPlayerB('');
+    }
+  };
+
+  const handleDelete = () => {
+    if (window.confirm("Are you sure you want to delete this match? This will permanently delete the fixture, lineups, and all stats associated with it.")) {
+      setSaveStatus('saving');
+      deleteFixture.mutate(fixture.id, {
+        onSuccess: () => {
+          setSaveStatus('saved');
+          setTimeout(() => setSaveStatus(null), 3000);
+        },
+        onError: () => {
+          setSaveStatus('error');
+          setTimeout(() => setSaveStatus(null), 3000);
+        }
+      });
     }
   };
 
@@ -401,6 +418,13 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
             }}
           >
             Forfeit Team B (20-0)
+          </button>
+          <button
+            className="k-btn text-xs border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 flex items-center gap-1.5 cursor-pointer"
+            onClick={handleDelete}
+          >
+            <Trash2 size={13} />
+            Delete Match
           </button>
         </div>
       )}

@@ -139,3 +139,16 @@ export function useDeleteSport() {
     },
   });
 }
+
+export function useDeleteFixture() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => fixturesApi.delete(id).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['fixtures']);
+      queryClient.invalidateQueries(['standings']);
+      queryClient.invalidateQueries(['log']);
+      queryClient.invalidateQueries(['analytics']);
+    },
+  });
+}

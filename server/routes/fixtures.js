@@ -332,4 +332,29 @@ router.post('/:id/lineups', authMiddleware, requireScorekeeperOrAdmin, async (re
   }
 });
 
+// DELETE /api/fixtures/:id (Scorekeeper/Admin)
+router.delete('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
+  try {
+    const fixtureId = req.params.id;
+
+    // Verify fixture exists and belongs to organization
+    const fixtureRes = await query('SELECT id FROM fixtures WHERE id = $1 AND organization_id = $2', [fixtureId, req.orgId]);
+    if (fixtureRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Fixture not found' });
+    }
+
+    // Delete the fixture
+    await query('DELETE FROM fixtures WHERE id = $1 AND organization_id = $2', [fixtureId, req.orgId]);
+
+    // Broadcast update via Socket.io if available
+    if (req.io) {
+      req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId, deleted: true });
+    }
+
+    res.json({ success: true, message: 'Fixture deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

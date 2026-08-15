@@ -94,7 +94,7 @@ export default function Fixtures() {
                     <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{f.venue_name}</td>
                     <td className="py-3 px-4">
                       {f.scoring_type === 'placement' ? (
-                        <span className="text-sm font-semibold">{f.team_a_name}</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{f.team_a_name}</span>
                       ) : (
                         <span className="flex items-center gap-2 flex-wrap">
                           <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_logo} />
@@ -168,7 +168,7 @@ export default function Fixtures() {
                 <div className="flex items-center justify-center gap-3 py-1">
                   {f.scoring_type === 'placement' ? (
                     <div className="flex flex-col items-center gap-1 w-full">
-                      <span className="text-sm font-semibold text-center">{f.team_a_name}</span>
+                      <span className="text-sm font-semibold text-center text-gray-900 dark:text-gray-100">{f.team_a_name}</span>
                       {f.status === 'completed' && (
                         <span className="text-[10px] text-gray-500 dark:text-gray-400 font-normal text-center">{f.team_b_name}</span>
                       )}
