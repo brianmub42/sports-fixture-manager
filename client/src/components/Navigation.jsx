@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { ChevronDown, FolderKanban, Play, BarChart3, Settings, Trophy, Calendar, Activity, List, MapPin, Upload, Wand2, Network, Tv, LineChart, Award } from 'lucide-react';
+import { ChevronDown, FolderKanban, Play, BarChart3, Settings, Trophy, Calendar, Activity, List, MapPin, Upload, Wand2, Network, Tv, LineChart, Award, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 const categories = [
@@ -40,11 +40,20 @@ const categories = [
       { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
       { to: '/tv', label: 'TV Mode', icon: Tv },
     ]
+  },
+  {
+    label: 'Superadmin',
+    icon: ShieldCheck,
+    superadminOnly: true,
+    links: [
+      { to: '/superadmin', label: 'Superadmin Console', icon: ShieldCheck }
+    ]
   }
 ];
 
 export default function Navigation() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const isSuperadmin = user?.role === 'superadmin';
   const { pathname } = useLocation();
   const [openDropdown, setOpenDropdown] = useState(null);
 
@@ -72,8 +81,10 @@ export default function Navigation() {
     <nav className="mb-6 relative z-50 flex justify-center">
       <div className="flex items-center gap-1.5 sm:gap-2.5 p-1.5 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border border-gray-200/80 dark:border-gray-800/80 rounded-2xl shadow-lg shadow-gray-200/5 dark:shadow-black/40 overflow-x-auto sm:overflow-x-visible no-scrollbar max-w-full sm:max-w-max mx-auto">
         {categories.map((cat, idx) => {
+          if (cat.superadminOnly && !isSuperadmin) return null;
+
           // Filter out link options that require admin access
-          const visibleLinks = cat.links.filter(link => !link.adminOnly || isAdmin);
+          const visibleLinks = cat.links.filter(link => !link.adminOnly || isAdmin || isSuperadmin);
           if (visibleLinks.length === 0) return null;
 
           const isActive = isCategoryActive(cat);

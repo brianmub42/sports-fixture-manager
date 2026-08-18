@@ -62,11 +62,16 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Look up user (Must match current organization context to prevent logging into wrong tenant!)
-    const userRes = await query('SELECT * FROM users WHERE email = $1 AND organization_id = $2', [email, req.orgId]);
+    // Look up user globally first (Superadmins can log in from any workspace)
+    const userRes = await query('SELECT * FROM users WHERE email = $1', [email]);
     const user = userRes.rows[0];
 
     if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // If not superadmin, ensure they belong to the current organization context
+    if (user.role !== 'superadmin' && user.organization_id !== req.orgId) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 

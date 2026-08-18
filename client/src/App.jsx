@@ -18,6 +18,7 @@ import Login from './pages/Login.jsx';
 import Brackets from './pages/Brackets.jsx';
 import TvMode from './pages/TvMode.jsx';
 import AthleticsPage from './pages/AthleticsPage.jsx';
+import SuperadminDashboard from './pages/SuperadminDashboard.jsx';
 
 function App() {
   const { activeOrg } = useOrganization();
@@ -44,6 +45,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/brackets" element={<Brackets />} />
             <Route path="/athletics" element={<AthleticsPage />} />
+            <Route path="/superadmin" element={<SuperadminDashboard />} />
           </Route>
           <Route path="/tv" element={<TvMode />} />
         </Routes>

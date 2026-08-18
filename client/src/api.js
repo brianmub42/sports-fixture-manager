@@ -137,3 +137,10 @@ export const authApi = {
   updateUser: (id, userData) => api.put(`/auth/users/${id}`, userData),
   deleteUser: (id) => api.delete(`/auth/users/${id}`),
 };
+
+export const superadminApi = {
+  getTenants: () => api.get('/superadmin/tenants'),
+  approveTenant: (id, days) => api.post(`/superadmin/tenants/${id}/approve`, { days }),
+  suspendTenant: (id) => api.post(`/superadmin/tenants/${id}/suspend`),
+  extendTenant: (id, expiresAt) => api.post(`/superadmin/tenants/${id}/extend`, { expiresAt }),
+};

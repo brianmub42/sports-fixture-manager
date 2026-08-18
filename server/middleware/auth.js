@@ -12,8 +12,8 @@ export function authMiddleware(req, res, next) {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    // Cross-tenant verification: Ensure user belongs to the active organization requested
-    if (decoded.organization_id !== req.orgId) {
+    // Cross-tenant verification: Ensure user belongs to the active organization requested (Superadmins bypass this)
+    if (decoded.role !== 'superadmin' && decoded.organization_id !== req.orgId) {
       return res.status(403).json({ error: 'Unauthorized: Access to this workspace is denied' });
     }
 
@@ -22,6 +22,13 @@ export function authMiddleware(req, res, next) {
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired authorization token' });
   }
+}
+
+export function requireSuperadmin(req, res, next) {
+  if (!req.user || req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Forbidden: Super-administrator privileges required' });
+  }
+  next();
 }
 
 export function requireAdmin(req, res, next) {
