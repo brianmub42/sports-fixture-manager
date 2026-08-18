@@ -40,11 +40,17 @@ function EtechZimLogo({ height = 18 }) {
 }
 
 function SponsorBadge({ name, logoUrl, tag }) {
+  const resolvedLogoUrl = logoUrl ? (
+    logoUrl.startsWith('http') || logoUrl.startsWith('data:')
+      ? logoUrl
+      : `${(import.meta.env.VITE_API_URL || 'http://localhost:3010/api').replace(/\/api\/?$/, '')}${logoUrl}`
+  ) : null;
+
   return (
     <div className="sponsor-badge">
-      {logoUrl ? (
+      {resolvedLogoUrl ? (
         <img
-          src={logoUrl}
+          src={resolvedLogoUrl}
           alt={name}
           className="h-10 w-auto object-contain"
           onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
@@ -52,7 +58,7 @@ function SponsorBadge({ name, logoUrl, tag }) {
       ) : null}
       <div
         className="sponsor-text-badge"
-        style={{ display: logoUrl ? 'none' : 'flex' }}
+        style={{ display: resolvedLogoUrl ? 'none' : 'flex' }}
       >
         <Star className="w-4 h-4 text-yellow-500 shrink-0 fill-yellow-500" />
         <div className="flex flex-col leading-none">

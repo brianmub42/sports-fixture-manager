@@ -6,6 +6,15 @@ import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { settingsApi, authApi, uploadApi } from '../api.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+const resolveUploadUrl = (url) => {
+  if (!url) return '';
+  if (url === 'uploading') return '';
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3010/api';
+  const backendBase = apiBase.replace(/\/api\/?$/, '');
+  return `${backendBase}${url}`;
+};
+
 export default function Settings() {
   const { data: settings, isLoading, refetch } = useSettings();
   const updateSettings = useUpdateSettings();
@@ -591,12 +600,7 @@ export default function Settings() {
         event_title: settings.event_title || '',
         enable_player_registration: !!settings.enable_player_registration
       });
-      const loadedSponsors = settings.sponsors || [];
-      const paddedSponsors = [...loadedSponsors];
-      while (paddedSponsors.length < 3) {
-        paddedSponsors.push({ name: '', logoUrl: '', tag: '', website: '' });
-      }
-      setSponsors(paddedSponsors.slice(0, 3));
+      setSponsors(settings.sponsors || []);
 
       if (settings.points_allocation) {
         const arr = Object.entries(settings.points_allocation).map(([pos, pts]) => ({
@@ -789,137 +793,136 @@ export default function Settings() {
                   <h2 className="text-lg font-semibold">Sponsors &amp; Partners Ribbon</h2>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
-                  Configure up to 3 sponsors. Their logos and details will scroll across the bottom ribbon visible to all visitors.
+                  Add event sponsors and partners. They will scroll across the bottom ribbon visible to all visitors.
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-                  {[0, 1, 2].map((idx) => {
-                    const sp = sponsors[idx] || { name: '', logoUrl: '', tag: '', website: '' };
-                    return (
-                      <div key={idx} className="border border-gray-200 dark:border-gray-800 rounded-xl p-4 space-y-3 bg-gray-50/50 dark:bg-gray-900/35 relative">
-                        <div className="flex justify-between items-center border-b border-gray-250/60 dark:border-gray-800 pb-2">
-                          <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
-                            Sponsor Slot #{idx + 1}
-                          </span>
-                          {sp.name && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = [...sponsors];
-                                updated[idx] = { name: '', logoUrl: '', tag: '', website: '' };
-                                setSponsors(updated);
-                              }}
-                              className="text-[10px] text-red-500 font-semibold hover:underline"
-                              title="Clear slot"
-                            >
-                              Clear Slot
-                            </button>
-                          )}
+                {/* Existing sponsors list */}
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Current Sponsors ({sponsors.length})</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                  {sponsors.length === 0 ? (
+                    <p className="col-span-full text-xs text-gray-400 italic py-6 border border-dashed border-gray-250 dark:border-gray-800 rounded-xl text-center">
+                      No sponsors added yet — default placeholders will be shown.
+                    </p>
+                  ) : (
+                    sponsors.map((s, i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 relative group">
+                        {s.logoUrl ? (
+                          <img 
+                            src={resolveUploadUrl(s.logoUrl)} 
+                            alt={s.name} 
+                            className="h-8 w-16 object-contain rounded" 
+                            onError={(e) => { e.target.style.display='none'; }} 
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shrink-0">
+                            <Star className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate text-gray-900 dark:text-gray-100">{s.name}</p>
+                          <p className="text-xs text-gray-450 dark:text-gray-400 truncate">{s.tag || 'Sponsor'}</p>
                         </div>
-
-                        <div className="space-y-2">
-                          <div>
-                            <label className="block text-[10px] font-semibold text-gray-450 dark:text-gray-400 uppercase mb-1">Sponsor Name</label>
-                            <input
-                              type="text"
-                              value={sp.name}
-                              onChange={(e) => {
-                                const updated = [...sponsors];
-                                updated[idx] = { ...sp, name: e.target.value };
-                                setSponsors(updated);
-                              }}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs"
-                              placeholder="e.g. Acme Corporation"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-semibold text-gray-455 dark:text-gray-400 uppercase mb-1">Tag / Category</label>
-                            <input
-                              type="text"
-                              value={sp.tag}
-                              onChange={(e) => {
-                                const updated = [...sponsors];
-                                updated[idx] = { ...sp, tag: e.target.value };
-                                setSponsors(updated);
-                              }}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs"
-                              placeholder="e.g. Gold Partner"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-semibold text-gray-455 dark:text-gray-400 uppercase mb-1">Website URL</label>
-                            <input
-                              type="url"
-                              value={sp.website}
-                              onChange={(e) => {
-                                const updated = [...sponsors];
-                                updated[idx] = { ...sp, website: e.target.value };
-                                setSponsors(updated);
-                              }}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs"
-                              placeholder="e.g. https://acme.com"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-semibold text-gray-455 dark:text-gray-400 uppercase mb-1">Logo Image</label>
-                            {sp.logoUrl ? (
-                              <div className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-gray-900 border border-gray-250 dark:border-gray-800 rounded-lg relative group">
-                                <img src={sp.logoUrl} alt={sp.name || 'Sponsor logo'} className="h-12 w-full object-contain rounded" />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updated = [...sponsors];
-                                    updated[idx] = { ...sp, logoUrl: '' };
-                                    setSponsors(updated);
-                                  }}
-                                  className="text-[10px] text-red-500 font-semibold hover:underline cursor-pointer"
-                                >
-                                  Remove Logo
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center p-3 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-all cursor-pointer relative min-h-[70px]">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={async (e) => {
-                                    const file = e.target.files[0];
-                                    if (!file) return;
-                                    
-                                    const updated = [...sponsors];
-                                    updated[idx] = { ...sp, logoUrl: 'uploading' };
-                                    setSponsors(updated);
-
-                                    try {
-                                      const res = await uploadApi.uploadSponsorLogo(file);
-                                      const fresh = [...sponsors];
-                                      fresh[idx] = { ...sp, logoUrl: res.data.logoUrl };
-                                      setSponsors(fresh);
-                                    } catch (err) {
-                                      alert('Upload failed: ' + err.message);
-                                      const fresh = [...sponsors];
-                                      fresh[idx] = { ...sp, logoUrl: '' };
-                                      setSponsors(fresh);
-                                    }
-                                  }}
-                                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                />
-                                <div className="text-center">
-                                  <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">
-                                    {sp.logoUrl === 'uploading' ? 'Uploading Logo...' : 'Upload Image Logo'}
-                                  </span>
-                                  <p className="text-[9px] text-gray-400 mt-0.5">PNG, JPG, SVG up to 2MB</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSponsor(i)}
+                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                          title="Remove"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
-                    );
-                  })}
+                    ))
+                  )}
+                </div>
+
+                {/* Add new sponsor form */}
+                <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 space-y-4 bg-gray-50/30 dark:bg-gray-900/10">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Add New Sponsor</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-500 dark:text-gray-400">Name *</label>
+                      <input
+                        type="text"
+                        value={newSponsor.name}
+                        onChange={(e) => setNewSponsor(s => ({ ...s, name: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                        placeholder="Acme Corp"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-500 dark:text-gray-400">Tag / Category</label>
+                      <input
+                        type="text"
+                        value={newSponsor.tag}
+                        onChange={(e) => setNewSponsor(s => ({ ...s, tag: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                        placeholder="Gold Partner"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-500 dark:text-gray-400">Website URL (optional)</label>
+                      <input
+                        type="url"
+                        value={newSponsor.website}
+                        onChange={(e) => setNewSponsor(s => ({ ...s, website: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                        placeholder="https://example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-500 dark:text-gray-400">Logo Image</label>
+                      {newSponsor.logoUrl ? (
+                        <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg relative">
+                          <img 
+                            src={resolveUploadUrl(newSponsor.logoUrl)} 
+                            alt="Preview" 
+                            className="h-8 w-16 object-contain rounded" 
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setNewSponsor(s => ({ ...s, logoUrl: '' }))}
+                            className="text-[10px] text-red-500 font-semibold hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center p-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-850 cursor-pointer relative min-h-[38px]">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files[0];
+                              if (!file) return;
+                              setNewSponsor(s => ({ ...s, logoUrl: 'uploading' }));
+                              try {
+                                const res = await uploadApi.uploadSponsorLogo(file);
+                                setNewSponsor(s => ({ ...s, logoUrl: res.data.logoUrl }));
+                              } catch (err) {
+                                alert('Upload failed: ' + err.message);
+                                setNewSponsor(s => ({ ...s, logoUrl: '' }));
+                              }
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          />
+                          <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">
+                            {newSponsor.logoUrl === 'uploading' ? 'Uploading Logo...' : 'Upload Image File'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddSponsor}
+                    disabled={!newSponsor.name.trim() || newSponsor.logoUrl === 'uploading'}
+                    className="k-btn flex items-center gap-2 disabled:opacity-40"
+                  >
+                    <Plus size={14} />
+                    Add to List
+                  </button>
                 </div>
 
                 {/* Save sponsors button */}
