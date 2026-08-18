@@ -73,6 +73,13 @@ export const uploadApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  uploadSponsorLogo: (file) => {
+    const formData = new FormData();
+    formData.append('sponsorLogo', file);
+    return api.post('/upload/sponsor-logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
 };
 
 export const generateApi = {

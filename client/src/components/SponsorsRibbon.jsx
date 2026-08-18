@@ -68,13 +68,13 @@ export default function SponsorsRibbon() {
   const { data: settings } = useSettings();
 
   const sponsors = settings?.sponsors?.length > 0
-    ? settings.sponsors
-    : DEFAULT_SPONSORS;
+    ? settings.sponsors.filter(s => s.name && s.name.trim() !== '')
+    : [];
 
-  // Duplicate list so the marquee loops seamlessly
-  const items = [...sponsors, ...sponsors, ...sponsors];
+  const displaySponsors = sponsors.length > 0 ? sponsors : DEFAULT_SPONSORS;
+  const items = [...displaySponsors, ...displaySponsors, ...displaySponsors];
 
-  if (sponsors.length === 0) return null;
+  if (displaySponsors.length === 0) return null;
 
   return (
     <div className="sponsors-ribbon">

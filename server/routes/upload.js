@@ -224,6 +224,17 @@ router.post('/pop', authMiddleware, requireAdmin, upload.single('pop'), async (r
   }
 });
 
+// POST /api/upload/sponsor-logo (Admin)
+router.post('/sponsor-logo', authMiddleware, requireAdmin, upload.single('sponsorLogo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No logo file uploaded' });
+    const logoUrl = `/uploads/${req.file.filename}`;
+    res.json({ success: true, logoUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/upload/template
 router.get('/template', (req, res) => {
   const template = [
