@@ -46,7 +46,7 @@ function SponsorBadge({ name, logoUrl, tag }) {
         <img
           src={logoUrl}
           alt={name}
-          className="h-7 w-auto object-contain"
+          className="h-10 w-auto object-contain"
           onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
         />
       ) : null}
@@ -54,10 +54,10 @@ function SponsorBadge({ name, logoUrl, tag }) {
         className="sponsor-text-badge"
         style={{ display: logoUrl ? 'none' : 'flex' }}
       >
-        <Star className="w-3 h-3 text-yellow-405 shrink-0" />
+        <Star className="w-4 h-4 text-yellow-500 shrink-0 fill-yellow-500" />
         <div className="flex flex-col leading-none">
-          <span className="font-bold text-[11px] text-slate-800 tracking-wide">{name}</span>
-          {tag && <span className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">{tag}</span>}
+          <span className="font-bold text-xs text-slate-800 dark:text-slate-200 tracking-wide">{name}</span>
+          {tag && <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{tag}</span>}
         </div>
       </div>
     </div>
@@ -89,7 +89,7 @@ export default function SponsorsRibbon() {
         <div className="sponsors-track-wrapper">
           <div
             className="sponsors-track"
-            style={{ '--item-count': sponsors.length }}
+            style={{ '--item-count': displaySponsors.length }}
           >
             {items.map((s, i) => (
               <a
@@ -118,7 +118,7 @@ export default function SponsorsRibbon() {
           <div className="powered-by-content">
             <span className="powered-by-label">POWERED BY</span>
             <div className="powered-by-logo">
-              <EtechZimLogo height={16} />
+              <EtechZimLogo height={22} />
             </div>
           </div>
         </a>
@@ -127,17 +127,22 @@ export default function SponsorsRibbon() {
       <style>{`
         .sponsors-ribbon {
           position: relative;
-          margin-top: 3rem;
+          margin-top: 3.5rem;
           width: 100%;
-          border-radius: 12px;
+          border-radius: 16px;
           z-index: 10;
-          height: 40px;
+          height: 64px;
           background: linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.92) 50%, rgba(255,255,255,0.92) 100%);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
           border: 1px solid rgba(15,23,42,0.08);
           overflow: hidden;
           box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+        }
+
+        .dark .sponsors-ribbon {
+          background: linear-gradient(135deg, rgba(15,23,42,0.92) 0%, rgba(30,41,59,0.92) 50%, rgba(15,23,42,0.92) 100%);
+          border: 1px solid rgba(255,255,255,0.08);
         }
 
         .sponsors-ribbon-inner {
@@ -149,8 +154,8 @@ export default function SponsorsRibbon() {
         .sponsors-ribbon-label {
           display: flex;
           align-items: center;
-          gap: 10px;
-          padding: 0 14px;
+          gap: 12px;
+          padding: 0 16px;
           white-space: nowrap;
           flex-shrink: 0;
           z-index: 2;
@@ -158,17 +163,25 @@ export default function SponsorsRibbon() {
         }
 
         .sponsors-ribbon-label span {
-          font-size: 9px;
+          font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.15em;
           color: rgba(15,23,42,0.5);
           text-transform: uppercase;
         }
+        
+        .dark .sponsors-ribbon-label span {
+          color: rgba(255,255,255,0.5);
+        }
 
         .sponsors-ribbon-divider {
           width: 1px;
-          height: 20px;
+          height: 32px;
           background: rgba(15,23,42,0.12);
+        }
+        
+        .dark .sponsors-ribbon-divider {
+          background: rgba(255,255,255,0.12);
         }
 
         .sponsors-track-wrapper {
@@ -185,7 +198,7 @@ export default function SponsorsRibbon() {
           display: flex;
           align-items: center;
           gap: 0;
-          animation: sponsors-scroll 30s linear infinite;
+          animation: sponsors-scroll 35s linear infinite;
           width: max-content;
         }
 
@@ -208,21 +221,29 @@ export default function SponsorsRibbon() {
         .sponsor-badge {
           display: flex;
           align-items: center;
-          padding: 0 20px;
-          height: 44px;
+          padding: 0 32px;
+          height: 64px;
           border-right: 1px solid rgba(15,23,42,0.06);
           transition: background 0.2s;
           cursor: pointer;
+        }
+        
+        .dark .sponsor-badge {
+          border-right: 1px solid rgba(255,255,255,0.06);
         }
 
         .sponsor-link:hover .sponsor-badge {
           background: rgba(15,23,42,0.03);
         }
+        
+        .dark .sponsor-link:hover .sponsor-badge {
+          background: rgba(255,255,255,0.03);
+        }
 
         .sponsor-text-badge {
           display: flex;
           align-items: center;
-          gap: 7px;
+          gap: 8px;
           white-space: nowrap;
         }
 
@@ -234,11 +255,15 @@ export default function SponsorsRibbon() {
           flex-shrink: 0;
           height: 100%;
           text-decoration: none;
-          padding-right: 16px;
+          padding-right: 20px;
           z-index: 2;
           background: linear-gradient(to right, transparent, rgba(248,250,252,0.98) 20%);
-          padding-left: 24px;
+          padding-left: 28px;
           transition: opacity 0.2s;
+        }
+        
+        .dark .powered-by-badge {
+          background: linear-gradient(to right, transparent, rgba(15,23,42,0.98) 20%);
         }
 
         .powered-by-badge:hover {
@@ -247,10 +272,14 @@ export default function SponsorsRibbon() {
 
         .powered-by-divider {
           width: 1px;
-          height: 20px;
+          height: 32px;
           background: rgba(15,23,42,0.08);
-          margin-right: 12px;
+          margin-right: 16px;
           flex-shrink: 0;
+        }
+        
+        .dark .powered-by-divider {
+          background: rgba(255,255,255,0.08);
         }
 
         .powered-by-content {
@@ -269,6 +298,10 @@ export default function SponsorsRibbon() {
           text-transform: uppercase;
           line-height: 1;
         }
+        
+        .dark .powered-by-label {
+          color: rgba(255,255,255,0.5);
+        }
 
         .powered-by-logo {
           display: flex;
@@ -279,7 +312,9 @@ export default function SponsorsRibbon() {
         /* Mobile responsive adjustments */
         @media (max-width: 639px) {
           .sponsors-ribbon {
-            height: 36px;
+            height: 48px;
+            margin-top: 2rem;
+            border-radius: 12px;
           }
 
           .sponsors-ribbon-label {
@@ -292,26 +327,26 @@ export default function SponsorsRibbon() {
           }
 
           .sponsor-badge {
-            padding: 0 12px;
-            height: 36px;
+            padding: 0 16px;
+            height: 48px;
           }
 
           .sponsor-text-badge {
-            gap: 5px;
+            gap: 6px;
           }
 
           .sponsor-text-badge .font-bold {
-            font-size: 10px;
+            font-size: 11px;
           }
 
           .powered-by-badge {
-            padding-left: 12px;
-            padding-right: 10px;
+            padding-left: 16px;
+            padding-right: 12px;
           }
 
           .powered-by-divider {
-            margin-right: 8px;
-            height: 16px;
+            margin-right: 10px;
+            height: 24px;
           }
 
           .powered-by-label {
