@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 
     // Fetch workspace billing info
     const billingRes = await query(
-      'SELECT subscription_status, term_expires_at, credit_balance, pop_file_url, pop_uploaded_at, billing_school_name, billing_address FROM organizations WHERE id = $1',
+      'SELECT subscription_status, term_expires_at, credit_balance, pop_file_url, pop_uploaded_at, billing_school_name, billing_address, billing_contact_person, billing_contact_number FROM organizations WHERE id = $1',
       [req.orgId]
     );
     const orgBilling = billingRes.rows[0] || {};
@@ -75,7 +75,9 @@ router.get('/', async (req, res) => {
         pop_file_url: orgBilling.pop_file_url,
         pop_uploaded_at: orgBilling.pop_uploaded_at ? new Date(orgBilling.pop_uploaded_at).toISOString() : null,
         billing_school_name: orgBilling.billing_school_name,
-        billing_address: orgBilling.billing_address
+        billing_address: orgBilling.billing_address,
+        billing_contact_person: orgBilling.billing_contact_person,
+        billing_contact_number: orgBilling.billing_contact_number
       },
       has_users: hasUsers
     });
@@ -182,14 +184,17 @@ router.post('/reset', authMiddleware, requireAdmin, async (req, res) => {
 // POST /api/settings/billing/request-invoice
 router.post('/billing/request-invoice', authMiddleware, async (req, res) => {
   try {
-    const { schoolName, billingAddress } = req.body;
+    const { schoolName, billingAddress, contactPerson, contactNumber } = req.body;
     if (!schoolName) return res.status(400).json({ error: 'School/organization name is required' });
 
     await query(
       `UPDATE organizations 
-       SET billing_school_name = $1, billing_address = $2 
-       WHERE id = $3`,
-      [schoolName, billingAddress || '', req.orgId]
+       SET billing_school_name = $1, 
+           billing_address = $2, 
+           billing_contact_person = $3, 
+           billing_contact_number = $4
+       WHERE id = $5`,
+      [schoolName, billingAddress || '', contactPerson || '', contactNumber || '', req.orgId]
     );
 
     res.json({ success: true, message: 'Invoice details saved successfully' });

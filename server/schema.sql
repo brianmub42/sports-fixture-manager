@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS organizations (
     pop_uploaded_at TIMESTAMP,
     billing_school_name VARCHAR(150),
     billing_address TEXT,
+    billing_contact_person VARCHAR(100),
+    billing_contact_number VARCHAR(30),
     created_at TIMESTAMP DEFAULT NOW()
 );
 

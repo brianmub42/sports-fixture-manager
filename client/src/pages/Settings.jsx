@@ -45,6 +45,10 @@ export default function Settings() {
   // Billing & License State
   const [schoolName, setSchoolName] = useState('');
   const [billingAddress, setBillingAddress] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [billingInvoiceSuccess, setBillingInvoiceSuccess] = useState(false);
@@ -194,7 +198,7 @@ export default function Settings() {
     setIsUploading(true);
     setBillingInvoiceSuccess(false);
     try {
-      await settingsApi.requestInvoice(schoolName, billingAddress);
+      await settingsApi.requestInvoice(schoolName, billingAddress, contactPerson, contactNumber);
       setBillingInvoiceSuccess(true);
       refetch();
       setTimeout(() => setBillingInvoiceSuccess(false), 3000);
@@ -244,23 +248,27 @@ export default function Settings() {
             <div>
               <div class="invoice-title">INVOICE</div>
               <div style="font-size: 14px; color: #475569; text-align: right; margin-top: 4px;">
-                Invoice #: INV-\${Date.now().toString().slice(-6)}<br />
-                Date: \${new Date().toLocaleDateString()}
+                Invoice #: ${invoiceNumber}<br />
+                Date: ${new Date(invoiceDate).toLocaleDateString()}
               </div>
             </div>
           </div>
           <div class="details">
             <div class="bill-to">
               <h3>Bill To:</h3>
-              <strong>\${schoolName}</strong><br />
-              \${(billingAddress || '').replace(/\\n/g, '<br />')}
+              <strong>${schoolName}</strong><br />
+              ${(billingAddress || '').replace(/\n/g, '<br />')}<br /><br />
+              <strong>Contact Person:</strong> ${contactPerson || 'N/A'}<br />
+              <strong>Contact Number:</strong> ${contactNumber || 'N/A'}
             </div>
             <div class="bill-from">
               <h3>Remit To:</h3>
-              <strong>eTechZim Software Solutions</strong><br />
-              128 Harare Street<br />
-              Harare, Zimbabwe<br />
-              billing@etechzim.co.zw
+              <strong>Etechzim PVT LTD</strong><br />
+              5 Bristol Road, Workington<br />
+              Harare, Zimbabwe<br /><br />
+              <strong>TIN NUMBER:</strong> 2001255366<br />
+              <strong>Contact:</strong> +263773257425<br />
+              <strong>Email:</strong> info@etechzim.co.zw
             </div>
           </div>
           <table>
@@ -276,25 +284,24 @@ export default function Settings() {
                   <strong>Sports Fixture Manager - 1 Term License Subscription</strong><br />
                   <span style="font-size: 12px; color: #64748b;">Unrestricted access to brackets, scoring, and placement standings for this term.</span>
                 </td>
-                <td style="text-align: right; vertical-align: top;">$100.00 USD</td>
+                <td style="text-align: right; vertical-align: top;">$130.00 USD</td>
               </tr>
             </tbody>
           </table>
           <div class="total">
-            Total Due: $100.00 USD
+            Total Due: $130.00 USD
           </div>
           <div style="margin-top: 50px;">
             <h3>Payment Instructions:</h3>
             <div class="payment-info">
-              <strong>Bank Transfer Details (USD Nostro):</strong><br />
-              Bank: CABS Zimbabwe<br />
-              Account Name: eTechZim Solutions<br />
-              Account Number: 1002938491<br />
-              Branch: Jason Moyo<br /><br />
-              <strong>EcoCash / InnBucks Transfer:</strong><br />
-              EcoCash Merchant Code: 192834 (eTechZim)<br />
-              InnBucks Account: 0772123456<br /><br />
-              <em>Note: Please upload a copy of your bank payment confirmation or mobile money transaction screenshot in your Sports Manager dashboard under settings.</em>
+              <strong>NOSTRO BANKING DETAILS:</strong><br />
+              Bank Name: NMB Bank<br />
+              Account Name: ETECHZIM PVT LTD<br />
+              Branch Code: 11101<br />
+              Account Number: 31196507<br /><br />
+              <strong>InnBucks Account:</strong><br />
+              InnBucks Account / Mobile: 0773257425<br /><br />
+              <em>Note: Please upload a copy of your Nostro bank payment confirmation or InnBucks receipt screenshot in your Sports Manager settings under the Billing &amp; License tab.</em>
             </div>
           </div>
           <div style="margin-top: 40px; text-align: center;" class="no-print">
@@ -383,6 +390,12 @@ export default function Settings() {
       }
       setSchoolName(settings.billing?.billing_school_name || settings.org_name || '');
       setBillingAddress(settings.billing?.billing_address || '');
+      setContactPerson(settings.billing?.billing_contact_person || '');
+      setContactNumber(settings.billing?.billing_contact_number || '');
+      
+      const generatedInvNum = `INV-${(currentOrgSlug || 'kalife').toUpperCase()}-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
+      setInvoiceNumber(generatedInvNum);
+      
       isInitializedRef.current = true;
     }
   }, [settings]);
@@ -1314,7 +1327,7 @@ Please log in to manage fixtures and scores.`}
                 <form onSubmit={handleRequestInvoice} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium mb-1 text-gray-550">School / Club Billing Name *</label>
+                      <label className="block text-xs font-medium mb-1 text-gray-550">Customer Name *</label>
                       <input
                         type="text"
                         required
@@ -1325,13 +1338,61 @@ Please log in to manage fixtures and scores.`}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1 text-gray-550">Bursar Address / Email (optional)</label>
+                      <label className="block text-xs font-medium mb-1 text-gray-555">Customer Address *</label>
                       <input
                         type="text"
+                        required
                         value={billingAddress}
                         onChange={(e) => setBillingAddress(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                        placeholder="e.g. accounts@oakridge.edu"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-semibold"
+                        placeholder="e.g. 12 Highfield Road, Harare"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-555">Contact Person *</label>
+                      <input
+                        type="text"
+                        required
+                        value={contactPerson}
+                        onChange={(e) => setContactPerson(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-semibold"
+                        placeholder="e.g. Mr. S. Moyo"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-555">Contact Number *</label>
+                      <input
+                        type="text"
+                        required
+                        value={contactNumber}
+                        onChange={(e) => setContactNumber(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-semibold"
+                        placeholder="e.g. +263 77 123 4567"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-555">Invoice Number (Auto-Generated)</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={invoiceNumber}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-sm font-mono text-gray-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-555">Invoice Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={invoiceDate}
+                        onChange={(e) => setInvoiceDate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-semibold"
                       />
                     </div>
                   </div>

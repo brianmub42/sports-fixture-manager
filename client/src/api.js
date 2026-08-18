@@ -106,7 +106,7 @@ export const settingsApi = {
   update: (data) => api.post('/settings', data),
   reset: (type) => api.post('/settings/reset', { type }),
   saveSponsors: (sponsors) => api.post('/settings/sponsors', { sponsors }),
-  requestInvoice: (schoolName, billingAddress) => api.post('/settings/billing/request-invoice', { schoolName, billingAddress }),
+  requestInvoice: (schoolName, billingAddress, contactPerson, contactNumber) => api.post('/settings/billing/request-invoice', { schoolName, billingAddress, contactPerson, contactNumber }),
   simulateExpiry: () => api.post('/settings/billing/simulate-expiry'),
   simulateRenewal: () => api.post('/settings/billing/simulate-renewal'),
 };

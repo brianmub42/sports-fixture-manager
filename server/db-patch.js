@@ -14,7 +14,9 @@ async function runPatch() {
     await query(`
       ALTER TABLE organizations 
       ADD COLUMN IF NOT EXISTS billing_school_name VARCHAR(150),
-      ADD COLUMN IF NOT EXISTS billing_address TEXT
+      ADD COLUMN IF NOT EXISTS billing_address TEXT,
+      ADD COLUMN IF NOT EXISTS billing_contact_person VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS billing_contact_number VARCHAR(30)
     `);
 
     // 3. Alter term_expires_at column default value to 14 days
