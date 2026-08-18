@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 
     // Fetch workspace billing info
     const billingRes = await query(
-      'SELECT subscription_status, term_expires_at, credit_balance FROM organizations WHERE id = $1',
+      'SELECT subscription_status, term_expires_at, credit_balance, pop_file_url, pop_uploaded_at, billing_school_name, billing_address FROM organizations WHERE id = $1',
       [req.orgId]
     );
     const orgBilling = billingRes.rows[0] || {};
@@ -71,7 +71,11 @@ router.get('/', async (req, res) => {
         expires_at: expiresAt ? expiresAt.toISOString() : null,
         minutes_remaining: minutesRemaining,
         is_low_credit: isLowCredit,
-        credit_balance: orgBilling.credit_balance || 0.00
+        credit_balance: orgBilling.credit_balance || 0.00,
+        pop_file_url: orgBilling.pop_file_url,
+        pop_uploaded_at: orgBilling.pop_uploaded_at ? new Date(orgBilling.pop_uploaded_at).toISOString() : null,
+        billing_school_name: orgBilling.billing_school_name,
+        billing_address: orgBilling.billing_address
       },
       has_users: hasUsers
     });
@@ -170,6 +174,59 @@ router.post('/reset', authMiddleware, requireAdmin, async (req, res) => {
     }
 
     res.json({ success: true, message: 'Database reset completed successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/settings/billing/request-invoice
+router.post('/billing/request-invoice', authMiddleware, async (req, res) => {
+  try {
+    const { schoolName, billingAddress } = req.body;
+    if (!schoolName) return res.status(400).json({ error: 'School/organization name is required' });
+
+    await query(
+      `UPDATE organizations 
+       SET billing_school_name = $1, billing_address = $2 
+       WHERE id = $3`,
+      [schoolName, billingAddress || '', req.orgId]
+    );
+
+    res.json({ success: true, message: 'Invoice details saved successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/settings/billing/simulate-expiry
+router.post('/billing/simulate-expiry', authMiddleware, async (req, res) => {
+  try {
+    await query(
+      `UPDATE organizations 
+       SET term_expires_at = NOW() - INTERVAL '1 minute',
+           subscription_status = 'suspended'
+       WHERE id = $1`,
+      [req.orgId]
+    );
+    res.json({ success: true, message: 'Workspace expired simulated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/settings/billing/simulate-renewal
+router.post('/billing/simulate-renewal', authMiddleware, async (req, res) => {
+  try {
+    await query(
+      `UPDATE organizations 
+       SET term_expires_at = NOW() + INTERVAL '14 days',
+           subscription_status = 'active',
+           pop_file_url = NULL,
+           pop_uploaded_at = NULL
+       WHERE id = $1`,
+      [req.orgId]
+    );
+    res.json({ success: true, message: 'Workspace renewal simulated' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

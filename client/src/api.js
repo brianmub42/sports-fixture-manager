@@ -65,6 +65,13 @@ export const uploadApi = {
     });
   },
   downloadTemplate: () => api.get('/upload/template', { responseType: 'blob' }),
+  uploadPop: (file) => {
+    const formData = new FormData();
+    formData.append('pop', file);
+    return api.post('/upload/pop', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
 };
 
 export const generateApi = {
@@ -99,6 +106,9 @@ export const settingsApi = {
   update: (data) => api.post('/settings', data),
   reset: (type) => api.post('/settings/reset', { type }),
   saveSponsors: (sponsors) => api.post('/settings/sponsors', { sponsors }),
+  requestInvoice: (schoolName, billingAddress) => api.post('/settings/billing/request-invoice', { schoolName, billingAddress }),
+  simulateExpiry: () => api.post('/settings/billing/simulate-expiry'),
+  simulateRenewal: () => api.post('/settings/billing/simulate-renewal'),
 };
 
 export const venuesApi = {

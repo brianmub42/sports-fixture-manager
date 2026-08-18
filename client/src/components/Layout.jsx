@@ -24,7 +24,18 @@ export default function Layout() {
 
   const isBypassed = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('bypass_billing') === 'true';
   const isSuspended = settings?.billing?.status === 'suspended' && !isBypassed;
-  const isBillingLow = settings?.billing?.is_low_credit && !isBypassed && settings?.billing?.status !== 'suspended';
+  const isPendingVerification = settings?.billing?.status === 'pending_verification' && !isBypassed;
+  const isBillingLow = settings?.billing?.is_low_credit && !isBypassed && !['suspended', 'pending_verification'].includes(settings?.billing?.status);
+
+  const formatMinutes = (minutes) => {
+    if (minutes === null || minutes === undefined) return '';
+    if (minutes < 0) return '0 minutes';
+    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''}`;
+    const days = Math.round(hours / 24);
+    return `${days} day${days !== 1 ? 's' : ''}`;
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 sm:py-4 pb-16">
@@ -93,7 +104,21 @@ export default function Layout() {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
             </span>
             <span>
-              <strong>Billing Alert:</strong> Workspace term subscription is expiring in {settings?.billing?.minutes_remaining} minute{settings?.billing?.minutes_remaining !== 1 ? 's' : ''}. Please renew to prevent lockout.
+              <strong>Billing Alert:</strong> Workspace term subscription is expiring in {formatMinutes(settings?.billing?.minutes_remaining)}. Please renew to prevent lockout.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {user?.role === 'admin' && isPendingVerification && (
+        <div className="mb-4 p-3.5 bg-blue-500/10 border border-blue-500/30 text-blue-800 dark:text-blue-400 rounded-xl flex items-center justify-between gap-4 flex-wrap mt-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <span className="flex h-2.5 w-2.5 relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+            </span>
+            <span>
+              <strong>💳 Payment Review:</strong> Your proof of payment has been uploaded and is pending review. You have temporary read/write access.
             </span>
           </div>
         </div>

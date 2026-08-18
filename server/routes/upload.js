@@ -201,6 +201,29 @@ router.post('/logo', authMiddleware, requireAdmin, upload.single('logo'), async 
   }
 });
 
+// POST /api/upload/pop
+router.post('/pop', authMiddleware, requireAdmin, upload.single('pop'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No proof of payment file uploaded' });
+
+    const popUrl = `/uploads/${req.file.filename}`;
+    
+    // Update the organization's POP record
+    await query(
+      `UPDATE organizations 
+       SET pop_file_url = $1, 
+           pop_uploaded_at = NOW(), 
+           subscription_status = 'pending_verification'
+       WHERE id = $2`,
+      [popUrl, req.orgId]
+    );
+
+    res.json({ success: true, popFileUrl: popUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/upload/template
 router.get('/template', (req, res) => {
   const template = [

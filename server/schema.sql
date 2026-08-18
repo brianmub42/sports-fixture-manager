@@ -7,8 +7,12 @@ CREATE TABLE IF NOT EXISTS organizations (
     event_title VARCHAR(150) DEFAULT 'Championship',
     creator_email VARCHAR(100),
     subscription_status VARCHAR(20) DEFAULT 'active',
-    term_expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 minutes',
+    term_expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '14 days',
     credit_balance NUMERIC(10, 2) DEFAULT 50.00,
+    pop_file_url VARCHAR(255),
+    pop_uploaded_at TIMESTAMP,
+    billing_school_name VARCHAR(150),
+    billing_address TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

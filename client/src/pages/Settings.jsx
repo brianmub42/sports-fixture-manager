@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettings, useUpdateSettings, useResetDatabase, useVenues, useCreateVenue, useDeleteVenue, useSports, useCreateSport, useDeleteSport } from '../hooks/useFixtures.js';
-import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff } from 'lucide-react';
+import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
-import { settingsApi, authApi } from '../api.js';
+import { settingsApi, authApi, uploadApi } from '../api.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function Settings() {
@@ -13,6 +13,7 @@ export default function Settings() {
   const { isAdmin, isAuthenticated } = useAuth();
   const { currentOrgSlug } = useOrganization();
   const isInitializedRef = useRef(false);
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState('general');
 
@@ -21,6 +22,7 @@ export default function Settings() {
     { id: 'points', name: 'Points & Ranks', icon: Award },
     { id: 'sports_venues', name: 'Sports & Venues', icon: MapPin },
     { id: 'users', name: 'Official Users', icon: Users },
+    { id: 'billing', name: 'Billing & License', icon: CreditCard },
     { id: 'reset', name: 'Danger Zone', icon: ShieldAlert },
   ];
 
@@ -40,8 +42,16 @@ export default function Settings() {
   const [pointsSuccess, setPointsSuccess] = useState(false);
   const [newPoint, setNewPoint] = useState({ position: '', points: '' });
 
+  // Billing & License State
+  const [schoolName, setSchoolName] = useState('');
+  const [billingAddress, setBillingAddress] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [billingInvoiceSuccess, setBillingInvoiceSuccess] = useState(false);
+  const [billingPopSuccess, setBillingPopSuccess] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+
   // Team Management State
-  const queryClient = useQueryClient();
   const { data: teamUsers, isLoading: loadingUsers } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
@@ -178,6 +188,171 @@ export default function Settings() {
     }
   };
 
+  const handleRequestInvoice = async (e) => {
+    e.preventDefault();
+    if (!schoolName.trim()) return;
+    setIsUploading(true);
+    setBillingInvoiceSuccess(false);
+    try {
+      await settingsApi.requestInvoice(schoolName, billingAddress);
+      setBillingInvoiceSuccess(true);
+      refetch();
+      setTimeout(() => setBillingInvoiceSuccess(false), 3000);
+    } catch (err) {
+      alert('Failed to save invoice details: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePrintInvoice = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Pop-up blocker is active. Please enable pop-ups to print the invoice.');
+      return;
+    }
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Invoice - ${schoolName || 'Organization'}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; }
+            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+            .logo { font-size: 24px; font-weight: 800; color: #0f172a; }
+            .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #3b82f6; }
+            .details { display: flex; justify-content: space-between; margin-bottom: 40px; }
+            .bill-to, .bill-from { width: 45%; }
+            h3 { font-size: 14px; text-transform: uppercase; color: #64748b; margin-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+            th { background: #f8fafc; text-align: left; padding: 12px; border-bottom: 1px solid #cbd5e1; color: #475569; }
+            td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+            .total { font-size: 18px; font-weight: 700; text-align: right; margin-top: 20px; }
+            .payment-info { background: #f0f9ff; border: 1px solid #bee3f8; padding: 20px; border-radius: 8px; font-size: 14px; }
+            .btn-print { padding: 10px 20px; font-weight: bold; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="logo">FixtureGrid Sports Manager</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Powered by eTechZim</div>
+            </div>
+            <div>
+              <div class="invoice-title">INVOICE</div>
+              <div style="font-size: 14px; color: #475569; text-align: right; margin-top: 4px;">
+                Invoice #: INV-\${Date.now().toString().slice(-6)}<br />
+                Date: \${new Date().toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+          <div class="details">
+            <div class="bill-to">
+              <h3>Bill To:</h3>
+              <strong>\${schoolName}</strong><br />
+              \${(billingAddress || '').replace(/\\n/g, '<br />')}
+            </div>
+            <div class="bill-from">
+              <h3>Remit To:</h3>
+              <strong>eTechZim Software Solutions</strong><br />
+              128 Harare Street<br />
+              Harare, Zimbabwe<br />
+              billing@etechzim.co.zw
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong>Sports Fixture Manager - 1 Term License Subscription</strong><br />
+                  <span style="font-size: 12px; color: #64748b;">Unrestricted access to brackets, scoring, and placement standings for this term.</span>
+                </td>
+                <td style="text-align: right; vertical-align: top;">$100.00 USD</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="total">
+            Total Due: $100.00 USD
+          </div>
+          <div style="margin-top: 50px;">
+            <h3>Payment Instructions:</h3>
+            <div class="payment-info">
+              <strong>Bank Transfer Details (USD Nostro):</strong><br />
+              Bank: CABS Zimbabwe<br />
+              Account Name: eTechZim Solutions<br />
+              Account Number: 1002938491<br />
+              Branch: Jason Moyo<br /><br />
+              <strong>EcoCash / InnBucks Transfer:</strong><br />
+              EcoCash Merchant Code: 192834 (eTechZim)<br />
+              InnBucks Account: 0772123456<br /><br />
+              <em>Note: Please upload a copy of your bank payment confirmation or mobile money transaction screenshot in your Sports Manager dashboard under settings.</em>
+            </div>
+          </div>
+          <div style="margin-top: 40px; text-align: center;" class="no-print">
+            <button class="btn-print" onclick="window.print()">Print Invoice / Save as PDF</button>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handlePopUploadSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+    setIsUploading(true);
+    setBillingPopSuccess(false);
+    try {
+      await uploadApi.uploadPop(selectedFile);
+      setBillingPopSuccess(true);
+      setSelectedFile(null);
+      refetch();
+      queryClient.invalidateQueries();
+    } catch (err) {
+      alert('Failed to upload proof of payment: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSimulateExpiry = async () => {
+    if (!confirm('Are you sure you want to simulate license expiry? This will lock down the workspace.')) return;
+    setIsSimulating(true);
+    try {
+      await settingsApi.simulateExpiry();
+      await refetch();
+      queryClient.invalidateQueries();
+      alert('Workspace expired simulation active!');
+    } catch (err) {
+      alert('Failed to simulate expiry: ' + err.message);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  const handleSimulateRenewal = async () => {
+    setIsSimulating(true);
+    try {
+      await settingsApi.simulateRenewal();
+      await refetch();
+      queryClient.invalidateQueries();
+      alert('Workspace renewal simulated successfully!');
+    } catch (err) {
+      alert('Failed to simulate renewal: ' + err.message);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
   if (!isAuthenticated || !isAdmin) {
     return (
       <div className="p-8 text-center bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-xl max-w-lg mx-auto mt-12 shadow-lg">
@@ -206,6 +381,8 @@ export default function Settings() {
       } else {
         setPointsAllocation([]);
       }
+      setSchoolName(settings.billing?.billing_school_name || settings.org_name || '');
+      setBillingAddress(settings.billing?.billing_address || '');
       isInitializedRef.current = true;
     }
   }, [settings]);
@@ -1047,6 +1224,227 @@ Please log in to manage fixtures and scores.`}
                 </div>
               )}
             </div>
+          )}
+
+          {activeTab === 'billing' && (
+            <>
+              {/* License Status Card */}
+              <div className="k-card">
+                <div className="flex items-center gap-2 mb-2">
+                  <CreditCard size={18} className="text-blue-500" />
+                  <h2 className="text-lg font-semibold">Billing &amp; Subscription</h2>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  Manage your workspace subscription license, request invoices, and upload receipts.
+                </p>
+
+                <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">License Status</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        {settings?.billing?.status === 'active' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            Active Trial / License
+                          </span>
+                        ) : settings?.billing?.status === 'pending_verification' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                            Pending Review
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                            Suspended
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">License Period Remaining</p>
+                      <p className="text-sm font-bold mt-1 text-slate-800 dark:text-slate-200">
+                        {settings?.billing?.minutes_remaining && settings?.billing?.minutes_remaining > 0 ? (
+                          <>
+                            {formatMinutes(settings.billing.minutes_remaining)}
+                            <span className="text-xs font-normal text-slate-400 ml-1">
+                              (expires {new Date(settings.billing.expires_at).toLocaleDateString()})
+                            </span>
+                          </>
+                        ) : (
+                          "0 minutes (License Expired)"
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {settings?.billing?.pop_file_url && (
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
+                      <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Last Uploaded Receipt</p>
+                      <div className="mt-1 flex items-center gap-3">
+                        <a
+                          href={settings.billing.pop_file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-blue-500 hover:underline font-medium"
+                        >
+                          <ExternalLink size={12} />
+                          View uploaded receipt
+                        </a>
+                        <span className="text-xs text-gray-400">
+                          Uploaded on {new Date(settings.billing.pop_uploaded_at).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Offline Invoice Request Form */}
+              <div className="k-card">
+                <div className="flex items-center gap-2 mb-2">
+                  <Star size={18} className="text-amber-500" />
+                  <h2 className="text-lg font-semibold">Generate Proforma Invoice</h2>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  Institutions requiring formal proforma quotations can generate one here. You can then print it or save it as a PDF for your school bursar.
+                </p>
+
+                <form onSubmit={handleRequestInvoice} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-550">School / Club Billing Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={schoolName}
+                        onChange={(e) => setSchoolName(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-semibold"
+                        placeholder="e.g. Oakridge High School"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-gray-550">Bursar Address / Email (optional)</label>
+                      <input
+                        type="text"
+                        value={billingAddress}
+                        onChange={(e) => setBillingAddress(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                        placeholder="e.g. accounts@oakridge.edu"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-4 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isUploading}
+                      className="k-btn k-btn-primary flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <Save size={14} />
+                      {isUploading ? 'Saving...' : 'Save Details'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrintInvoice}
+                      disabled={!schoolName}
+                      className="k-btn border border-gray-200 dark:border-gray-800 flex items-center gap-2 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      <ExternalLink size={14} />
+                      Print / Download Invoice
+                    </button>
+                    {billingInvoiceSuccess && (
+                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">Invoice details saved!</span>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* Upload Proof of Payment (POP) */}
+              <div className="k-card">
+                <div className="flex items-center gap-2 mb-2">
+                  <Star size={18} className="text-green-500" />
+                  <h2 className="text-lg font-semibold">Upload Payment Receipt / POP</h2>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  Upload a screenshot or scan of your bank transfer receipt (ZIPIT/RTGS/USD) or EcoCash transaction statement to renew the license.
+                </p>
+
+                <form onSubmit={handlePopUploadSubmit} className="space-y-4">
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 text-center hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
+                    <input
+                      type="file"
+                      id="pop-file-upload"
+                      required
+                      accept="image/*,.pdf"
+                      onChange={(e) => setSelectedFile(e.target.files[0])}
+                      className="hidden"
+                    />
+                    <label htmlFor="pop-file-upload" className="cursor-pointer flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mb-3">
+                        <CreditCard size={24} />
+                      </div>
+                      {selectedFile ? (
+                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                          Selected: <span className="underline">{selectedFile.name}</span>
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Click to upload file</p>
+                          <p className="text-xs text-gray-400 mt-1">PNG, JPG, JPEG, or PDF up to 5MB</p>
+                        </>
+                      )}
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="submit"
+                      disabled={isUploading || !selectedFile}
+                      className="k-btn bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isUploading ? 'Uploading...' : 'Submit Receipt'}
+                    </button>
+                    {billingPopSuccess && (
+                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">Receipt uploaded! Pending review.</span>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* Developer Test Tools */}
+              <div className="k-card border border-blue-200 dark:border-blue-900/50 bg-blue-50/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <ShieldAlert size={18} className="text-blue-500" />
+                  <h2 className="text-lg font-semibold text-blue-700 dark:text-blue-400">Developer Testing Tools</h2>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+                  Use these buttons to manually trigger and test the subscription warnings and lockouts in real-time.
+                </p>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSimulateExpiry}
+                    disabled={isSimulating || settings?.billing?.status === 'suspended'}
+                    className="k-btn bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-2 disabled:opacity-50 text-xs font-semibold"
+                  >
+                    <RefreshCw size={12} className={isSimulating ? 'animate-spin' : ''} />
+                    Simulate License Expiration
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSimulateRenewal}
+                    disabled={isSimulating || (settings?.billing?.status === 'active' && !settings?.billing?.pop_file_url)}
+                    className="k-btn border border-gray-200 dark:border-gray-800 flex items-center gap-2 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-semibold"
+                  >
+                    <RefreshCw size={12} className={isSimulating ? 'animate-spin' : ''} />
+                    Simulate Active Renewal
+                  </button>
+                </div>
+              </div>
+            </>
           )}
 
           {activeTab === 'reset' && (

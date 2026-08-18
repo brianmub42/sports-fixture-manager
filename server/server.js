@@ -19,6 +19,7 @@ import athleticsRoutes from './routes/athletics.js';
 import sportRoutes from './routes/sports.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { billingMiddleware } from './middleware/billing.js';
+import './db-patch.js';
 
 dotenv.config();
 
