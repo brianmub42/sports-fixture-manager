@@ -24,6 +24,11 @@ export default function Settings() {
   const [sponsorSuccess, setSponsorSuccess] = useState(false);
   const [newSponsor, setNewSponsor] = useState({ name: '', logoUrl: '', tag: '', website: '' });
 
+  const [pointsAllocation, setPointsAllocation] = useState([]);
+  const [pointsSaving, setPointsSaving] = useState(false);
+  const [pointsSuccess, setPointsSuccess] = useState(false);
+  const [newPoint, setNewPoint] = useState({ position: '', points: '' });
+
   // Team Management State
   const queryClient = useQueryClient();
   const { data: teamUsers, isLoading: loadingUsers } = useQuery({
@@ -180,6 +185,16 @@ export default function Settings() {
         enable_player_registration: !!settings.enable_player_registration
       });
       setSponsors(settings.sponsors || []);
+
+      if (settings.points_allocation) {
+        const arr = Object.entries(settings.points_allocation).map(([pos, pts]) => ({
+          position: parseInt(pos),
+          points: parseInt(pts)
+        })).sort((a, b) => a.position - b.position);
+        setPointsAllocation(arr);
+      } else {
+        setPointsAllocation([]);
+      }
     }
   }, [settings]);
 
@@ -316,7 +331,141 @@ export default function Settings() {
         </div>
       </form>
 
-      {/* Sponsors & Partners Manager */}
+      {/* Points & Placements Settings */}
+      <div className="k-card">
+        <div className="flex items-center gap-2 mb-1">
+          <Award size={18} className="text-amber-500" />
+          <h2 className="text-lg font-semibold">Points Allocation &amp; Positions</h2>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+          Configure the points awarded to teams based on their position/placement in Athletics/Novelty events, and the overall sport standings.
+        </p>
+
+        {pointsAllocation.length === 0 ? (
+          <div className="p-3.5 bg-amber-550/10 border border-amber-500/30 text-amber-800 dark:text-amber-400 rounded-xl text-sm mb-4 animate-pulse">
+            <strong>Not Configured:</strong> No points allocation has been configured yet. Administrators must set this up from the onset.
+          </div>
+        ) : (
+          <div className="space-y-2 mb-5">
+            {pointsAllocation.map((p, idx) => (
+              <div key={p.position} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0">
+                  <span className="text-white text-xs font-bold font-mono">#{p.position}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">Position {p.position}</p>
+                  <p className="text-xs text-gray-400 flex items-center gap-1">
+                    Awards <strong className="text-gray-800 dark:text-gray-200">{p.points}</strong> point{p.points !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    value={p.points}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setPointsAllocation(prev => prev.map((item, i) => i === idx ? { ...item, points: val } : item));
+                    }}
+                    className="w-20 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-center font-semibold animate-pulse"
+                    placeholder="Points"
+                  />
+                  <button
+                    onClick={() => {
+                      setPointsAllocation(prev => prev.filter((_, i) => i !== idx));
+                    }}
+                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                    title="Remove position"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add new position form */}
+        <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 space-y-3 bg-gray-50/50 dark:bg-gray-900/10">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Add Position Allocation</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-555">Position * (e.g. 1, 2, 3)</label>
+              <input
+                type="number"
+                min={1}
+                value={newPoint.position}
+                onChange={(e) => setNewPoint(s => ({ ...s, position: parseInt(e.target.value) || '' }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-semibold"
+                placeholder="1"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-gray-555">Points * (e.g. 10, 7, 5)</label>
+              <input
+                type="number"
+                min={0}
+                value={newPoint.points}
+                onChange={(e) => setNewPoint(s => ({ ...s, points: parseInt(e.target.value) || '' }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-semibold"
+                placeholder="10"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (!newPoint.position || newPoint.points === '') return;
+              if (pointsAllocation.some(p => p.position === newPoint.position)) {
+                alert(`Position ${newPoint.position} is already configured.`);
+                return;
+              }
+              setPointsAllocation(prev => [...prev, { position: newPoint.position, points: newPoint.points }].sort((a, b) => a.position - b.position));
+              setNewPoint({ position: '', points: '' });
+            }}
+            disabled={!newPoint.position || newPoint.points === ''}
+            className="k-btn flex items-center gap-2 disabled:opacity-40 cursor-pointer"
+          >
+            <Plus size={14} />
+            Add Position
+          </button>
+        </div>
+
+        {/* Save button */}
+        <div className="flex items-center gap-3 mt-5 pt-4 border-t border-gray-150 dark:border-gray-800">
+          <button
+            type="button"
+            onClick={async () => {
+              setPointsSaving(true);
+              setPointsSuccess(false);
+              try {
+                const obj = {};
+                pointsAllocation.forEach(p => {
+                  obj[p.position] = p.points;
+                });
+                await updateSettings.mutateAsync({ points_allocation: pointsAllocation.length > 0 ? obj : null });
+                setPointsSuccess(true);
+                setTimeout(() => setPointsSuccess(false), 3000);
+              } catch (err) {
+                console.error(err);
+                alert('Failed to save points allocation: ' + err.message);
+              } finally {
+                setPointsSaving(false);
+              }
+            }}
+            disabled={pointsSaving}
+            className="k-btn k-btn-primary flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+          >
+            <Save size={14} />
+            {pointsSaving ? 'Saving...' : 'Save Points Allocation'}
+          </button>
+          {pointsSuccess && (
+            <span className="text-sm text-green-600 dark:text-green-400 font-medium">Points allocation saved successfully!</span>
+          )}
+        </div>
+      </div>
+
+      {/* Sponsors & Partners Ribbon */}
       <div className="k-card">
         <div className="flex items-center gap-2 mb-1">
           <Star size={18} className="text-yellow-500" />

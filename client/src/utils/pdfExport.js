@@ -58,22 +58,40 @@ export const exportStandingsToPDF = (standings, settings, currentSport) => {
   const sportName = currentSport ? `${currentSport} Standings` : 'Overall Standings';
   const doc = setupPdfDoc(settings?.org_name, settings?.event_title, sportName);
 
-  const tableColumn = ["Rank", "Team", "Played", "Won", "Draw", "Loss", "GF", "GA", "GD", "Points"];
-  const tableRows = [];
+  const isPlacement = standings.length > 0 && standings[0].gold !== undefined;
 
-  standings.forEach((team, index) => {
-    tableRows.push([
-      index + 1,
-      team.name || team.team_name || team.district_name,
-      team.played,
-      team.won,
-      team.drawn,
-      team.lost,
-      team.goals_for,
-      team.goals_against,
-      team.goal_difference,
-      team.points
-    ]);
+  const tableColumn = isPlacement
+    ? ["Rank", "Team", "Events", "1st (Gold)", "2nd (Silver)", "3rd (Bronze)", "Points"]
+    : ["Rank", "Team", "Played", "Won", "Draw", "Loss", "GF", "GA", "GD", "Points"];
+
+  const tableRows = standings.map((team, index) => {
+    if (isPlacement) {
+      return [
+        index + 1,
+        team.name || team.team_name || team.district_name,
+        team.played,
+        team.gold || team.won || 0,
+        team.silver || 0,
+        team.bronze || 0,
+        team.points
+      ];
+    } else {
+      const gf = team.goals_for !== undefined ? team.goals_for : (team.pf !== undefined ? team.pf : 0);
+      const ga = team.goals_against !== undefined ? team.goals_against : (team.pa !== undefined ? team.pa : 0);
+      const gd = team.goal_difference !== undefined ? team.goal_difference : (Number(gf) - Number(ga));
+      return [
+        index + 1,
+        team.name || team.team_name || team.district_name,
+        team.played,
+        team.won,
+        team.drawn,
+        team.lost,
+        gf,
+        ga,
+        gd,
+        team.points
+      ];
+    }
   });
 
   doc.autoTable({

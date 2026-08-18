@@ -41,8 +41,8 @@ export function OrganizationProvider({ children }) {
     window.location.reload();
   };
 
-  const createOrg = async (name, eventTitle) => {
-    const newOrg = await createOrgMutation.mutateAsync({ name, event_title: eventTitle });
+  const createOrg = async (name, eventTitle, creatorEmail) => {
+    const newOrg = await createOrgMutation.mutateAsync({ name, event_title: eventTitle, creator_email: creatorEmail });
     localStorage.removeItem('token'); // Clear old tenant token
     localStorage.setItem('organization_slug', newOrg.slug); // Synchronously save to prevent race condition
     setCurrentOrgSlug(newOrg.slug);

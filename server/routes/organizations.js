@@ -16,9 +16,21 @@ router.get('/', async (req, res) => {
 // POST /api/organizations
 router.post('/', async (req, res) => {
   try {
-    const { name, event_title } = req.body;
-    if (!name) {
-      return res.status(400).json({ error: 'Organization name is required' });
+    const { name, event_title, creator_email } = req.body;
+    if (!name || !creator_email) {
+      return res.status(400).json({ error: 'Organization name and creator email are required' });
+    }
+
+    // Check if creator_email is associated with a suspended workspace
+    const checkSuspended = await query(
+      "SELECT id, name FROM organizations WHERE creator_email = $1 AND subscription_status = 'suspended'",
+      [creator_email.trim().toLowerCase()]
+    );
+    if (checkSuspended.rows.length > 0) {
+      return res.status(402).json({
+        error: `You cannot create a new workspace because your existing workspace (${checkSuspended.rows[0].name}) is suspended due to unpaid term fees. Please reactivate your existing workspace first.`,
+        code: 'CREATOR_EMAIL_SUSPENDED'
+      });
     }
 
     // Generate unique slug
@@ -43,8 +55,8 @@ router.post('/', async (req, res) => {
 
     // Create organization
     const orgRes = await query(
-      'INSERT INTO organizations (name, slug, event_title) VALUES ($1, $2, $3) RETURNING *',
-      [name, slug, event_title || 'Championship']
+      'INSERT INTO organizations (name, slug, event_title, creator_email) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, slug, event_title || 'Championship', creator_email.trim().toLowerCase()]
     );
     const org = orgRes.rows[0];
 

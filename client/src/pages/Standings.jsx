@@ -12,6 +12,8 @@ export default function Standings() {
   const { data: settings } = useSettings();
 
   const sports = sportsData?.map(s => s.name) || [];
+  const selectedSportObj = sportsData?.find(s => s.name === sport);
+  const isPlacement = selectedSportObj?.scoring_type === 'placement';
 
   useEffect(() => {
     if (sports.length > 0 && !sport) {
@@ -66,26 +68,52 @@ export default function Standings() {
             <div className="min-w-[600px]">
               <div className="grid grid-cols-9 gap-2 text-xs text-gray-400 font-medium mb-2 px-2 text-center">
                 <span>Rank</span>
-                <span className="text-left col-span-2">Team</span>
-                <span>P</span>
-                <span>W</span>
-                <span>L</span>
-                <span>PF</span>
-                <span>PA</span>
+                {isPlacement ? (
+                  <>
+                    <span className="text-left col-span-3">Team</span>
+                    <span title="Events Played">E</span>
+                    <span title="1st Place finishes">1st 🥇</span>
+                    <span title="2nd Place finishes">2nd 🥈</span>
+                    <span title="3rd Place finishes">3rd 🥉</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-left col-span-2">Team</span>
+                    <span title="Matches Played">P</span>
+                    <span title="Matches Won">W</span>
+                    <span title="Matches Lost">L</span>
+                    <span title="Points For">PF</span>
+                    <span title="Points Against">PA</span>
+                  </>
+                )}
                 <span>PTS</span>
               </div>
               <div className="space-y-1">
                 {standings?.map((team, i) => (
                   <div key={team.code} className="grid grid-cols-9 gap-2 items-center py-2 px-2 border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded text-center">
                     <span className="text-xs text-gray-400 font-semibold">{i + 1}</span>
-                    <span className="text-left col-span-2">
-                      <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
-                    </span>
-                    <span className="text-sm text-gray-600">{team.played}</span>
-                    <span className="text-sm text-gray-600">{team.won}</span>
-                    <span className="text-sm text-gray-600">{team.lost}</span>
-                    <span className="text-sm text-gray-600">{team.pf}</span>
-                    <span className="text-sm text-gray-600">{team.pa}</span>
+                    {isPlacement ? (
+                      <>
+                        <span className="text-left col-span-3 truncate">
+                          <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
+                        </span>
+                        <span className="text-sm text-gray-600">{team.played}</span>
+                        <span className="text-sm text-gray-600">{team.gold || team.won || 0}</span>
+                        <span className="text-sm text-gray-600">{team.silver || 0}</span>
+                        <span className="text-sm text-gray-600">{team.bronze || 0}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-left col-span-2 truncate">
+                          <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
+                        </span>
+                        <span className="text-sm text-gray-600">{team.played}</span>
+                        <span className="text-sm text-gray-600">{team.won}</span>
+                        <span className="text-sm text-gray-600">{team.lost}</span>
+                        <span className="text-sm text-gray-600">{team.pf}</span>
+                        <span className="text-sm text-gray-600">{team.pa}</span>
+                      </>
+                    )}
                     <span className="text-sm font-semibold">{team.points}</span>
                   </div>
                 ))}

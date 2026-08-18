@@ -18,6 +18,7 @@ import venueRoutes from './routes/venues.js';
 import athleticsRoutes from './routes/athletics.js';
 import sportRoutes from './routes/sports.js';
 import { tenantMiddleware } from './middleware/tenant.js';
+import { billingMiddleware } from './middleware/billing.js';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use(tenantMiddleware);
+app.use(billingMiddleware);
 
 // Routes
 app.use('/uploads', express.static('uploads'));

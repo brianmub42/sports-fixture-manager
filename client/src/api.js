@@ -14,6 +14,18 @@ api.interceptors.request.use((config) => {
   const orgSlug = localStorage.getItem('organization_slug');
   if (orgSlug) config.headers['X-Organization-Slug'] = orgSlug;
   
+  // Inject x-bypass-billing header if bypass flag is active
+  if (typeof window !== 'undefined') {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('bypassBilling') === 'true') {
+      sessionStorage.setItem('bypass_billing', 'true');
+    }
+    
+    if (sessionStorage.getItem('bypass_billing') === 'true') {
+      config.headers['X-Bypass-Billing'] = 'true';
+    }
+  }
+  
   return config;
 });
 

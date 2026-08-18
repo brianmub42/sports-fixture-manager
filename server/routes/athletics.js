@@ -159,14 +159,37 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       return res.status(404).json({ error: 'Event not found' });
     }
 
+    // Verify points allocation is configured in settings
+    const pointsSettingRes = await query("SELECT value FROM settings WHERE organization_id = $1 AND key = 'points_allocation'", [req.orgId]);
+    if (pointsSettingRes.rows.length === 0) {
+      return res.status(400).json({ error: 'Points allocation has not been configured by the workspace administrator. Please configure it in Settings first.' });
+    }
+
+    let pointMap = {};
+    try {
+      pointMap = JSON.parse(pointsSettingRes.rows[0].value);
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to parse points allocation configuration.' });
+    }
+
     // Delete existing results for this event
     await query('DELETE FROM athletics_results WHERE event_id = $1', [eventId]);
 
-    const pointMap = { 1: 10, 2: 7, 3: 5, 4: 3, 5: 2 };
-
     // Insert new results
     for (const r of results) {
-      const pts = r.placement in pointMap ? pointMap[r.placement] : 1;
+      let pts = null;
+      if (pointMap[r.placement] !== undefined) {
+        pts = Number(pointMap[r.placement]);
+      } else if (pointMap[String(r.placement)] !== undefined) {
+        pts = Number(pointMap[String(r.placement)]);
+      }
+
+      if (pts === null) {
+        return res.status(400).json({
+          error: `Points allocation for Position ${r.placement} has not been configured in Settings. Please configure all necessary positions before logging results.`
+        });
+      }
+
       await query(`
         INSERT INTO athletics_results (event_id, team_id, placement, points, time_ms)
         VALUES ($1, $2, $3, $4, $5)

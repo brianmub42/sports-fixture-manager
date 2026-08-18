@@ -17,7 +17,10 @@ router.get('/', async (req, res) => {
         SELECT 
           t.code, t.name, t.color, t.logo_url,
           COUNT(DISTINCT ae.id) as played,
-          SUM(CASE WHEN ar.placement = 1 THEN 1 ELSE 0 END) as won,
+          COALESCE(SUM(CASE WHEN ar.placement = 1 THEN 1 ELSE 0 END), 0) as won,
+          COALESCE(SUM(CASE WHEN ar.placement = 1 THEN 1 ELSE 0 END), 0) as gold,
+          COALESCE(SUM(CASE WHEN ar.placement = 2 THEN 1 ELSE 0 END), 0) as silver,
+          COALESCE(SUM(CASE WHEN ar.placement = 3 THEN 1 ELSE 0 END), 0) as bronze,
           0 as drawn,
           0 as lost,
           0 as pf,
@@ -79,7 +82,23 @@ router.get('/log', async (req, res) => {
       };
     });
 
-    const pointMap = { 1: 10, 2: 7, 3: 5, 4: 3, 5: 2 };
+    // Retrieve configured points allocation from settings
+    const pointsSettingRes = await query("SELECT value FROM settings WHERE organization_id = $1 AND key = 'points_allocation'", [req.orgId]);
+    let pointMap = null;
+    if (pointsSettingRes.rows.length > 0) {
+      try {
+        pointMap = JSON.parse(pointsSettingRes.rows[0].value);
+      } catch (err) {
+        console.error('Error parsing points_allocation setting:', err);
+      }
+    }
+
+    const getPointsForPlacement = (placement, map) => {
+      if (!map) return 0;
+      if (map[placement] !== undefined) return Number(map[placement]);
+      if (map[String(placement)] !== undefined) return Number(map[String(placement)]);
+      return 0; // Default to 0 points if not configured
+    };
 
     for (const sport of sports) {
       let hasResults = false;
@@ -135,7 +154,7 @@ router.get('/log', async (req, res) => {
 
       standingsRes.rows.forEach((row, idx) => {
         const rank = idx + 1;
-        const pts = rank in pointMap ? pointMap[rank] : 1;
+        const pts = getPointsForPlacement(rank, pointMap);
         if (teamPoints[row.code]) {
           if (key) teamPoints[row.code][key] = pts;
           teamPoints[row.code].total += pts;

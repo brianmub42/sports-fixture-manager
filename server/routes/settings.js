@@ -22,9 +22,40 @@ router.get('/', async (req, res) => {
     const eventTitle = settings.event_title || req.orgInfo.event_title;
     const enablePlayerRegistration = settings.enable_player_registration === 'true';
 
+    // Fetch workspace billing info
+    const billingRes = await query(
+      'SELECT subscription_status, term_expires_at, credit_balance FROM organizations WHERE id = $1',
+      [req.orgId]
+    );
+    const orgBilling = billingRes.rows[0] || {};
+    let status = orgBilling.subscription_status || 'active';
+    const expiresAt = orgBilling.term_expires_at ? new Date(orgBilling.term_expires_at) : null;
+    
+    // Auto-suspend if expired
+    if (status === 'active' && expiresAt && expiresAt < new Date()) {
+      await query(
+        "UPDATE organizations SET subscription_status = 'suspended' WHERE id = $1",
+        [req.orgId]
+      );
+      status = 'suspended';
+    }
+
+    const minutesRemaining = expiresAt ? Math.round((expiresAt - new Date()) / 60000) : 999;
+    const isLowCredit = status === 'suspended' || (expiresAt && minutesRemaining <= 10);
+
     // Parse sponsors JSON safely
     let sponsors = [];
     try { sponsors = settings.sponsors ? JSON.parse(settings.sponsors) : []; } catch {}
+
+    // Parse points_allocation safely
+    let pointsAllocation = null;
+    try {
+      if (settings.points_allocation) {
+        pointsAllocation = JSON.parse(settings.points_allocation);
+      }
+    } catch (err) {
+      console.error('Error parsing points_allocation:', err);
+    }
 
     res.json({
       org_name: orgName,
@@ -34,6 +65,14 @@ router.get('/', async (req, res) => {
       sports_count: sportsCountRes.rows[0].count,
       sponsors,
       enable_player_registration: enablePlayerRegistration,
+      points_allocation: pointsAllocation,
+      billing: {
+        status,
+        expires_at: expiresAt ? expiresAt.toISOString() : null,
+        minutes_remaining: minutesRemaining,
+        is_low_credit: isLowCredit,
+        credit_balance: orgBilling.credit_balance || 0.00
+      },
       has_users: hasUsers
     });
   } catch (err) {
@@ -44,7 +83,7 @@ router.get('/', async (req, res) => {
 // POST /api/settings
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { org_name, event_title, enable_player_registration } = req.body;
+    const { org_name, event_title, enable_player_registration, points_allocation } = req.body;
     if (org_name !== undefined) {
       await query(
         "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'org_name', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
@@ -64,6 +103,20 @@ router.post('/', authMiddleware, async (req, res) => {
         "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'enable_player_registration', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
         [req.orgId, enable_player_registration ? 'true' : 'false']
       );
+    }
+    if (points_allocation !== undefined) {
+      const json = points_allocation ? JSON.stringify(points_allocation) : null;
+      if (json) {
+        await query(
+          "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'points_allocation', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
+          [req.orgId, json]
+        );
+      } else {
+        await query(
+          "DELETE FROM settings WHERE organization_id = $1 AND key = 'points_allocation'",
+          [req.orgId]
+        );
+      }
     }
     res.json({ success: true });
   } catch (err) {

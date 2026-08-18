@@ -5,6 +5,10 @@ CREATE TABLE IF NOT EXISTS organizations (
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
     event_title VARCHAR(150) DEFAULT 'Championship',
+    creator_email VARCHAR(100),
+    subscription_status VARCHAR(20) DEFAULT 'active',
+    term_expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 minutes',
+    credit_balance NUMERIC(10, 2) DEFAULT 50.00,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -89,6 +93,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100),
     role VARCHAR(20) DEFAULT 'viewer',
     team_id INT REFERENCES teams(id) ON DELETE SET NULL,
+    credit_balance NUMERIC(10, 2) DEFAULT 100.00,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

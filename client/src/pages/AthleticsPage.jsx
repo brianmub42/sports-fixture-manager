@@ -8,7 +8,7 @@ import {
   useDeleteAthleticsEvent, 
   useSaveAthleticsResults 
 } from '../hooks/useAthletics.js';
-import { useVenues, useTeams } from '../hooks/useFixtures.js';
+import { useVenues, useTeams, useSettings } from '../hooks/useFixtures.js';
 import TeamPill from '../components/TeamPill.jsx';
 import SportTag from '../components/SportTag.jsx';
 import { 
@@ -25,15 +25,18 @@ import {
   Timer 
 } from 'lucide-react';
 
-const getPlacementLabel = (num) => {
+const getPlacementLabel = (num, pointsAllocation) => {
   const suffix = num === 1 ? 'st (Gold)' :
                  num === 2 ? 'nd (Silver)' :
                  num === 3 ? 'rd (Bronze)' : 'th';
-  const pts = num === 1 ? 10 :
-              num === 2 ? 7 :
-              num === 3 ? 5 :
-              num === 4 ? 3 :
-              num === 5 ? 2 : 1;
+  let pts = 0;
+  if (pointsAllocation) {
+    if (pointsAllocation[num] !== undefined) {
+      pts = Number(pointsAllocation[num]);
+    } else if (pointsAllocation[String(num)] !== undefined) {
+      pts = Number(pointsAllocation[String(num)]);
+    }
+  }
   const requiredStar = num === 1 ? '*' : '';
   return `${num}${suffix} (${pts} pts)${requiredStar}`;
 };
@@ -44,6 +47,7 @@ export default function AthleticsPage() {
   const { data: sports } = useAthleticsSports();
   const { data: venues } = useVenues();
   const { data: teams } = useTeams();
+  const { data: settings } = useSettings();
 
   // Mutations
   const createEvent = useCreateAthleticsEvent();
@@ -170,6 +174,23 @@ export default function AthleticsPage() {
     const uniqueTeamIds = new Set(selectedTeamIds);
     if (selectedTeamIds.length !== uniqueTeamIds.size) {
       alert('A team cannot be selected for multiple placements.');
+      return;
+    }
+
+    // Check if points allocation is configured for all logged placements
+    const unconfiguredPlacements = [];
+    placements.forEach((p, idx) => {
+      if (p.teamId) {
+        const placement = idx + 1;
+        const ptsAllocation = settings?.points_allocation;
+        if (!ptsAllocation || (ptsAllocation[placement] === undefined && ptsAllocation[String(placement)] === undefined)) {
+          unconfiguredPlacements.push(placement);
+        }
+      }
+    });
+
+    if (unconfiguredPlacements.length > 0) {
+      alert(`Point allocation for Position(s) ${unconfiguredPlacements.join(', ')} is not configured in Settings. Please ask the administrator to configure points for all positions before saving results.`);
       return;
     }
 
@@ -540,11 +561,27 @@ export default function AthleticsPage() {
               Event: {selectedEventForResults?.name} ({selectedEventForResults?.category})
             </p>
 
-            <form onSubmit={handleSaveResults} className="space-y-4">
-              <div className="space-y-3">
+            {!settings?.points_allocation ? (
+              <div className="space-y-4 mt-2">
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-400 rounded-xl text-xs leading-relaxed animate-pulse">
+                  <strong>Points Allocation Not Configured:</strong> The workspace administrator has not configured the points allocation and positions yet. Please configure it in <strong>Settings</strong> before logging event results.
+                </div>
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsResultModalOpen(false)}
+                    className="px-4 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium text-xs transition-colors cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveResults} className="space-y-4">
+                <div className="space-y-3">
                 {placements.map((p, idx) => {
                   const num = idx + 1;
-                  const placeLabel = getPlacementLabel(num);
+                  const placeLabel = getPlacementLabel(num, settings?.points_allocation);
                   return (
                     <div key={num} className="grid grid-cols-3 gap-2 items-center text-xs">
                       <label className="col-span-1 font-bold text-gray-500 uppercase">{placeLabel}</label>
@@ -599,6 +636,7 @@ export default function AthleticsPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

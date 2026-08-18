@@ -36,6 +36,7 @@ export default function SelectOrganization() {
   const { organizations, isLoading, selectOrg, createOrg } = useOrganization();
   const [newOrgName, setNewOrgName] = useState('');
   const [newEventTitle, setNewEventTitle] = useState('');
+  const [creatorEmail, setCreatorEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -52,11 +53,11 @@ export default function SelectOrganization() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newOrgName.trim()) return;
+    if (!newOrgName.trim() || !creatorEmail.trim()) return;
     setIsSubmitting(true);
     setError('');
     try {
-      await createOrg(newOrgName, newEventTitle);
+      await createOrg(newOrgName, newEventTitle, creatorEmail.trim());
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create organization. Try again.');
       setIsSubmitting(false);
@@ -414,6 +415,20 @@ export default function SelectOrganization() {
                     placeholder="e.g. Annual Sports Day, Summer Cup"
                     value={newEventTitle}
                     onChange={(e) => setNewEventTitle(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Creator Email Address * (For Expiration &amp; Lockout Alerts)
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. admin@school.com"
+                    value={creatorEmail}
+                    onChange={(e) => setCreatorEmail(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                 </div>
