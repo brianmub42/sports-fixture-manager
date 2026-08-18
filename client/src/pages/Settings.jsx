@@ -218,94 +218,308 @@ export default function Settings() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Invoice - ${schoolName || 'Organization'}</title>
+          <title>Proforma Invoice - ${schoolName || 'Organization'}</title>
           <style>
-            body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; }
-            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-            .logo { font-size: 24px; font-weight: 800; color: #0f172a; }
-            .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #3b82f6; }
-            .details { display: flex; justify-content: space-between; margin-bottom: 40px; }
-            .bill-to, .bill-from { width: 45%; }
-            h3 { font-size: 14px; text-transform: uppercase; color: #64748b; margin-bottom: 10px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-            th { background: #f8fafc; text-align: left; padding: 12px; border-bottom: 1px solid #cbd5e1; color: #475569; }
-            td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-            .total { font-size: 18px; font-weight: 700; text-align: right; margin-top: 20px; }
-            .payment-info { background: #f0f9ff; border: 1px solid #bee3f8; padding: 20px; border-radius: 8px; font-size: 14px; }
-            .btn-print { padding: 10px 20px; font-weight: bold; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+            @page {
+              size: A4;
+              margin: 15mm 20mm 15mm 20mm;
+            }
+            body {
+              font-family: system-ui, -apple-system, sans-serif;
+              color: #1e293b;
+              margin: 0;
+              padding: 0;
+              line-height: 1.5;
+              font-size: 14px;
+            }
+            .invoice-box {
+              max-width: 800px;
+              margin: auto;
+              padding: 10px;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 2px solid #e2e8f0;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .logo-area {
+              display: flex;
+              flex-direction: column;
+            }
+            .logo {
+              font-size: 24px;
+              font-weight: 800;
+              color: #0f172a;
+              letter-spacing: -0.025em;
+            }
+            .subtitle {
+              font-size: 12px;
+              color: #64748b;
+              margin-top: 4px;
+            }
+            .invoice-title-area {
+              text-align: right;
+            }
+            .invoice-title {
+              font-size: 28px;
+              font-weight: 800;
+              color: #2563eb;
+              letter-spacing: -0.025em;
+            }
+            .meta-details {
+              font-size: 13px;
+              color: #475569;
+              margin-top: 5px;
+              line-height: 1.4;
+            }
+            .details-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 40px;
+              margin-bottom: 40px;
+            }
+            .bill-section h3 {
+              font-size: 12px;
+              text-transform: uppercase;
+              color: #64748b;
+              margin: 0 0 10px 0;
+              letter-spacing: 0.05em;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 5px;
+            }
+            .bill-section p {
+              margin: 0;
+              line-height: 1.5;
+            }
+            .bill-to-section {
+              text-align: left;
+            }
+            .bill-from-section {
+              text-align: right;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+              text-align: justify;
+            }
+            th {
+              background: #f8fafc;
+              text-align: left;
+              padding: 12px;
+              border-bottom: 2px solid #cbd5e1;
+              color: #475569;
+              font-weight: 600;
+              font-size: 13px;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+            td {
+              padding: 14px 12px;
+              border-bottom: 1px solid #e2e8f0;
+              vertical-align: top;
+            }
+            .amount-col {
+              text-align: right;
+              font-weight: 600;
+            }
+            .total-section {
+              display: flex;
+              justify-content: flex-end;
+              margin-bottom: 40px;
+            }
+            .total-box {
+              width: 250px;
+              border-top: 2px solid #2563eb;
+              padding-top: 10px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .total-label {
+              font-weight: 600;
+              color: #475569;
+            }
+            .total-val {
+              font-size: 20px;
+              font-weight: 800;
+              color: #0f172a;
+            }
+            .payment-section {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              padding: 20px;
+              font-size: 13px;
+            }
+            .payment-section h4 {
+              font-size: 13px;
+              text-transform: uppercase;
+              color: #1e293b;
+              margin: 0 0 15px 0;
+              letter-spacing: 0.05em;
+              border-bottom: 1px solid #cbd5e1;
+              padding-bottom: 8px;
+            }
+            .payment-grid {
+              display: grid;
+              grid-template-columns: 1.2fr 0.8fr;
+              gap: 30px;
+            }
+            .bank-label {
+              color: #64748b;
+              font-weight: 500;
+              display: inline-block;
+              width: 120px;
+            }
+            .bank-value {
+              color: #0f172a;
+              font-weight: 600;
+            }
+            .footer-note {
+              margin-top: 15px;
+              font-size: 11px;
+              color: #64748b;
+              text-align: center;
+              line-height: 1.4;
+            }
+            .btn-area {
+              margin-top: 30px;
+              text-align: center;
+            }
+            .btn-print {
+              padding: 10px 24px;
+              font-weight: bold;
+              background: #2563eb;
+              color: white;
+              border: none;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: background 0.2s;
+              box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+            }
+            .btn-print:hover {
+              background: #1d4ed8;
+            }
             @media print {
-              body { padding: 0; }
-              .no-print { display: none; }
+              @page {
+                size: A4;
+                margin: 15mm 20mm 15mm 20mm;
+              }
+              body {
+                color: #000;
+              }
+              .no-print {
+                display: none;
+              }
+              .invoice-box {
+                padding: 0;
+              }
+              .payment-section {
+                background: none !important;
+                border: 1px solid #cbd5e1 !important;
+              }
             }
           </style>
         </head>
         <body>
-          <div class="header">
-            <div>
-              <div class="logo">FixtureGrid Sports Manager</div>
-              <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Powered by eTechZim</div>
-            </div>
-            <div>
-              <div class="invoice-title">INVOICE</div>
-              <div style="font-size: 14px; color: #475569; text-align: right; margin-top: 4px;">
-                Invoice #: ${invoiceNumber}<br />
-                Date: ${new Date(invoiceDate).toLocaleDateString()}
+          <div class="invoice-box">
+            <div class="header">
+              <div class="logo-area">
+                <div class="logo">FixtureGrid Sports Manager</div>
+                <div class="subtitle">Powered by eTechZim</div>
+              </div>
+              <div class="invoice-title-area">
+                <div class="invoice-title">PROFORMA INVOICE</div>
+                <div class="meta-details">
+                  <strong>Invoice #:</strong> ${invoiceNumber}<br />
+                  <strong>Date:</strong> ${new Date(invoiceDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </div>
               </div>
             </div>
-          </div>
-          <div class="details">
-            <div class="bill-to">
-              <h3>Bill To:</h3>
-              <strong>${schoolName}</strong><br />
-              ${(billingAddress || '').replace(/\n/g, '<br />')}<br /><br />
-              <strong>Contact Person:</strong> ${contactPerson || 'N/A'}<br />
-              <strong>Contact Number:</strong> ${contactNumber || 'N/A'}
+
+            <div class="details-grid">
+              <div class="bill-section bill-to-section">
+                <h3>Bill To</h3>
+                <p>
+                  <strong style="font-size: 15px; color: #0f172a;">${schoolName}</strong><br />
+                  <span style="color: #475569; display: block; margin-top: 4px; white-space: pre-line;">${billingAddress}</span>
+                </p>
+                <p style="margin-top: 12px; font-size: 13px;">
+                  <strong style="color: #475569;">Contact Person:</strong> ${contactPerson || 'N/A'}<br />
+                  <strong style="color: #475569;">Contact Number:</strong> ${contactNumber || 'N/A'}
+                </p>
+              </div>
+              <div class="bill-section bill-from-section">
+                <h3>Remit To</h3>
+                <p>
+                  <strong style="font-size: 15px; color: #0f172a;">Etechzim PVT LTD</strong><br />
+                  5 Bristol Road, Workington<br />
+                  Harare, Zimbabwe
+                </p>
+                <p style="margin-top: 12px; font-size: 13px;">
+                  <strong style="color: #475569;">TIN NUMBER:</strong> 2001255366<br />
+                  <strong style="color: #475569;">Contact:</strong> +263773257425<br />
+                  <strong style="color: #475569;">Email:</strong> info@etechzim.co.zw
+                </p>
+              </div>
             </div>
-            <div class="bill-from">
-              <h3>Remit To:</h3>
-              <strong>Etechzim PVT LTD</strong><br />
-              5 Bristol Road, Workington<br />
-              Harare, Zimbabwe<br /><br />
-              <strong>TIN NUMBER:</strong> 2001255366<br />
-              <strong>Contact:</strong> +263773257425<br />
-              <strong>Email:</strong> info@etechzim.co.zw
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th style="text-align: right; width: 120px;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <strong style="color: #0f172a;">Sports Fixture Manager - 1 Term License Subscription</strong><br />
+                    <span style="font-size: 12px; color: #64748b; margin-top: 4px; display: block; text-align: justify;">
+                      Provides full unrestricted cloud workspace access, including custom points systems, unlimited brackets generation, fixture scheduling, scorekeeper accounts, digital standings boards, and responsive team registration configurations for this academic term.
+                    </span>
+                  </td>
+                  <td class="amount-col" style="vertical-align: middle;">$130.00 USD</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="total-section">
+              <div class="total-box">
+                <span class="total-label">Total Due:</span>
+                <span class="total-val">$130.00 USD</span>
+              </div>
             </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th style="text-align: right;">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <strong>Sports Fixture Manager - 1 Term License Subscription</strong><br />
-                  <span style="font-size: 12px; color: #64748b;">Unrestricted access to brackets, scoring, and placement standings for this term.</span>
-                </td>
-                <td style="text-align: right; vertical-align: top;">$130.00 USD</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="total">
-            Total Due: $130.00 USD
-          </div>
-          <div style="margin-top: 50px;">
-            <h3>Payment Instructions:</h3>
-            <div class="payment-info">
-              <strong>NOSTRO BANKING DETAILS:</strong><br />
-              Bank Name: NMB Bank<br />
-              Account Name: ETECHZIM PVT LTD<br />
-              Branch Code: 11101<br />
-              Account Number: 31196507<br /><br />
-              <strong>InnBucks Account:</strong><br />
-              InnBucks Account / Mobile: 0773257425<br /><br />
-              <em>Note: Please upload a copy of your Nostro bank payment confirmation or InnBucks receipt screenshot in your Sports Manager settings under the Billing &amp; License tab.</em>
+
+            <div class="payment-section">
+              <h4>Payment Instructions</h4>
+              <div class="payment-grid">
+                <div>
+                  <div style="font-weight: 700; margin-bottom: 10px; color: #475569; font-size: 12px; text-transform: uppercase;">USD Nostro Bank Transfer</div>
+                  <div style="margin-bottom: 4px;"><span class="bank-label">Bank Name:</span><span class="bank-value">NMB Bank</span></div>
+                  <div style="margin-bottom: 4px;"><span class="bank-label">Account Name:</span><span class="bank-value">ETECHZIM PVT LTD</span></div>
+                  <div style="margin-bottom: 4px;"><span class="bank-label">Branch Code:</span><span class="bank-value">11101</span></div>
+                  <div style="margin-bottom: 4px;"><span class="bank-label">Account No:</span><span class="bank-value">31196507</span></div>
+                </div>
+                <div>
+                  <div style="font-weight: 700; margin-bottom: 10px; color: #475569; font-size: 12px; text-transform: uppercase;">InnBucks Transfer</div>
+                  <div style="margin-bottom: 4px;"><span class="bank-label">Account/No:</span><span class="bank-value">0773257425</span></div>
+                  <div style="margin-bottom: 4px;"><span class="bank-label">Account Name:</span><span class="bank-value">ETECHZIM PVT LTD</span></div>
+                </div>
+              </div>
+              <div class="footer-note">
+                <strong>Important Notice:</strong> Once transfer is completed, please screenshot or save the bank proof of payment (POP) receipt and upload it in your Sports Manager settings under the **Billing &amp; License** tab to immediately refresh subscription license validity.
+              </div>
             </div>
-          </div>
-          <div style="margin-top: 40px; text-align: center;" class="no-print">
-            <button class="btn-print" onclick="window.print()">Print Invoice / Save as PDF</button>
+
+            <div class="btn-area no-print">
+              <button class="btn-print" onclick="window.print()">Print Invoice / Save as PDF</button>
+            </div>
           </div>
         </body>
       </html>
