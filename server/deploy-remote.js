@@ -13,7 +13,7 @@ conn.on('ready', () => {
     'git remote remove origin || true',
     'git remote add origin https://github.com/brianmub42/sports-fixture-manager.git',
     'git fetch origin',
-    'git checkout -f main',
+    'git reset --hard origin/main',
     'npm run install:all',
     'npm run build',
     'cd server',
