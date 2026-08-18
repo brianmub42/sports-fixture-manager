@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSettings, useUpdateSettings, useResetDatabase, useVenues, useCreateVenue, useDeleteVenue, useSports, useCreateSport, useDeleteSport } from '../hooks/useFixtures.js';
 import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -12,6 +12,7 @@ export default function Settings() {
   const resetDb = useResetDatabase();
   const { isAdmin, isAuthenticated } = useAuth();
   const { currentOrgSlug } = useOrganization();
+  const isInitializedRef = useRef(false);
 
   const [form, setForm] = useState({ org_name: '', event_title: '', enable_player_registration: false });
   const [resetType, setResetType] = useState('results_only');
@@ -178,7 +179,7 @@ export default function Settings() {
   }
 
   useEffect(() => {
-    if (settings) {
+    if (settings && !isInitializedRef.current) {
       setForm({
         org_name: settings.org_name || '',
         event_title: settings.event_title || '',
@@ -195,6 +196,7 @@ export default function Settings() {
       } else {
         setPointsAllocation([]);
       }
+      isInitializedRef.current = true;
     }
   }, [settings]);
 
@@ -202,6 +204,7 @@ export default function Settings() {
     e.preventDefault();
     setUpdateSuccess(false);
     try {
+      isInitializedRef.current = false;
       await updateSettings.mutateAsync(form);
       setUpdateSuccess(true);
       setTimeout(() => setUpdateSuccess(false), 3000);
@@ -241,6 +244,7 @@ export default function Settings() {
     setSponsorSaving(true);
     setSponsorSuccess(false);
     try {
+      isInitializedRef.current = false;
       await settingsApi.saveSponsors(sponsors);
       setSponsorSuccess(true);
       setTimeout(() => setSponsorSuccess(false), 3000);
@@ -443,6 +447,7 @@ export default function Settings() {
                 pointsAllocation.forEach(p => {
                   obj[p.position] = p.points;
                 });
+                isInitializedRef.current = false;
                 await updateSettings.mutateAsync({ points_allocation: pointsAllocation.length > 0 ? obj : null });
                 setPointsSuccess(true);
                 setTimeout(() => setPointsSuccess(false), 3000);
