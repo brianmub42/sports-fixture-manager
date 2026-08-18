@@ -17,7 +17,7 @@ conn.on('ready', () => {
     'npm run install:all',
     'npm run build',
     'cd server',
-    'npm run db:setup',
+    'npm run init-db && npm run seed',
     'pm2 restart kalife-backend || pm2 start ecosystem.config.cjs'
   ];
 
