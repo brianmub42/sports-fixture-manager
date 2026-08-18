@@ -126,18 +126,18 @@ export default function SponsorsRibbon() {
 
       <style>{`
         .sponsors-ribbon {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          z-index: 50;
+          position: relative;
+          margin-top: 3rem;
+          width: 100%;
+          border-radius: 12px;
+          z-index: 10;
           height: 40px;
           background: linear-gradient(135deg, rgba(15,23,42,0.97) 0%, rgba(30,27,75,0.97) 50%, rgba(15,23,42,0.97) 100%);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
-          border-top: 1px solid rgba(255,255,255,0.07);
+          border: 1px solid rgba(255,255,255,0.07);
           overflow: hidden;
-          box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
+          box-shadow: 0 4px 24px rgba(0,0,0,0.2);
         }
 
         .sponsors-ribbon-inner {
