@@ -44,8 +44,9 @@ export const scoresApi = {
 };
 
 export const standingsApi = {
-  getBySport: (sport) => api.get('/standings', { params: { sport } }),
+  getBySport: (sport, eventId) => api.get('/standings', { params: { sport, eventId } }),
   getLog: () => api.get('/standings/log'),
+  getEvents: (sport) => api.get('/standings/events', { params: { sport } }),
 };
 
 export const uploadApi = {

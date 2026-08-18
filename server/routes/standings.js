@@ -3,10 +3,33 @@ import { query } from '../db.js';
 
 const router = Router();
 
+// GET /api/standings/events?sport=Athletics
+router.get('/events', async (req, res) => {
+  try {
+    const { sport } = req.query;
+    if (!sport) return res.status(400).json({ error: 'Sport parameter is required' });
+
+    const sportRes = await query('SELECT id FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
+    const sportRow = sportRes.rows[0];
+    if (!sportRow) return res.status(404).json({ error: 'Sport not found' });
+
+    const eventsRes = await query(`
+      SELECT id, name, category, status 
+      FROM athletics_events 
+      WHERE sport_id = $1 AND organization_id = $2 AND status = 'completed'
+      ORDER BY name ASC
+    `, [sportRow.id, req.orgId]);
+
+    res.json(eventsRes.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/standings?sport=Basketball
 router.get('/', async (req, res) => {
   try {
-    const { sport } = req.query;
+    const { sport, eventId } = req.query;
     if (!sport) {
       return res.status(400).json({ error: 'Sport parameter is required' });
     }
@@ -16,6 +39,36 @@ router.get('/', async (req, res) => {
     if (!sportRow) return res.status(404).json({ error: 'Sport not found' });
 
     if (sportRow.scoring_type === 'placement') {
+      if (eventId && eventId !== 'all') {
+        const currentRes = await query(`
+          SELECT 
+            t.id, t.code, t.name, t.color, t.logo_url,
+            COUNT(DISTINCT ae.id)::int as played,
+            COALESCE(SUM(CASE WHEN ar.placement = 1 THEN 1 ELSE 0 END), 0)::int as won,
+            COALESCE(SUM(CASE WHEN ar.placement = 1 THEN 1 ELSE 0 END), 0)::int as gold,
+            COALESCE(SUM(CASE WHEN ar.placement = 2 THEN 1 ELSE 0 END), 0)::int as silver,
+            COALESCE(SUM(CASE WHEN ar.placement = 3 THEN 1 ELSE 0 END), 0)::int as bronze,
+            0 as drawn,
+            0 as lost,
+            0 as pf,
+            0 as pa,
+            COALESCE(SUM(ar.points), 0)::int as points
+          FROM teams t
+          LEFT JOIN athletics_results ar ON t.id = ar.team_id
+          LEFT JOIN athletics_events ae ON ar.event_id = ae.id AND ae.sport_id = $1 AND ae.organization_id = $2 AND ae.status = 'completed' AND ae.id = $3
+          WHERE t.organization_id = $2
+          GROUP BY t.id, t.code, t.name, t.color, t.logo_url
+          ORDER BY points DESC, won DESC, gold DESC, silver DESC, bronze DESC, t.code ASC
+        `, [sportRow.id, req.orgId, Number(eventId)]);
+
+        const standings = currentRes.rows.map(row => ({
+          ...row,
+          trend: 'same',
+          rank_diff: 0,
+          event_breakdown: []
+        }));
+        return res.json(standings);
+      }
       // 1. Current Placements Standings
       const currentRes = await query(`
         SELECT 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useStandings } from '../hooks/useStandings.js';
+import { useStandings, useStandingsEvents } from '../hooks/useStandings.js';
 import { useSettings, useSports } from '../hooks/useFixtures.js';
 import TeamPill from '../components/TeamPill.jsx';
 import { Download, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
@@ -7,10 +7,12 @@ import { exportStandingsToPDF } from '../utils/pdfExport.js';
 
 export default function Standings() {
   const [sport, setSport] = useState('');
+  const [eventId, setEventId] = useState('all');
   const [expandedTeam, setExpandedTeam] = useState(null);
   const { data: sportsData, isLoading: loadingSports } = useSports();
-  const { data: standings, isLoading } = useStandings(sport);
+  const { data: standings, isLoading } = useStandings(sport, eventId);
   const { data: settings } = useSettings();
+  const { data: eventsList } = useStandingsEvents(sport);
 
   const sports = sportsData?.map(s => s.name) || [];
   const selectedSportObj = sportsData?.find(s => s.name === sport);
@@ -23,6 +25,7 @@ export default function Standings() {
   }, [sports, sport]);
 
   useEffect(() => {
+    setEventId('all');
     setExpandedTeam(null);
   }, [sport]);
 
@@ -66,7 +69,7 @@ export default function Standings() {
         <div className="text-center py-12 text-gray-400">Loading standings...</div>
       ) : (
         <div className="space-y-3">
-          {isPlacement && (
+          {isPlacement && eventId === 'all' && (
             <div className="text-xs text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1.5 bg-purple-50/50 dark:bg-purple-950/20 px-3 py-2 rounded-lg max-w-max border border-purple-100/30 dark:border-purple-900/10">
               <span className="animate-pulse">💡</span>
               Click on any team's row to expand and view their individual event breakdown.
@@ -74,12 +77,33 @@ export default function Standings() {
           )}
 
           <div className="k-card">
-            <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
-              {sport} — {sport === 'Athletics' ? 'Track Events' : 'Round-Robin Standings'}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b border-gray-100 dark:border-gray-800 pb-3">
+              <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {sport} — {sport === 'Athletics' ? 'Track Events' : 'Round-Robin Standings'}
+              </div>
+              
+              {isPlacement && eventsList && eventsList.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 font-medium">Filter by Event:</span>
+                  <select
+                    value={eventId}
+                    onChange={(e) => setEventId(e.target.value)}
+                    className="px-3 py-1.5 rounded-md text-xs font-medium bg-white dark:bg-gray-800 border border-gray-350 dark:border-gray-700 text-gray-705 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
+                  >
+                    <option value="all">All Events (Combined)</option>
+                    {eventsList.map(ev => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.name} {ev.category ? `(${ev.category})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
+
             <div className="overflow-x-auto">
               <div className="min-w-[650px]">
-                <div className="grid grid-cols-9 gap-2 text-xs text-gray-400 font-medium mb-2 px-2 text-center border-b border-gray-100 dark:border-gray-800 pb-2">
+                <div className="grid grid-cols-9 gap-2 text-xs text-gray-400 font-medium mb-2 px-2 text-center pb-2">
                   <span>Rank</span>
                   {isPlacement ? (
                     <>
@@ -106,13 +130,13 @@ export default function Standings() {
                     <div key={team.code} className="flex flex-col">
                       <div 
                         onClick={() => {
-                          if (isPlacement) {
+                          if (isPlacement && eventId === 'all') {
                             setExpandedTeam(expandedTeam === team.code ? null : team.code);
                           }
                         }}
                         className={`grid grid-cols-9 gap-2 items-center py-2.5 px-2 border-b border-gray-150/40 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded text-center transition-all ${
-                          isPlacement ? 'cursor-pointer select-none' : ''
-                        } ${expandedTeam === team.code ? 'bg-purple-50/20 dark:bg-purple-950/10 border-l-2 border-purple-500' : ''}`}
+                          isPlacement && eventId === 'all' ? 'cursor-pointer select-none' : ''
+                        } ${expandedTeam === team.code && eventId === 'all' ? 'bg-purple-50/20 dark:bg-purple-950/10 border-l-2 border-purple-500' : ''}`}
                       >
                         {/* Rank & Trend */}
                         <span className="flex items-center justify-center gap-1.5 font-semibold">
@@ -144,10 +168,12 @@ export default function Standings() {
                           <>
                             <span className="text-left col-span-3 truncate flex items-center gap-1">
                               <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
-                              {expandedTeam === team.code ? (
-                                <ChevronUp size={14} className="text-gray-400 shrink-0" />
-                              ) : (
-                                <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                              {isPlacement && eventId === 'all' && (
+                                expandedTeam === team.code ? (
+                                  <ChevronUp size={14} className="text-gray-400 shrink-0" />
+                                ) : (
+                                  <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                                )
                               )}
                             </span>
                             <span className="text-sm text-gray-600 dark:text-gray-300">{team.played}</span>
@@ -171,7 +197,7 @@ export default function Standings() {
                       </div>
 
                       {/* Dropdown breakdown */}
-                      {isPlacement && expandedTeam === team.code && (
+                      {isPlacement && eventId === 'all' && expandedTeam === team.code && (
                         <div className="bg-gray-50/50 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/60 p-4 rounded-lg mt-1 mb-2 mx-2 text-left shadow-inner transition-all animate-fadeIn">
                           <div className="flex items-center justify-between mb-3 border-b border-gray-200/60 dark:border-gray-800 pb-2">
                             <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">

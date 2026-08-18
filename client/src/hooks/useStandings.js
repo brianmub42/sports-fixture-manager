@@ -1,10 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { standingsApi, analyticsApi } from '../api.js';
 
-export function useStandings(sport) {
+export function useStandings(sport, eventId) {
   return useQuery({
-    queryKey: ['standings', sport],
-    queryFn: () => standingsApi.getBySport(sport).then(r => r.data),
+    queryKey: ['standings', sport, eventId],
+    queryFn: () => standingsApi.getBySport(sport, eventId).then(r => r.data),
+    enabled: !!sport,
+  });
+}
+
+export function useStandingsEvents(sport) {
+  return useQuery({
+    queryKey: ['standings-events', sport],
+    queryFn: () => standingsApi.getEvents(sport).then(r => r.data),
     enabled: !!sport,
   });
 }
