@@ -84,20 +84,15 @@ export default function SelectOrganization() {
       <header className="sticky top-0 z-50 backdrop-blur-md bg-slate-950/70 border-b border-slate-900">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Trophy className="w-5 h-5 text-white" />
+            <div className="h-10 px-3 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-blue-500/10 border border-slate-800">
+              <img src="/assets/fixture-grid-logo.png" alt="FixtureGrid Logo" className="h-8 w-auto object-contain" />
             </div>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-                  FixtureGrid
-                </span>
-                <span className="text-[10px] text-blue-550 font-bold uppercase tracking-wider">
-                  Tournament Manager
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-400 hidden lg:block -mt-1.5 font-medium">
-                For Any Sports Tournament Management
+            <div className="hidden sm:flex flex-col">
+              <span className="text-[10px] text-blue-450 font-bold uppercase tracking-wider">
+                Tournament Manager
+              </span>
+              <span className="text-[9px] text-slate-400 -mt-0.5 font-medium">
+                Multi-Sport Platform
               </span>
             </div>
           </div>
@@ -471,13 +466,24 @@ export default function SelectOrganization() {
             <a href="#" className="hover:text-slate-300 transition-colors">Privacy</a>
           </div>
 
-          <div className="flex items-center gap-2 font-medium">
-            <span className="text-slate-400">Powered by</span>
-            <img 
-              src="/assets/etechzim-logo.png" 
-              alt="etechzim" 
-              className="h-4 object-contain brightness-0 invert opacity-75 hover:opacity-100 transition-opacity" 
-            />
+          <div className="flex items-center gap-4 text-slate-500 font-medium">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-semibold">FixtureGrid</span>
+              <img 
+                src="/assets/fixture-grid-logo.png" 
+                alt="FixtureGrid" 
+                className="h-4 object-contain rounded bg-white px-0.5" 
+              />
+            </div>
+            <span className="text-slate-850">|</span>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-450">Powered by</span>
+              <img 
+                src="/assets/etechzim-logo.png" 
+                alt="etechzim" 
+                className="h-4 object-contain brightness-0 invert opacity-75 hover:opacity-100 transition-opacity" 
+              />
+            </div>
           </div>
         </div>
         

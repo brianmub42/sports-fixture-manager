@@ -63,8 +63,8 @@ export default function Login() {
 
         {/* Title */}
         <div className="text-center">
-          <div className="inline-flex p-3 rounded-full bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 mb-3">
-            <Lock className="w-6 h-6" />
+          <div className="inline-flex mb-3 rounded-xl bg-white px-4 py-2 shadow-md border border-gray-150 dark:border-gray-850 max-h-16 overflow-hidden">
+            <img src="/assets/fixture-grid-logo.png" alt="FixtureGrid Logo" className="h-10 w-auto object-contain" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
             {isRegister ? 'Register Official' : 'Official Access'}
