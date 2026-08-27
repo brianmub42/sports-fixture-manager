@@ -6,7 +6,7 @@ const SocketContext = createContext(null);
 
 export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null);
-  const { currentOrg } = useOrganization();
+  const { activeOrg: currentOrg } = useOrganization();
 
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';

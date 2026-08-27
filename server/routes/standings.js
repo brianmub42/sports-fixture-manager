@@ -9,6 +9,16 @@ router.get('/events', async (req, res) => {
     const { sport } = req.query;
     if (!sport) return res.status(400).json({ error: 'Sport parameter is required' });
 
+    const cacheKey = `leaderboard:${req.orgId}:${sport.toLowerCase()}:events`;
+    try {
+      const cached = await req.redisClient.get(cacheKey);
+      if (cached) {
+        return res.json(JSON.parse(cached));
+      }
+    } catch (err) {
+      console.error('Redis cache get error:', err);
+    }
+
     const sportRes = await query('SELECT id FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
     const sportRow = sportRes.rows[0];
     if (!sportRow) return res.status(404).json({ error: 'Sport not found' });
@@ -20,7 +30,15 @@ router.get('/events', async (req, res) => {
       ORDER BY name ASC
     `, [sportRow.id, req.orgId]);
 
-    res.json(eventsRes.rows);
+    const data = eventsRes.rows;
+
+    try {
+      await req.redisClient.set(cacheKey, JSON.stringify(data), { EX: 3 });
+    } catch (err) {
+      console.error('Redis cache set error:', err);
+    }
+
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -32,6 +50,16 @@ router.get('/', async (req, res) => {
     const { sport, eventId } = req.query;
     if (!sport) {
       return res.status(400).json({ error: 'Sport parameter is required' });
+    }
+
+    const cacheKey = `leaderboard:${req.orgId}:${sport.toLowerCase()}:${eventId || 'all'}`;
+    try {
+      const cached = await req.redisClient.get(cacheKey);
+      if (cached) {
+        return res.json(JSON.parse(cached));
+      }
+    } catch (err) {
+      console.error('Redis cache get error:', err);
     }
 
     const sportRes = await query('SELECT * FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
@@ -67,6 +95,11 @@ router.get('/', async (req, res) => {
           rank_diff: 0,
           event_breakdown: []
         }));
+        try {
+          await req.redisClient.set(cacheKey, JSON.stringify(standings), { EX: 3 });
+        } catch (err) {
+          console.error('Redis cache set error:', err);
+        }
         return res.json(standings);
       }
       // 1. Current Placements Standings
@@ -169,6 +202,11 @@ router.get('/', async (req, res) => {
         };
       });
 
+      try {
+        await req.redisClient.set(cacheKey, JSON.stringify(standings), { EX: 3 });
+      } catch (err) {
+        console.error('Redis cache set error:', err);
+      }
       return res.json(standings);
     }
 
@@ -251,6 +289,11 @@ router.get('/', async (req, res) => {
       };
     });
 
+    try {
+      await req.redisClient.set(cacheKey, JSON.stringify(standings), { EX: 3 });
+    } catch (err) {
+      console.error('Redis cache set error:', err);
+    }
     res.json(standings);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -260,6 +303,15 @@ router.get('/', async (req, res) => {
 // GET /api/standings/log — Overall championship
 router.get('/log', async (req, res) => {
   try {
+    const cacheKey = `leaderboard:${req.orgId}:championship`;
+    try {
+      const cached = await req.redisClient.get(cacheKey);
+      if (cached) {
+        return res.json(JSON.parse(cached));
+      }
+    } catch (err) {
+      console.error('Redis cache get error:', err);
+    }
     // Get all sports
     const sportsRes = await query("SELECT id, name, scoring_type FROM sports WHERE organization_id = $1", [req.orgId]);
     const sports = sportsRes.rows;
@@ -294,7 +346,7 @@ router.get('/log', async (req, res) => {
 
     for (const sport of sports) {
       let hasResults = false;
-      if (sport.scoring_type === 'points') {
+      if (sport.scoring_type !== 'placement') {
         const countRes = await query(
           "SELECT COUNT(*)::int as count FROM fixtures WHERE sport_id = $1 AND status IN ('completed', 'draw') AND organization_id = $2",
           [sport.id, req.orgId]
@@ -313,7 +365,7 @@ router.get('/log', async (req, res) => {
       }
 
       let standingsRes;
-      if (sport.scoring_type === 'points') {
+      if (sport.scoring_type !== 'placement') {
         standingsRes = await query(`
           SELECT t.code,
             COALESCE(SUM(CASE WHEN f.winner_id = t.id THEN s.win_points WHEN f.status = 'draw' THEN s.draw_points ELSE 0 END), 0) as pts
@@ -365,6 +417,11 @@ router.get('/log', async (req, res) => {
       return b.medals - a.medals;
     });
 
+    try {
+      await req.redisClient.set(cacheKey, JSON.stringify(sorted), { EX: 3 });
+    } catch (err) {
+      console.error('Redis cache set error:', err);
+    }
     res.json(sorted);
   } catch (err) {
     res.status(500).json({ error: err.message });

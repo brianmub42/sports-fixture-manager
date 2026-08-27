@@ -1,7 +1,8 @@
 import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Navigation from './Navigation.jsx';
 import SponsorsRibbon from './SponsorsRibbon.jsx';
+import HelpWizard from './HelpWizard.jsx';
 import { useSettings } from '../hooks/useFixtures.js';
 import { useLiveUpdates } from '../hooks/useLiveUpdates.js';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
@@ -13,6 +14,7 @@ export default function Layout() {
   const { clearOrg } = useOrganization();
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Enable global real-time updates for all pages within the layout
   useLiveUpdates();
@@ -23,7 +25,7 @@ export default function Layout() {
   const sportsCount = settings?.sports_count !== undefined ? settings.sports_count : 5;
 
   const isBypassed = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('bypass_billing') === 'true';
-  const isSuspended = settings?.billing?.status === 'suspended' && !isBypassed;
+  const isSuspended = settings?.billing?.status === 'suspended' && !isBypassed && location.pathname !== '/settings';
   const isPendingVerification = settings?.billing?.status === 'pending_verification' && !isBypassed;
   const isBillingLow = settings?.billing?.is_low_credit && !isBypassed && !['suspended', 'pending_verification'].includes(settings?.billing?.status);
 
@@ -165,13 +167,11 @@ export default function Layout() {
             
             <div className="w-full flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={() => {
-                  sessionStorage.setItem('bypass_billing', 'true');
-                  window.location.search = '?bypassBilling=true';
-                }}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/35 cursor-pointer text-sm"
+                onClick={() => navigate('/settings')}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/35 cursor-pointer text-sm flex items-center justify-center gap-2"
               >
-                Bypass Lock (Test Mode)
+                <SettingsIcon size={16} />
+                Manage Subscription &amp; Renew
               </button>
               <button
                 onClick={clearOrg}
@@ -186,6 +186,7 @@ export default function Layout() {
         )}
       </main>
       <SponsorsRibbon />
+      <HelpWizard />
     </div>
   );
 }

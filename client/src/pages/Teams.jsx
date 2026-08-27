@@ -6,10 +6,12 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { uploadApi } from '../api.js';
 import { useQueryClient } from '@tanstack/react-query';
 import { Upload, Calendar, Users, Plus, Trash2, ShieldAlert } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 export default function Teams() {
   const { data: teamList, isLoading: teamsLoading } = useTeams();
   const { data: settings } = useSettings();
+  const { showToast } = useToast();
   const [selected, setSelected] = useState('');
   const { isScorekeeper } = useAuth();
   const queryClient = useQueryClient();
@@ -59,6 +61,7 @@ export default function Teams() {
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       queryClient.invalidateQueries({ queryKey: ['fixtures'] });
       queryClient.invalidateQueries({ queryKey: ['schedule', currentTeam.code] });
+      showToast('Team logo uploaded successfully!', 'success');
     } catch (err) {
       alert('Failed to upload logo: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -79,6 +82,7 @@ export default function Teams() {
       });
       setPlayerName('');
       setPlayerJersey('');
+      showToast('Roster player added successfully!', 'success');
     } catch (err) {
       alert('Failed to add player: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -91,6 +95,7 @@ export default function Teams() {
 
     try {
       await deletePlayerMutation.mutateAsync({ teamId, playerId });
+      showToast('Roster player removed successfully!', 'success');
     } catch (err) {
       alert('Failed to delete player: ' + (err.response?.data?.error || err.message));
     }

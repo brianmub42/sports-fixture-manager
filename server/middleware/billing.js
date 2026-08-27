@@ -2,12 +2,10 @@ import { query } from '../db.js';
 
 export async function billingMiddleware(req, res, next) {
   try {
-    // 1. Bypass check (Headers, Query Parameter, or .env flag)
-    const bypassHeader = req.headers['x-bypass-billing'] === 'true';
-    const bypassQuery = req.query.bypassBilling === 'true';
+    // 1. Bypass check (.env flag only)
     const bypassEnv = process.env.BYPASS_BILLING === 'true';
 
-    if (bypassHeader || bypassQuery || bypassEnv) {
+    if (bypassEnv) {
       return next();
     }
 

@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { createAdapter } from "@socket.io/redis-adapter";
+import { createClient } from "redis";
 
 import fixtureRoutes from './routes/fixtures.js';
 import scoreRoutes from './routes/scores.js';
@@ -30,11 +32,25 @@ const io = new Server(httpServer, {
   cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173' }
 });
 
+// Configure Socket.io Redis adapter for multi-instance PM2 clustering
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const pubClient = createClient({ url: redisUrl });
+const subClient = pubClient.duplicate();
+
+pubClient.on('error', (err) => console.error('Redis Pub Client Error:', err));
+subClient.on('error', (err) => console.error('Redis Sub Client Error:', err));
+
+console.log(`Connecting to Redis at ${redisUrl}...`);
+await Promise.all([pubClient.connect(), subClient.connect()]);
+io.adapter(createAdapter(pubClient, subClient));
+console.log('Socket.io Redis adapter initialized successfully');
+
 app.use(cors());
 app.use(express.json());
 
 app.use((req, res, next) => {
   req.io = io;
+  req.redisClient = pubClient;
   next();
 });
 app.use(tenantMiddleware);

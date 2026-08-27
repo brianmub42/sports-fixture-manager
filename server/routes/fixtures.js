@@ -351,6 +351,17 @@ router.delete('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res
       req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId, deleted: true });
     }
 
+    // Invalidate standings cache on write
+    try {
+      const cacheKeys = await req.redisClient.keys(`leaderboard:${req.orgId}:*`);
+      if (cacheKeys.length > 0) {
+        await req.redisClient.del(cacheKeys);
+        console.log(`[Cache Invalidation] Cleared ${cacheKeys.length} keys for tenant ${req.orgId}`);
+      }
+    } catch (err) {
+      console.error('Redis cache invalidation error:', err);
+    }
+
     res.json({ success: true, message: 'Fixture deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });

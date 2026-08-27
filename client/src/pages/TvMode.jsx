@@ -82,41 +82,53 @@ export default function TvMode() {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col items-center gap-4 w-1/3">
-                      {f.team_a_logo ? (
-                        <img src={f.team_a_logo} alt={f.team_a_name} className="w-24 h-24 rounded-full object-cover shadow-lg border-2 border-gray-700" />
-                      ) : (
-                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-lg" style={{ backgroundColor: f.team_a_color || '#3b82f6' }}>
-                          {f.team_a_code}
-                        </div>
-                      )}
-                      <span className="text-2xl font-bold text-center leading-tight">{f.team_a_name}</span>
-                    </div>
-
-                    <div className="flex flex-col items-center justify-center w-1/3">
-                      <div className="text-7xl font-black font-mono tracking-tighter flex items-center gap-6">
-                        <span className={f.score_a > f.score_b ? 'text-white' : 'text-gray-400'}>{f.score_a ?? 0}</span>
-                        <span className="text-gray-600 text-5xl">-</span>
-                        <span className={f.score_b > f.score_a ? 'text-white' : 'text-gray-400'}>{f.score_b ?? 0}</span>
-                      </div>
-                      <div className="flex flex-col items-center gap-2 mt-4">
-                        <span className="text-red-500 font-bold tracking-widest text-sm uppercase animate-pulse">Live</span>
+                  {f.scoring_type === 'placement' || f.sport_name === 'Athletics' ? (
+                    <div className="flex flex-col items-center justify-center py-6">
+                      <span className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 text-center px-4 leading-tight mb-4">
+                        🏆 {f.team_a_name}
+                      </span>
+                      <div className="flex flex-col items-center gap-2 mt-2">
+                        <span className="text-red-500 font-bold tracking-widest text-sm uppercase animate-pulse">In Progress</span>
                         <MatchTimerDisplay fixtureId={f.id} defaultMinutes={f.duration_minutes || 10} />
                       </div>
                     </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col items-center gap-4 w-1/3">
+                        {f.team_a_logo ? (
+                          <img src={f.team_a_logo} alt={f.team_a_name} className="w-24 h-24 rounded-full object-cover shadow-lg border-2 border-gray-700" />
+                        ) : (
+                          <div className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-lg" style={{ backgroundColor: f.team_a_color || '#3b82f6' }}>
+                            {f.team_a_code}
+                          </div>
+                        )}
+                        <span className="text-2xl font-bold text-center leading-tight">{f.team_a_name}</span>
+                      </div>
 
-                    <div className="flex flex-col items-center gap-4 w-1/3">
-                      {f.team_b_logo ? (
-                        <img src={f.team_b_logo} alt={f.team_b_name} className="w-24 h-24 rounded-full object-cover shadow-lg border-2 border-gray-700" />
-                      ) : (
-                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-lg" style={{ backgroundColor: f.team_b_color || '#ef4444' }}>
-                          {f.team_b_code}
+                      <div className="flex flex-col items-center justify-center w-1/3">
+                        <div className="text-7xl font-black font-mono tracking-tighter flex items-center gap-6">
+                          <span className={f.score_a > f.score_b ? 'text-white' : 'text-gray-400'}>{f.score_a ?? 0}</span>
+                          <span className="text-gray-600 text-5xl">-</span>
+                          <span className={f.score_b > f.score_a ? 'text-white' : 'text-gray-400'}>{f.score_b ?? 0}</span>
                         </div>
-                      )}
-                      <span className="text-2xl font-bold text-center leading-tight">{f.team_b_name}</span>
+                        <div className="flex flex-col items-center gap-2 mt-4">
+                          <span className="text-red-500 font-bold tracking-widest text-sm uppercase animate-pulse">Live</span>
+                          <MatchTimerDisplay fixtureId={f.id} defaultMinutes={f.duration_minutes || 10} />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center gap-4 w-1/3">
+                        {f.team_b_logo ? (
+                          <img src={f.team_b_logo} alt={f.team_b_name} className="w-24 h-24 rounded-full object-cover shadow-lg border-2 border-gray-700" />
+                        ) : (
+                          <div className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-lg" style={{ backgroundColor: f.team_b_color || '#ef4444' }}>
+                            {f.team_b_code}
+                          </div>
+                        )}
+                        <span className="text-2xl font-bold text-center leading-tight">{f.team_b_name}</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ))
             )}
@@ -143,9 +155,17 @@ export default function TvMode() {
                     <span>{f.sport_name}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <TeamPill code={f.team_a_code} name={f.team_a_name} color={f.team_a_color} logoUrl={f.team_a_logo} />
-                    <span className="text-gray-600 font-medium text-sm px-2">vs</span>
-                    <TeamPill code={f.team_b_code} name={f.team_b_name} color={f.team_b_color} logoUrl={f.team_b_logo} />
+                    {f.scoring_type === 'placement' || f.sport_name === 'Athletics' ? (
+                      <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400 truncate py-1">
+                        🏆 {f.team_a_name}
+                      </span>
+                    ) : (
+                      <>
+                        <TeamPill code={f.team_a_code} name={f.team_a_name} color={f.team_a_color} logoUrl={f.team_a_logo} />
+                        <span className="text-gray-600 font-medium text-sm px-2">vs</span>
+                        <TeamPill code={f.team_b_code} name={f.team_b_name} color={f.team_b_color} logoUrl={f.team_b_logo} />
+                      </>
+                    )}
                   </div>
                 </div>
               ))

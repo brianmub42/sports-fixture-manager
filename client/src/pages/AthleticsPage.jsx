@@ -11,6 +11,7 @@ import {
 import { useVenues, useTeams, useSettings } from '../hooks/useFixtures.js';
 import TeamPill from '../components/TeamPill.jsx';
 import SportTag from '../components/SportTag.jsx';
+import { useToast } from '../contexts/ToastContext.jsx';
 import { 
   Award, 
   Calendar, 
@@ -24,6 +25,16 @@ import {
   Check, 
   Timer 
 } from 'lucide-react';
+
+const getLocalDateTimeString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 const getPlacementLabel = (num, pointsAllocation) => {
   const suffix = num === 1 ? 'st (Gold)' :
@@ -43,6 +54,7 @@ const getPlacementLabel = (num, pointsAllocation) => {
 
 export default function AthleticsPage() {
   const { isAuthenticated } = useAuth();
+  const { showToast } = useToast();
   const { data: events, isLoading: eventsLoading } = useAthleticsEvents();
   const { data: sports } = useAthleticsSports();
   const { data: venues } = useVenues();
@@ -70,7 +82,7 @@ export default function AthleticsPage() {
   const [eventCategory, setEventCategory] = useState('Mixed');
   const [eventSportId, setEventSportId] = useState('');
   const [eventVenueId, setEventVenueId] = useState('');
-  const [eventScheduledAt, setEventScheduledAt] = useState('');
+  const [eventScheduledAt, setEventScheduledAt] = useState(getLocalDateTimeString());
   const [eventDuration, setEventDuration] = useState(15);
   const [eventStatus, setEventStatus] = useState('upcoming');
 
@@ -94,7 +106,7 @@ export default function AthleticsPage() {
       setEventCategory('Mixed');
       setEventSportId(sports?.[0]?.id || '');
       setEventVenueId(venues?.[0]?.id || '');
-      setEventScheduledAt('');
+      setEventScheduledAt(getLocalDateTimeString());
       setEventDuration(15);
       setEventStatus('upcoming');
     }
@@ -121,11 +133,17 @@ export default function AthleticsPage() {
 
     if (editingEvent) {
       updateEvent.mutate({ id: editingEvent.id, ...payload }, {
-        onSuccess: () => setIsEventModalOpen(false)
+        onSuccess: () => {
+          setIsEventModalOpen(false);
+          showToast('Athletics event updated successfully!', 'success');
+        }
       });
     } else {
       createEvent.mutate(payload, {
-        onSuccess: () => setIsEventModalOpen(false)
+        onSuccess: () => {
+          setIsEventModalOpen(false);
+          showToast('Athletics event created successfully!', 'success');
+        }
       });
     }
   };
@@ -133,7 +151,9 @@ export default function AthleticsPage() {
   // Handle Delete Event
   const handleDeleteEvent = (id) => {
     if (window.confirm('Are you sure you want to delete this event? This will also remove any saved results.')) {
-      deleteEvent.mutate(id);
+      deleteEvent.mutate(id, {
+        onSuccess: () => showToast('Athletics event deleted successfully!', 'success')
+      });
     }
   };
 
@@ -207,7 +227,10 @@ export default function AthleticsPage() {
       .filter(r => r !== null);
 
     saveResults.mutate({ id: selectedEventForResults.id, results: resultsPayload }, {
-      onSuccess: () => setIsResultModalOpen(false)
+      onSuccess: () => {
+        setIsResultModalOpen(false);
+        showToast('Event results logged successfully!', 'success');
+      }
     });
   };
 

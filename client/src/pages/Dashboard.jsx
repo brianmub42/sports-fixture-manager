@@ -372,9 +372,17 @@ export default function Dashboard() {
                       <SportTag sport={f.sport_name} size="lg" />
                     </div>
                     <div className="flex-1 flex items-center justify-center gap-6">
-                      <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_logo} size="lg" />
-                      <span className="text-slate-500 font-extrabold font-mono text-sm">VS</span>
-                      <TeamPill code={f.team_b_code} name={f.team_b_name} logoUrl={f.team_b_logo} size="lg" />
+                      {f.scoring_type === 'placement' || f.sport_name === 'Athletics' ? (
+                        <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">
+                          🏆 {f.team_a_name}
+                        </span>
+                      ) : (
+                        <>
+                          <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_logo} size="lg" />
+                          <span className="text-slate-500 font-extrabold font-mono text-sm">VS</span>
+                          <TeamPill code={f.team_b_code} name={f.team_b_name} logoUrl={f.team_b_logo} size="lg" />
+                        </>
+                      )}
                     </div>
                     <div className="w-40 text-right text-sm font-semibold text-slate-400">
                       {f.venue_name}
@@ -512,9 +520,17 @@ export default function Dashboard() {
                 <SportTag sport={f.sport_name} />
               </div>
               <span className="flex-1 flex items-center gap-2 text-sm font-medium flex-wrap">
-                <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_logo} />
-                <span className="text-gray-400 text-xs">vs</span>
-                <TeamPill code={f.team_b_code} name={f.team_b_name} logoUrl={f.team_b_logo} />
+                {f.scoring_type === 'placement' || f.sport_name === 'Athletics' ? (
+                  <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-orange-500">
+                    🏆 {f.team_a_name}
+                  </span>
+                ) : (
+                  <>
+                    <TeamPill code={f.team_a_code} name={f.team_a_name} logoUrl={f.team_a_logo} />
+                    <span className="text-gray-400 text-xs">vs</span>
+                    <TeamPill code={f.team_b_code} name={f.team_b_name} logoUrl={f.team_b_logo} />
+                  </>
+                )}
               </span>
               <span className="text-xs text-gray-400">{f.venue_name}</span>
             </div>

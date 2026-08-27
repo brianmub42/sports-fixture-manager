@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { superadminApi } from '../api.js';
 import { ShieldCheck, Search, Check, RefreshCw, Ban, ExternalLink } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 export default function SuperadminDashboard() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, pending, active, suspended
   const [customDays, setCustomDays] = useState({});
@@ -24,7 +26,7 @@ export default function SuperadminDashboard() {
     mutationFn: ({ id, days }) => superadminApi.approveTenant(id, days),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['superadmin_tenants'] });
-      alert('Tenant subscription approved successfully!');
+      showToast('Tenant subscription approved successfully!', 'success');
     },
     onError: (err) => alert('Failed to approve subscription: ' + err.message)
   });
@@ -34,7 +36,7 @@ export default function SuperadminDashboard() {
     mutationFn: (id) => superadminApi.suspendTenant(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['superadmin_tenants'] });
-      alert('Tenant subscription suspended!');
+      showToast('Tenant subscription suspended!', 'success');
     },
     onError: (err) => alert('Failed to suspend subscription: ' + err.message)
   });
@@ -44,7 +46,7 @@ export default function SuperadminDashboard() {
     mutationFn: ({ id, expiresAt }) => superadminApi.extendTenant(id, expiresAt),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['superadmin_tenants'] });
-      alert('Tenant license extended successfully!');
+      showToast('Tenant license extended successfully!', 'success');
     },
     onError: (err) => alert('Failed to extend license: ' + err.message)
   });

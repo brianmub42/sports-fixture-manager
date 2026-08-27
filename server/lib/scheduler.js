@@ -7,38 +7,30 @@
  * @returns {Array<[string,string]>} - array of [home, away] pairs
  */
 export function roundRobin(teams) {
-  const n = teams.length;
-  if (n % 2 !== 0) teams.push('BYE'); // Add bye if odd number
-
-  const count = teams.length;
-  const rounds = count - 1;
-  const half = count / 2;
-  const schedule = [];
-
-  let playerIndexes = teams.map((_, i) => i).slice(1);
-
-  for (let round = 0; round < rounds; round++) {
-    const roundPairs = [];
-    const newPlayerIndexes = [0];
-
-    for (let i = 0; i < playerIndexes.length; i++) {
-      const current = playerIndexes[i];
-      const next = playerIndexes[(i + 1) % playerIndexes.length];
-
-      if (i === 0) {
-        roundPairs.push([teams[0], teams[current]]);
-        newPlayerIndexes.push(current);
-      } else {
-        roundPairs.push([teams[current], teams[next]]);
-        newPlayerIndexes.push(next);
-      }
-    }
-
-    schedule.push(...roundPairs);
-    playerIndexes = newPlayerIndexes;
+  const list = [...teams];
+  const n = list.length;
+  if (n % 2 !== 0) {
+    list.push('BYE');
   }
 
-  return schedule.filter(p => p[0] !== 'BYE' && p[1] !== 'BYE');
+  const numTeams = list.length;
+  const numRounds = numTeams - 1;
+  const half = numTeams / 2;
+  const schedule = [];
+
+  for (let round = 0; round < numRounds; round++) {
+    for (let i = 0; i < half; i++) {
+      const home = list[i];
+      const away = list[numTeams - 1 - i];
+      if (home !== 'BYE' && away !== 'BYE') {
+        schedule.push([home, away]);
+      }
+    }
+    // Rotate list (keep first fixed, rotate rest)
+    list.splice(1, 0, list.pop());
+  }
+
+  return schedule;
 }
 
 /**
@@ -257,6 +249,68 @@ export function generatePlayoff({
       endTime: addMinutes(finalTime, durationMinutes),
       duration: durationMinutes
     });
+  }
+
+  return matches;
+}
+
+/**
+ * Generate athletics events sequentially/concurrently
+ */
+export function generateAthleticsSchedule({
+  events,
+  categories = [],
+  genders = [],
+  ageGroups = [],
+  startDate,
+  durationMinutes,
+  breakMinutes = 0,
+  venues,
+  concurrent = 1
+}) {
+  const combinations = [];
+  let activeCategories = [];
+
+  if (genders.length > 0 && ageGroups.length > 0) {
+    for (const gender of genders) {
+      for (const ageGroup of ageGroups) {
+        activeCategories.push(`${gender} ${ageGroup}`);
+      }
+    }
+  } else {
+    activeCategories = categories;
+  }
+
+  for (const eventName of events) {
+    for (const category of activeCategories) {
+      combinations.push({
+        name: eventName,
+        category: category
+      });
+    }
+  }
+
+  const venueCount = venues.length;
+  const matches = [];
+  const addMinutes = (date, mins) => new Date(new Date(date).getTime() + mins * 60000);
+
+  let currentTime = new Date(startDate);
+  for (let i = 0; i < combinations.length; i += concurrent) {
+    const roundIdx = Math.floor(i / concurrent);
+    const roundTime = addMinutes(currentTime, roundIdx * (durationMinutes + breakMinutes));
+    
+    for (let j = 0; j < concurrent && i + j < combinations.length; j++) {
+      const combo = combinations[i + j];
+      matches.push({
+        name: combo.name,
+        category: combo.category,
+        venue: venues[j % venueCount],
+        startTime: roundTime,
+        endTime: addMinutes(roundTime, durationMinutes),
+        duration: durationMinutes,
+        round: `Round ${roundIdx + 1}`
+      });
+    }
   }
 
   return matches;

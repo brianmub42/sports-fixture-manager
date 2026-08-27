@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { generateSchedule } from '../lib/scheduler.js';
+import { generateSchedule, generateAthleticsSchedule } from '../lib/scheduler.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { detectConflicts } from '../lib/conflictDetector.js';
 
@@ -98,14 +98,149 @@ router.post('/', authMiddleware, async (req, res) => {
       saveToDb = false
     } = req.body;
 
-    // Validate
-    if (!teams || !Array.isArray(teams) || teams.length < 2) {
-      return res.status(400).json({ error: 'At least 2 teams required' });
-    }
     if (!sport) return res.status(400).json({ error: 'Sport name required' });
     if (!startDate) return res.status(400).json({ error: 'Start date required' });
     if (!venues || !Array.isArray(venues) || venues.length === 0) {
       return res.status(400).json({ error: 'At least 1 venue required' });
+    }
+
+    // Get sport ID (auto-create missing)
+    let sportRes = await query('SELECT id, win_points, draw_points, scoring_type FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
+    if (sportRes.rows.length === 0) {
+      sportRes = await query(
+        "INSERT INTO sports (organization_id, name, scoring_type, win_points, draw_points) VALUES ($1, $2, 'points', 3, 1) RETURNING id, win_points, draw_points, scoring_type",
+        [req.orgId, sport]
+      );
+    }
+    const sportId = sportRes.rows[0].id;
+    const scoringType = sportRes.rows[0].scoring_type;
+    console.log('GENERATE DIAGNOSTICS:', { sport, format, orgId: req.orgId, scoringType, sportId, body: req.body });
+
+    if (scoringType === 'placement' || format === 'placement') {
+      const { events, categories, genders, ageGroups, teams } = req.body;
+      if (!events || !Array.isArray(events) || events.length === 0) {
+        return res.status(400).json({ error: 'At least 1 event required' });
+      }
+
+      const hasGenders = genders && Array.isArray(genders) && genders.length > 0;
+      const hasAgeGroups = ageGroups && Array.isArray(ageGroups) && ageGroups.length > 0;
+      const hasCategories = categories && Array.isArray(categories) && categories.length > 0;
+
+      if (!hasCategories && (!hasGenders || !hasAgeGroups)) {
+        return res.status(400).json({ error: 'Please specify Genders and Age Groups (or Categories) for athletics events' });
+      }
+
+      const concurrentNum = parseInt(concurrent) || 1;
+      if (concurrentNum > venues.length) {
+        return res.status(400).json({ error: `Events Per Round (${concurrentNum}) cannot exceed the number of venues (${venues.length}).` });
+      }
+
+      // Resolve all input team names/codes to team database objects (creating them if missing)
+      if (teams && Array.isArray(teams)) {
+        for (const input of teams) {
+          await getOrCreateTeam(req.orgId, input);
+        }
+      }
+
+      // Get venue IDs (auto-create missing)
+      const venueIds = [];
+      for (const venueName of venues) {
+        let vRes = await query('SELECT id FROM venues WHERE name = $1 AND organization_id = $2', [venueName, req.orgId]);
+        if (vRes.rows.length === 0) {
+          vRes = await query('INSERT INTO venues (organization_id, name, type) VALUES ($1, $2, $3) RETURNING id', [req.orgId, venueName, 'court']);
+        }
+        venueIds.push({ id: vRes.rows[0].id, name: venueName });
+      }
+
+      // Generate schedule
+      const schedule = generateAthleticsSchedule({
+        events,
+        categories,
+        genders,
+        ageGroups,
+        startDate,
+        durationMinutes,
+        breakMinutes,
+        venues: venueIds.map(v => v.name),
+        concurrent: concurrentNum
+      });
+
+      // Build response events
+      const generatedEvents = schedule.map((item, idx) => {
+        return {
+          id: `gen-${idx}`,
+          round: item.round,
+          name: item.name,
+          category: item.category,
+          venue: item.venue,
+          venue_id: venueIds.find(v => v.name === item.venue)?.id,
+          sport: sport,
+          sport_id: sportId,
+          scheduled_at: item.startTime,
+          end_time: item.endTime,
+          duration: item.duration,
+          status: 'upcoming'
+        };
+      });
+
+      // Fetch existing athletics events to check for conflicts
+      const existingRes = await query(`
+        SELECT ae.id, ae.scheduled_at, ae.duration_minutes, ae.venue_id,
+          v.name as venue_name, s.name as sport_name
+        FROM athletics_events ae
+        JOIN venues v ON ae.venue_id = v.id
+        JOIN sports s ON ae.sport_id = s.id
+        WHERE ae.organization_id = $1
+      `, [req.orgId]);
+
+      // Detect venue conflicts
+      const allEvents = [...existingRes.rows, ...generatedEvents];
+      const allConflicts = detectConflicts(allEvents);
+      const warnings = allConflicts
+        .filter(c => 
+          (typeof c.matchA.id === 'string' && c.matchA.id.startsWith('gen-')) || 
+          (typeof c.matchB.id === 'string' && c.matchB.id.startsWith('gen-'))
+        )
+        .map(c => c.message);
+
+      // Save to database if requested
+      if (saveToDb) {
+        for (const e of generatedEvents) {
+          await query(`
+            INSERT INTO athletics_events (organization_id, sport_id, venue_id, name, category, scheduled_at, duration_minutes, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [req.orgId, e.sport_id, e.venue_id, e.name, e.category, e.scheduled_at, e.duration, e.status]);
+        }
+      }
+
+      return res.json({
+        success: true,
+        count: generatedEvents.length,
+        fixtures: generatedEvents.map(e => ({
+          ...e,
+          team_a_name: `${e.name} (${e.category})`,
+          team_b_name: 'All Teams compete',
+          team_a_color: '#f59e0b',
+          team_b_color: '#6b7280'
+        })),
+        warnings,
+        summary: {
+          events: events.length,
+          genders: genders?.length || 0,
+          ageGroups: ageGroups?.length || 0,
+          categories: categories?.length || 0,
+          sport,
+          format: 'placement',
+          totalMatches: generatedEvents.length,
+          estimatedEnd: generatedEvents[generatedEvents.length - 1]?.end_time,
+          savedToDb: saveToDb
+        }
+      });
+    }
+
+    // Points-based sports logic
+    if (!teams || !Array.isArray(teams) || teams.length < 2) {
+      return res.status(400).json({ error: 'At least 2 teams required' });
     }
 
     const concurrentNum = parseInt(concurrent) || 1;
@@ -115,16 +250,6 @@ router.post('/', authMiddleware, async (req, res) => {
     if (concurrentNum * 2 > teams.length) {
       return res.status(400).json({ error: `Matches Per Round (${concurrentNum}) requires at least ${concurrentNum * 2} active teams, but only ${teams.length} team(s) were provided.` });
     }
-
-    // Get sport ID (auto-create missing)
-    let sportRes = await query('SELECT id, win_points, draw_points FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
-    if (sportRes.rows.length === 0) {
-      sportRes = await query(
-        "INSERT INTO sports (organization_id, name, scoring_type, win_points, draw_points) VALUES ($1, $2, 'points', 3, 1) RETURNING id, win_points, draw_points",
-        [req.orgId, sport]
-      );
-    }
-    const sportId = sportRes.rows[0].id;
 
     // Get venue IDs (auto-create missing)
     const venueIds = [];

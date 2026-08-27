@@ -1,0 +1,43 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 50
+      name: "Ramp up spectators"
+    - duration: 120
+      arrivalRate: 50
+      name: "Sustained high load during tournament finals"
+  engines:
+    socketio:
+      transports: ["websocket"]
+  defaults:
+    headers:
+      x-idempotency-key: "load-test-static-key"
+
+scenarios:
+  - name: "Spectator Live Standings Viewer"
+    engine: socketio
+    flow:
+      # Connect and subscribe to the specific room: tenantId=1, eventId=1
+      - emit:
+          channel: "subscribe"
+          data:
+            tenantId: 1
+            eventId: 1
+      # Stay connected for 60 seconds listening to broadcasts
+      - think: 60
+
+  - name: "Referee Score Updates (REST Writes)"
+    flow:
+      # Simulate a referee submitting score updates to the REST API
+      - patch:
+          url: "/api/scores/1"
+          json:
+            score_a: 15
+            score_b: 12
+            playerId: null
+            pointsScored: 0
+          headers:
+            # Replace with a valid referee JWT auth token
+            Authorization: "Bearer REPLACE_WITH_VALID_OFFICIAL_JWT_TOKEN"

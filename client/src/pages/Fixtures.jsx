@@ -6,6 +6,7 @@ import SportTag from '../components/SportTag.jsx';
 import TeamPill from '../components/TeamPill.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { exportFixturesToPDF } from '../utils/pdfExport.js';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 export default function Fixtures() {
   const [filter, setFilter] = useState('All');
@@ -203,6 +204,7 @@ export default function Fixtures() {
 
 function FixtureDetails({ fixture }) {
   const { isScorekeeper } = useAuth();
+  const { showToast } = useToast();
   
   // Load team sheets
   const { data: lineup, isLoading: lineupLoading } = useLineups(fixture.id);
@@ -260,6 +262,7 @@ function FixtureDetails({ fixture }) {
       await saveLineupMutation.mutateAsync({ fixtureId: fixture.id, teamId, playerIds });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
+      showToast('Team match lineup saved successfully!', 'success');
     } catch (err) {
       alert('Failed to save team lineup: ' + err.message);
     }

@@ -5,6 +5,7 @@ dotenv.config();
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: parseInt(process.env.DB_MAX_CONNECTIONS || '5', 10),
 });
 
 export async function query(text, params) {

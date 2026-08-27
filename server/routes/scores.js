@@ -3,18 +3,30 @@ import { query } from '../db.js';
 import { authMiddleware, requireScorekeeperOrAdmin } from '../middleware/auth.js';
 
 const router = Router();
+const pendingScores = new Map();
 
 // PATCH /api/scores/:id
 router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
-  try {
-    const { score_a, score_b, playerId, pointsScored } = req.body;
-    const fixtureId = req.params.id;
+  const { score_a, score_b, playerId, pointsScored } = req.body;
+  const fixtureId = req.params.id;
+  const key = `score:${fixtureId}:${score_a}:${score_b}:${playerId || 'none'}:${pointsScored || 0}`;
 
+  if (pendingScores.has(key)) {
+    console.log('[Idempotency] Duplicate score request detected, sharing promise for key:', key);
+    try {
+      const result = await pendingScores.get(key);
+      return res.json(result);
+    } catch (err) {
+      return res.status(err.message === 'Fixture not found' ? 404 : 500).json({ error: err.message });
+    }
+  }
+
+  const promise = (async () => {
     // Get fixture details
     const fixtureRes = await query('SELECT * FROM fixtures WHERE id = $1 AND organization_id = $2', [fixtureId, req.orgId]);
     const fixture = fixtureRes.rows[0];
 
-    if (!fixture) return res.status(404).json({ error: 'Fixture not found' });
+    if (!fixture) throw new Error('Fixture not found');
 
     // Determine winner
     let winnerId = null;
@@ -85,9 +97,32 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
       req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId, score_a, score_b, winner_id: winnerId });
     }
 
-    res.json({ success: true, fixtureId, score_a, score_b, status });
+    // Invalidate standings cache on write
+    try {
+      const cacheKeys = await req.redisClient.keys(`leaderboard:${req.orgId}:*`);
+      if (cacheKeys.length > 0) {
+        await req.redisClient.del(cacheKeys);
+        console.log(`[Cache Invalidation] Cleared ${cacheKeys.length} keys for tenant ${req.orgId}`);
+      }
+    } catch (err) {
+      console.error('Redis cache invalidation error:', err);
+    }
+
+    return { success: true, fixtureId, score_a, score_b, status };
+  })();
+
+  pendingScores.set(key, promise);
+
+  try {
+    const result = await promise;
+    res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.message === 'Fixture not found' ? 404 : 500).json({ error: err.message });
+  } finally {
+    // Automatically clean up the map entry after 10 seconds
+    setTimeout(() => {
+      pendingScores.delete(key);
+    }, 10000);
   }
 });
 

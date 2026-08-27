@@ -6,7 +6,7 @@ const TimerContext = createContext();
 
 export function TimerProvider({ children }) {
   const socket = useSocket();
-  const { currentOrg } = useOrganization();
+  const { activeOrg: currentOrg } = useOrganization();
   const [timers, setTimers] = useState({});
 
   useEffect(() => {

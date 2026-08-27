@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { settingsApi, authApi, uploadApi } from '../api.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 const resolveUploadUrl = (url) => {
   if (!url) return '';
@@ -15,8 +16,17 @@ const resolveUploadUrl = (url) => {
   return `${backendBase}${url}`;
 };
 
+const formatMinutes = (minutes) => {
+  if (!minutes || minutes <= 0) return 'Expired';
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hrs === 0) return `${mins}m`;
+  return `${hrs}h ${mins}m`;
+};
+
 export default function Settings() {
   const { data: settings, isLoading, refetch } = useSettings();
+  const { showToast } = useToast();
   const updateSettings = useUpdateSettings();
   const resetDb = useResetDatabase();
   const { isAdmin, isAuthenticated } = useAuth();
@@ -34,6 +44,8 @@ export default function Settings() {
     { id: 'billing', name: 'Billing & License', icon: CreditCard },
     { id: 'reset', name: 'Danger Zone', icon: ShieldAlert },
   ];
+
+  const visibleTabs = settings?.billing?.status === 'suspended' ? tabs.filter(t => t.id === 'billing') : tabs;
 
   const [form, setForm] = useState({ org_name: '', event_title: '', enable_player_registration: false });
   const [resetType, setResetType] = useState('results_only');
@@ -100,7 +112,7 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setEditingUser(null);
       setEditForm({ name: '', email: '', password: '', role: 'scorekeeper' });
-      alert('User updated successfully!');
+      showToast('User updated successfully!', 'success');
     }
   });
 
@@ -108,7 +120,7 @@ export default function Settings() {
     mutationFn: (id) => authApi.deleteUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      alert('User deleted successfully!');
+      showToast('User deleted successfully!', 'success');
     }
   });
 
@@ -165,8 +177,10 @@ export default function Settings() {
     e.preventDefault();
     if (!newSport.name.trim()) return;
     try {
+      const sportName = newSport.name;
       await createSportMutation.mutateAsync(newSport);
       setNewSport({ name: '', scoring_type: 'points', win_points: 3, draw_points: 1 });
+      showToast(`Sport "${sportName}" added successfully!`, 'success');
     } catch (err) {
       alert('Failed to add sport: ' + (err.response?.data?.error || err.message));
     }
@@ -176,6 +190,7 @@ export default function Settings() {
     if (!confirm('Are you sure you want to delete this sport? All fixtures associated with it will also be deleted.')) return;
     try {
       await deleteSportMutation.mutateAsync(id);
+      showToast('Sport deleted successfully!', 'success');
     } catch (err) {
       alert('Failed to delete sport: ' + (err.response?.data?.error || err.message));
     }
@@ -185,8 +200,10 @@ export default function Settings() {
     e.preventDefault();
     if (!newVenue.name.trim()) return;
     try {
+      const venueName = newVenue.name;
       await createVenueMutation.mutateAsync(newVenue);
       setNewVenue({ name: '', type: 'court' });
+      showToast(`Venue "${venueName}" added successfully!`, 'success');
     } catch (err) {
       alert('Failed to add venue: ' + (err.response?.data?.error || err.message));
     }
@@ -196,6 +213,7 @@ export default function Settings() {
     if (!confirm('Are you sure you want to delete this venue?')) return;
     try {
       await deleteVenueMutation.mutateAsync(id);
+      showToast('Venue deleted successfully!', 'success');
     } catch (err) {
       alert('Failed to delete venue: ' + (err.response?.data?.error || err.message));
     }
@@ -211,6 +229,7 @@ export default function Settings() {
       setBillingInvoiceSuccess(true);
       refetch();
       setTimeout(() => setBillingInvoiceSuccess(false), 3000);
+      showToast('Invoice details saved successfully!', 'success');
     } catch (err) {
       alert('Failed to save invoice details: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -547,6 +566,7 @@ export default function Settings() {
       setSelectedFile(null);
       refetch();
       queryClient.invalidateQueries();
+      showToast('Proof of Payment uploaded successfully! Pending verification.', 'success');
     } catch (err) {
       alert('Failed to upload proof of payment: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -561,7 +581,7 @@ export default function Settings() {
       await settingsApi.simulateExpiry();
       await refetch();
       queryClient.invalidateQueries();
-      alert('Workspace expired simulation active!');
+      showToast('Workspace expired simulation active!', 'success');
     } catch (err) {
       alert('Failed to simulate expiry: ' + err.message);
     } finally {
@@ -575,7 +595,7 @@ export default function Settings() {
       await settingsApi.simulateRenewal();
       await refetch();
       queryClient.invalidateQueries();
-      alert('Workspace renewal simulated successfully!');
+      showToast('Workspace renewal simulated successfully!', 'success');
     } catch (err) {
       alert('Failed to simulate renewal: ' + err.message);
     } finally {
@@ -619,6 +639,10 @@ export default function Settings() {
       const generatedInvNum = `INV-${(currentOrgSlug || 'kalife').toUpperCase()}-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
       setInvoiceNumber(generatedInvNum);
       
+      if (settings?.billing?.status === 'suspended') {
+        setActiveTab('billing');
+      }
+      
       isInitializedRef.current = true;
     }
   }, [settings]);
@@ -631,6 +655,7 @@ export default function Settings() {
       await updateSettings.mutateAsync(form);
       setUpdateSuccess(true);
       setTimeout(() => setUpdateSuccess(false), 3000);
+      showToast('General settings saved successfully!', 'success');
     } catch (err) {
       console.error(err);
     }
@@ -671,6 +696,7 @@ export default function Settings() {
       await settingsApi.saveSponsors(sponsors);
       setSponsorSuccess(true);
       setTimeout(() => setSponsorSuccess(false), 3000);
+      showToast('Sponsors saved successfully!', 'success');
     } catch (err) {
       console.error(err);
       alert('Failed to save sponsors: ' + err.message);
@@ -683,6 +709,7 @@ export default function Settings() {
     e.preventDefault();
     try {
       await createUserMutation.mutateAsync(newUser);
+      showToast('User account created successfully!', 'success');
     } catch (err) {
       alert('Failed to create user: ' + (err.response?.data?.error || err.message));
     }
@@ -697,7 +724,7 @@ export default function Settings() {
       <div className="flex flex-col md:flex-row gap-8 items-start">
         {/* Sidebar Nav */}
         <div className="w-full md:w-64 shrink-0 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible pb-3 md:pb-0 gap-1.5 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-800 pr-0 md:pr-6 scrollbar-none">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -1061,6 +1088,7 @@ export default function Settings() {
                       await updateSettings.mutateAsync({ points_allocation: pointsAllocation.length > 0 ? obj : null });
                       setPointsSuccess(true);
                       setTimeout(() => setPointsSuccess(false), 3000);
+                      showToast('Points allocation saved successfully!', 'success');
                     } catch (err) {
                       console.error(err);
                       alert('Failed to save points allocation: ' + err.message);
@@ -1106,8 +1134,15 @@ export default function Settings() {
                       <div key={s.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800">
                         <div>
                           <p className="text-sm font-semibold">{s.name}</p>
-                          <p className="text-xs text-gray-400 capitalize">
-                            {s.scoring_type === 'points' ? `Points (Win: ${s.win_points} pts, Draw: ${s.draw_points} pts)` : 'Placement / Novelty'}
+                          <p className="text-xs text-gray-400">
+                            {s.scoring_type !== 'placement' 
+                              ? `Points (Win: ${s.win_points} pts, Draw: ${s.draw_points} pts) — ${
+                                  s.scoring_type === 'single' ? 'Single Round-Robin' :
+                                  s.scoring_type === 'double' ? 'Double Round-Robin' :
+                                  s.scoring_type === 'group' ? 'Group Stage' :
+                                  s.scoring_type === 'playoff' ? 'Single Elimination Playoff' : 'Points-based'
+                                }` 
+                              : 'Placement / Novelty'}
                           </p>
                         </div>
                         <button
@@ -1143,15 +1178,19 @@ export default function Settings() {
                       <select
                         value={newSport.scoring_type}
                         onChange={(e) => setNewSport(s => ({ ...s, scoring_type: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium"
                       >
-                        <option value="points">Points-based (Round-Robin matches)</option>
-                        <option value="placement">Placement-based (Athletics / Novelty runs)</option>
+                        <option value="points">Points-based (Generic)</option>
+                        <option value="single">Single Round-Robin — Each pair plays once</option>
+                        <option value="double">Double Round-Robin — Each pair plays twice (home + away)</option>
+                        <option value="group">Group Stage — Teams split into groups, round-robin within each</option>
+                        <option value="playoff">Single Elimination Playoff — Knockout tournament (requires 4 or 8 teams)</option>
+                        <option value="placement">Placement-Based (Athletics & Novelty Runs)</option>
                       </select>
                     </div>
                   </div>
 
-                  {newSport.scoring_type === 'points' && (
+                  {newSport.scoring_type !== 'placement' && (
                     <div className="grid grid-cols-2 gap-3 pt-1">
                       <div>
                         <label className="block text-xs font-medium mb-1 text-gray-550">Win Points</label>
@@ -1489,7 +1528,7 @@ Please log in to manage fixtures and scores.`}
                     onClick={() => {
                       const text = `Hello ${createdUserCredentials.name}!\n\nYou have been added as a ${createdUserCredentials.role.toUpperCase()} for the "${form.org_name}" workspace.\n\nWorkspace Link: ${window.location.origin}/login?workspace=${currentOrgSlug}\nEmail: ${createdUserCredentials.email}\nPassword: ${createdUserCredentials.password}\n\nPlease log in to manage fixtures and scores.`;
                       navigator.clipboard.writeText(text);
-                      alert('Invitation copied to clipboard!');
+                      showToast('Invitation copied to clipboard!', 'success');
                     }}
                     className="k-btn bg-blue-600 hover:bg-blue-505 text-white text-xs font-semibold py-1.5 px-3 rounded-lg cursor-pointer"
                   >

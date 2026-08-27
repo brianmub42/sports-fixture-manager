@@ -87,7 +87,7 @@ router.post('/fixtures', authMiddleware, upload.single('file'), async (req, res)
         }
 
         // Validate required fields based on scoring type
-        if (scoringType === 'points' && (!teamA || !teamB)) {
+        if (scoringType !== 'placement' && (!teamA || !teamB)) {
           results.skipped++;
           continue;
         }

@@ -10,7 +10,7 @@ export default function Analytics() {
   const { data: sportsData, isLoading: loadingSports } = useSports();
   const { data, isLoading, error } = useAnalytics(filter);
 
-  const sports = ['All', ...(sportsData?.filter(s => s.scoring_type === 'points').map(s => s.name) || [])];
+  const sports = ['All', ...(sportsData?.filter(s => s.scoring_type !== 'placement').map(s => s.name) || [])];
 
   if (isLoading || loadingSports) return <div className="p-8 text-center text-gray-500">Loading analytics...</div>;
   if (error) return <div className="p-8 text-center text-red-500">Failed to load analytics</div>;

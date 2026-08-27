@@ -6,7 +6,7 @@ import { useOrganization } from '../contexts/OrganizationContext.jsx';
 export function useLiveUpdates() {
   const socket = useSocket();
   const queryClient = useQueryClient();
-  const { currentOrg } = useOrganization();
+  const { activeOrg: currentOrg } = useOrganization();
 
   useEffect(() => {
     if (!socket) return;

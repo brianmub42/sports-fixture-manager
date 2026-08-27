@@ -143,33 +143,50 @@ router.get('/events/:id/results', async (req, res) => {
   }
 });
 
+const pendingAthletics = new Map();
+
 // POST /api/athletics/events/:id/results (Admin/Scorekeeper)
 router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
-  try {
-    const { results } = req.body; // array of { teamId, placement, timeMs }
-    const eventId = req.params.id;
+  const { results } = req.body; // array of { teamId, placement, timeMs }
+  const eventId = req.params.id;
 
-    if (!Array.isArray(results)) {
-      return res.status(400).json({ error: 'results (array) is required' });
+  if (!Array.isArray(results)) {
+    return res.status(400).json({ error: 'results (array) is required' });
+  }
+
+  // Hash / cache key of results placements array
+  const key = `athletics:${eventId}:${JSON.stringify(results)}`;
+
+  if (pendingAthletics.has(key)) {
+    console.log('[Idempotency] Duplicate athletics results request, sharing promise for key:', key);
+    try {
+      const result = await pendingAthletics.get(key);
+      return res.json(result);
+    } catch (err) {
+      const code = err.message === 'Event not found' ? 404 :
+                   (err.message.includes('Points allocation') || err.message.includes('configured') ? 400 : 500);
+      return res.status(code).json({ error: err.message });
     }
+  }
 
+  const promise = (async () => {
     // Verify event exists and belongs to organization
     const eventRes = await query('SELECT * FROM athletics_events WHERE id = $1 AND organization_id = $2', [eventId, req.orgId]);
     if (eventRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Event not found' });
+      throw new Error('Event not found');
     }
 
     // Verify points allocation is configured in settings
     const pointsSettingRes = await query("SELECT value FROM settings WHERE organization_id = $1 AND key = 'points_allocation'", [req.orgId]);
     if (pointsSettingRes.rows.length === 0) {
-      return res.status(400).json({ error: 'Points allocation has not been configured by the workspace administrator. Please configure it in Settings first.' });
+      throw new Error('Points allocation has not been configured by the workspace administrator. Please configure it in Settings first.');
     }
 
     let pointMap = {};
     try {
       pointMap = JSON.parse(pointsSettingRes.rows[0].value);
     } catch (err) {
-      return res.status(500).json({ error: 'Failed to parse points allocation configuration.' });
+      throw new Error('Failed to parse points allocation configuration.');
     }
 
     // Delete existing results for this event
@@ -185,9 +202,7 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       }
 
       if (pts === null) {
-        return res.status(400).json({
-          error: `Points allocation for Position ${r.placement} has not been configured in Settings. Please configure all necessary positions before logging results.`
-        });
+        throw new Error(`Points allocation for Position ${r.placement} has not been configured in Settings. Please configure all necessary positions before logging results.`);
       }
 
       await query(`
@@ -204,9 +219,34 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       req.io.to(`tenant-${req.orgId}`).emit('score-updated', { eventId, status: 'completed' });
     }
 
-    res.json({ success: true, message: 'Results saved successfully' });
+    // Invalidate standings cache on write
+    try {
+      const cacheKeys = await req.redisClient.keys(`leaderboard:${req.orgId}:*`);
+      if (cacheKeys.length > 0) {
+        await req.redisClient.del(cacheKeys);
+        console.log(`[Cache Invalidation] Cleared ${cacheKeys.length} keys for tenant ${req.orgId}`);
+      }
+    } catch (err) {
+      console.error('Redis cache invalidation error:', err);
+    }
+
+    return { success: true, message: 'Results saved successfully' };
+  })();
+
+  pendingAthletics.set(key, promise);
+
+  try {
+    const result = await promise;
+    res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const code = err.message === 'Event not found' ? 404 :
+                 (err.message.includes('Points allocation') || err.message.includes('configured') ? 400 : 500);
+    res.status(code).json({ error: err.message });
+  } finally {
+    // Automatically clean up the map entry after 10 seconds
+    setTimeout(() => {
+      pendingAthletics.delete(key);
+    }, 10000);
   }
 });
 

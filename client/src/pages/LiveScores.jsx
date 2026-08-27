@@ -6,6 +6,7 @@ import TeamPill from '../components/TeamPill.jsx';
 import MatchTimerControl from '../components/MatchTimerControl.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { Target, ShieldAlert, Award, Check, Trash2 } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 export default function LiveScores() {
   const { data: fixtures, isLoading } = useFixtures();
@@ -133,6 +134,7 @@ export default function LiveScores() {
 function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
   const updateScore = useUpdateScore();
   const deleteFixture = useDeleteFixture();
+  const { showToast } = useToast();
   
   // Local score states for input bindings
   const [scoreA, setScoreA] = useState(fixture.score_a || 0);
@@ -161,6 +163,7 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
       onSuccess: () => {
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus(null), 3000);
+        showToast('Score saved successfully!', 'success');
       },
       onError: () => {
         setSaveStatus('error');
@@ -195,6 +198,7 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
       onSuccess: () => {
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus(null), 3000);
+        showToast('Points logged for player!', 'success');
       },
       onError: () => {
         setSaveStatus('error');
@@ -219,6 +223,7 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
         onSuccess: () => {
           setSaveStatus('saved');
           setTimeout(() => setSaveStatus(null), 3000);
+          showToast('Match deleted successfully!', 'success');
         },
         onError: () => {
           setSaveStatus('error');
@@ -389,6 +394,7 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
                 onSuccess: () => {
                   setSaveStatus('saved');
                   setTimeout(() => setSaveStatus(null), 3000);
+                  showToast('Forfeit applied successfully!', 'success');
                 },
                 onError: () => {
                   setSaveStatus('error');
@@ -409,6 +415,7 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
                 onSuccess: () => {
                   setSaveStatus('saved');
                   setTimeout(() => setSaveStatus(null), 3000);
+                  showToast('Forfeit applied successfully!', 'success');
                 },
                 onError: () => {
                   setSaveStatus('error');
