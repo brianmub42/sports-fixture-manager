@@ -60,6 +60,12 @@ export async function initDatabase(): Promise<void> {
       name TEXT NOT NULL,
       scoring_type TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS cached_standings (
+      key TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   console.log('[SQLite] Local database initialized successfully');
@@ -204,4 +210,26 @@ export async function overwriteLocalFixtureScore(
     'UPDATE fixtures SET score_a = ?, score_b = ?, status = \'completed\' WHERE id = ?',
     [scoreA, scoreB, fixtureId]
   );
+}
+
+export async function saveCachedStandings(key: string, data: any): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'INSERT OR REPLACE INTO cached_standings (key, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+    [key, JSON.stringify(data)]
+  );
+}
+
+export async function getCachedStandings(key: string): Promise<{ data: any; updatedAt: string } | null> {
+  const db = await getDatabase();
+  const res: any = await db.getFirstAsync('SELECT data, updated_at FROM cached_standings WHERE key = ?', [key]);
+  if (!res) return null;
+  try {
+    return {
+      data: JSON.parse(res.data),
+      updatedAt: res.updated_at,
+    };
+  } catch {
+    return null;
+  }
 }

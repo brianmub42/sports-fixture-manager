@@ -4,23 +4,24 @@ import { Pressable, Text, StyleSheet } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function ScorekeeperLayout() {
-  const { logout } = useAuth();
+  const { user } = useAuth();
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#3b82f6',
         tabBarInactiveTintColor: '#64748b',
+        tabBarIconStyle: { display: 'none' }, // Hide empty icon slots for centered text-only tabs
         tabBarStyle: {
           backgroundColor: '#1e293b',
           borderTopWidth: 1,
           borderColor: '#334155',
-          paddingBottom: 6,
+          paddingBottom: 14,
           height: 60,
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '600',
+          fontWeight: '800',
         },
         headerStyle: {
           backgroundColor: '#0f172a',
@@ -37,36 +38,37 @@ export default function ScorekeeperLayout() {
         name="fixtures"
         options={{
           title: 'Fixtures',
+          tabBarLabel: '📋 Fixtures',
           headerTitle: 'Scorekeeper Console',
-          headerRight: () => (
-            <Pressable onPress={logout} style={styles.logoutButton}>
-              <Text style={styles.logoutText}>Logout</Text>
-            </Pressable>
-          ),
+        }}
+      />
+      <Tabs.Screen
+        name="standings"
+        options={{
+          title: 'Leaderboard',
+          tabBarLabel: '🏆 Leaderboard',
+          headerTitle: 'Overall Standings',
+          href: user?.role === 'scorekeeper' ? null : '/(scorekeeper)/standings',
         }}
       />
       <Tabs.Screen
         name="sync"
         options={{
           title: 'Sync Queue',
+          tabBarLabel: '☁ Sync Queue',
           headerTitle: 'Offline Sync Queue',
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarLabel: '⚙ Settings',
+          headerTitle: 'Settings & Diagnostics',
         }}
       />
     </Tabs>
   );
 }
 
-const styles = StyleSheet.create({
-  logoutButton: {
-    marginRight: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#ef444420',
-  },
-  logoutText: {
-    color: '#ef4444',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-});
+const styles = StyleSheet.create({});
