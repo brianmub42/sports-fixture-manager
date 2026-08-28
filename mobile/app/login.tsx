@@ -29,7 +29,8 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const role = await login(email, password);
+      const cleanedEmail = email.trim().toLowerCase();
+      const role = await login(cleanedEmail, password);
       setLoading(false);
       
       // Route based on role

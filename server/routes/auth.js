@@ -10,10 +10,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'kalife-2026-secret-key-change-in-p
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name, role } = req.body;
+    let { email, password, name, role } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'All fields (email, password, name) are required' });
     }
+    email = email.trim().toLowerCase();
 
     // Check if user already exists globally
     const checkUser = await query('SELECT id FROM users WHERE email = $1', [email]);
@@ -57,10 +58,11 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
+    email = email.trim().toLowerCase();
 
     // Look up user globally first (Superadmins can log in from any workspace)
     const userRes = await query('SELECT * FROM users WHERE email = $1', [email]);
@@ -121,10 +123,11 @@ router.get('/users', authMiddleware, requireAdmin, async (req, res) => {
 // POST /api/auth/users (Protected: Admin) - Create new users with specific roles
 router.post('/users', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { email, password, name, role } = req.body;
+    let { email, password, name, role } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'All fields (email, password, name) are required' });
     }
+    email = email.trim().toLowerCase();
 
     const checkUser = await query('SELECT id FROM users WHERE email = $1', [email]);
     if (checkUser.rows.length > 0) {
@@ -149,8 +152,9 @@ router.post('/users', authMiddleware, requireAdmin, async (req, res) => {
 // PUT /api/auth/users/:id (Protected: Admin) - Update user details
 router.put('/users/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { email, password, name, role } = req.body;
+    let { email, password, name, role } = req.body;
     const userId = req.params.id;
+    if (email) email = email.trim().toLowerCase();
 
     // Check if user exists in the organization
     const userCheck = await query('SELECT id FROM users WHERE id = $1 AND organization_id = $2', [userId, req.orgId]);
