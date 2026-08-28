@@ -20,11 +20,13 @@ import Brackets from './pages/Brackets.jsx';
 import TvMode from './pages/TvMode.jsx';
 import AthleticsPage from './pages/AthleticsPage.jsx';
 import SuperadminDashboard from './pages/SuperadminDashboard.jsx';
+import PublicWatchPage from './pages/PublicWatchPage.jsx';
 
 function App() {
   const { activeOrg } = useOrganization();
+  const isWatchRoute = window.location.pathname.startsWith('/watch/');
 
-  if (!activeOrg) {
+  if (!activeOrg && !isWatchRoute) {
     return <SelectOrganization />;
   }
 
@@ -50,6 +52,7 @@ function App() {
               <Route path="/superadmin" element={<SuperadminDashboard />} />
             </Route>
             <Route path="/tv" element={<TvMode />} />
+            <Route path="/watch/:eventSlug" element={<PublicWatchPage />} />
           </Routes>
         </TimerProvider>
       </SocketProvider>

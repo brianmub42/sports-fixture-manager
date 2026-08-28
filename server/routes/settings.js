@@ -31,13 +31,37 @@ router.get('/', async (req, res) => {
     let status = orgBilling.subscription_status || 'active';
     const expiresAt = orgBilling.term_expires_at ? new Date(orgBilling.term_expires_at) : null;
     
-    // Auto-suspend if expired
-    if (status === 'active' && expiresAt && expiresAt < new Date()) {
-      await query(
-        "UPDATE organizations SET subscription_status = 'suspended' WHERE id = $1",
-        [req.orgId]
-      );
-      status = 'suspended';
+    // Auto-expire / suspend subscription checks
+    const graceDays = parseInt(process.env.GRACE_PERIOD_DAYS || '3', 10);
+    const gracePeriodMs = graceDays * 24 * 60 * 60 * 1000;
+    const now = new Date();
+
+    if (expiresAt) {
+      const graceExpiresAt = new Date(expiresAt.getTime() + gracePeriodMs);
+
+      if (now >= graceExpiresAt) {
+        if (status === 'active' || status === 'grace_period') {
+          await query(
+            "UPDATE organizations SET subscription_status = 'suspended' WHERE id = $1",
+            [req.orgId]
+          );
+          status = 'suspended';
+        }
+      } else if (now >= expiresAt) {
+        if (status === 'active') {
+          await query(
+            "UPDATE organizations SET subscription_status = 'grace_period' WHERE id = $1",
+            [req.orgId]
+          );
+          status = 'grace_period';
+        }
+      }
+    }
+
+    let graceDaysRemaining = 0;
+    if (status === 'grace_period' && expiresAt) {
+      const graceExpiresAt = new Date(expiresAt.getTime() + gracePeriodMs);
+      graceDaysRemaining = Math.max(0, Math.ceil((graceExpiresAt - now) / (1000 * 60 * 60 * 24)));
     }
 
     const minutesRemaining = expiresAt ? Math.round((expiresAt - new Date()) / 60000) : 999;
@@ -71,6 +95,7 @@ router.get('/', async (req, res) => {
         expires_at: expiresAt ? expiresAt.toISOString() : null,
         minutes_remaining: minutesRemaining,
         is_low_credit: isLowCredit,
+        grace_days_remaining: graceDaysRemaining,
         credit_balance: orgBilling.credit_balance || 0.00,
         pop_file_url: orgBilling.pop_file_url,
         pop_uploaded_at: orgBilling.pop_uploaded_at ? new Date(orgBilling.pop_uploaded_at).toISOString() : null,

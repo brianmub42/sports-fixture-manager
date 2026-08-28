@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS organizations (
     slug VARCHAR(100) UNIQUE NOT NULL,
     event_title VARCHAR(150) DEFAULT 'Championship',
     creator_email VARCHAR(100),
-    subscription_status VARCHAR(20) DEFAULT 'active',
+    subscription_status VARCHAR(20) DEFAULT 'active', -- active, grace_period, suspended, pending_verification
     term_expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '14 days',
     credit_balance NUMERIC(10, 2) DEFAULT 50.00,
     pop_file_url VARCHAR(255),
@@ -64,6 +64,9 @@ CREATE TABLE IF NOT EXISTS fixtures (
     status VARCHAR(20) DEFAULT 'upcoming',
     winner_id INT REFERENCES teams(id) ON DELETE CASCADE,
     notes TEXT,
+    submitted_by VARCHAR(150),
+    submitted_at TIMESTAMP,
+    last_request_id VARCHAR(100),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -145,4 +148,11 @@ CREATE TABLE IF NOT EXISTS fixture_lineups (
     role VARCHAR(20) DEFAULT 'starter',
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(fixture_id, player_id)
+);
+
+CREATE TABLE IF NOT EXISTS billing_reminders_sent (
+    organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+    reminder_type VARCHAR(10) NOT NULL,
+    sent_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (organization_id, reminder_type)
 );

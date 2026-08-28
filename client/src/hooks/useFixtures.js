@@ -18,10 +18,11 @@ export function useCreateOrganization() {
   });
 }
 
-export function useFixtures(filters = {}) {
+export function useFixtures(filters = {}, options = {}) {
   return useQuery({
     queryKey: ['fixtures', filters],
     queryFn: () => fixturesApi.getAll(filters).then(r => r.data),
+    ...options
   });
 }
 
@@ -57,10 +58,11 @@ export function useTeams() {
 
 export const useDistricts = useTeams;
 
-export function useSettings() {
+export function useSettings(options = {}) {
   return useQuery({
     queryKey: ['settings'],
     queryFn: () => settingsApi.get().then(r => r.data),
+    ...options
   });
 }
 
@@ -111,10 +113,11 @@ export function useDeleteVenue() {
   });
 }
 
-export function useSports() {
+export function useSports(options = {}) {
   return useQuery({
     queryKey: ['sports'],
     queryFn: () => sportsApi.getAll().then(r => r.data),
+    ...options
   });
 }
 

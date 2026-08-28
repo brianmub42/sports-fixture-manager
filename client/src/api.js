@@ -29,6 +29,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export const publicApi = {
+  getEventInfo: (slug) => api.get(`/public/events/${slug}`),
+  getFixtures: (slug, params) => api.get(`/public/events/${slug}/fixtures`, { params }),
+  getStandings: (slug, params) => api.get(`/public/events/${slug}/standings`, { params })
+};
+
 export const fixturesApi = {
   getAll: (params) => api.get('/fixtures', { params }),
   getById: (id) => api.get(`/fixtures/${id}`),

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFixtures, useSettings, useSports } from '../hooks/useFixtures.js';
 import { usePlayers, useLineups, useSaveLineup } from '../hooks/usePlayers.js';
 import { Calendar, Download, ChevronDown, ChevronUp, Save, Users } from 'lucide-react';
@@ -8,16 +8,43 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { exportFixturesToPDF } from '../utils/pdfExport.js';
 import { useToast } from '../contexts/ToastContext.jsx';
 
-export default function Fixtures() {
+export default function Fixtures({
+  fixtures: propFixtures,
+  sportsData: propSportsData,
+  settings: propSettings,
+  isLoading: propIsLoading,
+  filter: propFilter,
+  setFilter: propSetFilter
+} = {}) {
+  const isCustom = propFixtures !== undefined;
+
   const [filter, setFilter] = useState('All');
-  const { data: fixtures, isLoading } = useFixtures(filter === 'All' ? {} : { sport: filter });
-  const { data: settings } = useSettings();
-  const { data: sportsData, isLoading: loadingSports } = useSports();
   const [expandedMatchId, setExpandedMatchId] = useState(null);
+
+  const { data: hookFixtures, isLoading: loadingFixtures } = useFixtures(filter === 'All' ? {} : { sport: filter }, { enabled: !isCustom });
+  const { data: hookSettings } = useSettings({ enabled: !isCustom });
+  const { data: hookSportsData, isLoading: loadingSports } = useSports({ enabled: !isCustom });
+
+  const fixtures = isCustom ? propFixtures : hookFixtures;
+  const settings = isCustom ? propSettings : hookSettings;
+  const sportsData = isCustom ? propSportsData : hookSportsData;
+  const isLoading = isCustom ? propIsLoading : (loadingFixtures || loadingSports);
 
   const sports = ['All', ...(sportsData?.map(s => s.name) || [])];
 
-  if (isLoading || loadingSports) return <div className="text-center py-12 text-gray-400">Loading fixtures...</div>;
+  useEffect(() => {
+    if (propFilter) {
+      setFilter(propFilter);
+    }
+  }, [propFilter]);
+
+  const handleFilterChange = (f) => {
+    setFilter(f);
+    setExpandedMatchId(null);
+    if (propSetFilter) propSetFilter(f);
+  };
+
+  if (isLoading) return <div className="text-center py-12 text-gray-400">Loading fixtures...</div>;
 
   const toggleExpand = (id) => {
     setExpandedMatchId(expandedMatchId === id ? null : id);
@@ -50,10 +77,7 @@ export default function Fixtures() {
         {sports.map(s => (
           <button
             key={s}
-            onClick={() => {
-              setFilter(s);
-              setExpandedMatchId(null);
-            }}
+            onClick={() => handleFilterChange(s)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
               filter === s
                 ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'

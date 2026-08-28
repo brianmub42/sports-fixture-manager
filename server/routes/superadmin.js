@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authMiddleware, requireSuperadmin } from '../middleware/auth.js';
+import { checkBillingReminders } from '../lib/billing-scheduler.js';
 
 const router = Router();
 
@@ -109,6 +110,17 @@ router.post('/tenants/:id/extend', async (req, res) => {
     );
 
     res.json({ success: true, message: 'Workspace expiration updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/superadmin/billing/run-reminder-check
+// Manually triggers the daily billing reminder logic for testing
+router.post('/billing/run-reminder-check', async (req, res) => {
+  try {
+    const results = await checkBillingReminders();
+    res.json({ success: true, triggeredReminders: results });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

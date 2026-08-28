@@ -39,7 +39,7 @@ export function requireAdmin(req, res, next) {
 }
 
 export function requireScorekeeperOrAdmin(req, res, next) {
-  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'scorekeeper')) {
+  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'scorekeeper' && req.user.role !== 'superadmin')) {
     return res.status(403).json({ error: 'Forbidden: Scorekeeper or Admin permissions required' });
   }
   next();

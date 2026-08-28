@@ -3,6 +3,7 @@ import multer from 'multer';
 import xlsx from 'xlsx';
 import { query } from '../db.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { sendPopUploadNotification } from '../lib/email.js';
 
 const router = Router();
 const upload = multer({ dest: 'uploads/' });
@@ -209,14 +210,23 @@ router.post('/pop', authMiddleware, requireAdmin, upload.single('pop'), async (r
     const popUrl = `/uploads/${req.file.filename}`;
     
     // Update the organization's POP record
-    await query(
+    const result = await query(
       `UPDATE organizations 
        SET pop_file_url = $1, 
            pop_uploaded_at = NOW(), 
            subscription_status = 'pending_verification'
-       WHERE id = $2`,
+       WHERE id = $2
+       RETURNING name, pop_uploaded_at`,
       [popUrl, req.orgId]
     );
+
+    const org = result.rows[0];
+    if (org) {
+      // Trigger superadmin email notification asynchronously (non-blocking)
+      sendPopUploadNotification(org.name, org.pop_uploaded_at).catch(err => {
+        console.error('[Email Trigger Error] Error invoking sendPopUploadNotification:', err);
+      });
+    }
 
     res.json({ success: true, popFileUrl: popUrl });
   } catch (err) {

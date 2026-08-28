@@ -20,6 +20,14 @@ async function runPatch() {
       ADD COLUMN IF NOT EXISTS billing_contact_number VARCHAR(30)
     `);
 
+    // 2.5 Add submitted_by, submitted_at, and last_request_id to fixtures
+    await query(`
+      ALTER TABLE fixtures 
+      ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(150),
+      ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS last_request_id VARCHAR(100)
+    `);
+
     // 3. Alter term_expires_at column default value to 14 days
     await query(`
       ALTER TABLE organizations 
@@ -56,6 +64,17 @@ async function runPatch() {
       );
       console.log('Super-administrator account seeded successfully!');
     }
+
+    // 5. Add billing_reminders_sent table
+    console.log('Creating billing_reminders_sent table if not exists...');
+    await query(`
+      CREATE TABLE IF NOT EXISTS billing_reminders_sent (
+          organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+          reminder_type VARCHAR(10) NOT NULL,
+          sent_at TIMESTAMP DEFAULT NOW(),
+          PRIMARY KEY (organization_id, reminder_type)
+      )
+    `);
 
     console.log('Database schema patch applied successfully!');
   } catch (err) {

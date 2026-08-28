@@ -78,7 +78,7 @@ export default function SuperadminDashboard() {
     const matchesStatus = 
       statusFilter === 'all' || 
       (statusFilter === 'pending' && tenant.subscription_status === 'pending_verification') ||
-      (statusFilter === 'active' && tenant.subscription_status === 'active') ||
+      (statusFilter === 'active' && (tenant.subscription_status === 'active' || tenant.subscription_status === 'grace_period')) ||
       (statusFilter === 'suspended' && tenant.subscription_status === 'suspended');
 
     return matchesSearch && matchesStatus;
@@ -87,7 +87,7 @@ export default function SuperadminDashboard() {
   // Metrics
   const totalCount = tenants?.length || 0;
   const pendingCount = tenants?.filter(t => t.subscription_status === 'pending_verification').length || 0;
-  const activeCount = tenants?.filter(t => t.subscription_status === 'active').length || 0;
+  const activeCount = tenants?.filter(t => t.subscription_status === 'active' || t.subscription_status === 'grace_period').length || 0;
   const suspendedCount = tenants?.filter(t => t.subscription_status === 'suspended').length || 0;
 
   const formatRemainingTime = (minutes) => {
@@ -220,6 +220,10 @@ export default function SuperadminDashboard() {
                         {tenant.subscription_status === 'active' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400">
                             Active
+                          </span>
+                        ) : tenant.subscription_status === 'grace_period' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                            Grace Period
                           </span>
                         ) : tenant.subscription_status === 'pending_verification' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 animate-pulse">

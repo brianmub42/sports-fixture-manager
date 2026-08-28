@@ -5,14 +5,33 @@ import TeamPill from '../components/TeamPill.jsx';
 import { Download, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 import { exportStandingsToPDF } from '../utils/pdfExport.js';
 
-export default function Standings() {
+export default function Standings({
+  sportsData: propSportsData,
+  standings: propStandings,
+  settings: propSettings,
+  eventsList: propEventsList,
+  isLoading: propIsLoading,
+  selectedSport: propSelectedSport,
+  setSelectedSport: propSetSelectedSport,
+  selectedEventId: propSelectedEventId,
+  setSelectedEventId: propSetSelectedEventId
+} = {}) {
+  const isCustom = propStandings !== undefined;
+
   const [sport, setSport] = useState('');
   const [eventId, setEventId] = useState('all');
   const [expandedTeam, setExpandedTeam] = useState(null);
-  const { data: sportsData, isLoading: loadingSports } = useSports();
-  const { data: standings, isLoading } = useStandings(sport, eventId);
-  const { data: settings } = useSettings();
-  const { data: eventsList } = useStandingsEvents(sport);
+
+  const { data: hookSportsData, isLoading: loadingSports } = useSports({ enabled: !isCustom });
+  const { data: hookStandings, isLoading: loadingStandings } = useStandings(sport, eventId, { enabled: !isCustom && !!sport });
+  const { data: hookSettings } = useSettings({ enabled: !isCustom });
+  const { data: hookEventsList } = useStandingsEvents(sport, { enabled: !isCustom && !!sport });
+
+  const sportsData = isCustom ? propSportsData : hookSportsData;
+  const standings = isCustom ? propStandings : hookStandings;
+  const settings = isCustom ? propSettings : hookSettings;
+  const eventsList = isCustom ? propEventsList : hookEventsList;
+  const isLoading = isCustom ? propIsLoading : (loadingStandings || loadingSports);
 
   const sports = sportsData?.map(s => s.name) || [];
   const selectedSportObj = sportsData?.find(s => s.name === sport);
@@ -23,6 +42,28 @@ export default function Standings() {
       setSport(sports[0]);
     }
   }, [sports, sport]);
+
+  useEffect(() => {
+    if (propSelectedSport) {
+      setSport(propSelectedSport);
+    }
+  }, [propSelectedSport]);
+
+  useEffect(() => {
+    if (propSelectedEventId) {
+      setEventId(propSelectedEventId);
+    }
+  }, [propSelectedEventId]);
+
+  const handleSportChange = (s) => {
+    setSport(s);
+    if (propSetSelectedSport) propSetSelectedSport(s);
+  };
+
+  const handleEventChange = (evId) => {
+    setEventId(evId);
+    if (propSetSelectedEventId) propSetSelectedEventId(evId);
+  };
 
   useEffect(() => {
     setEventId('all');
@@ -54,7 +95,7 @@ export default function Standings() {
         {sports.map(s => (
           <button
             key={s}
-            onClick={() => setSport(s)}
+            onClick={() => handleSportChange(s)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               sport === s
                 ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
@@ -87,7 +128,7 @@ export default function Standings() {
                   <span className="text-xs text-gray-400 font-medium">Filter by Event:</span>
                   <select
                     value={eventId}
-                    onChange={(e) => setEventId(e.target.value)}
+                    onChange={(e) => handleEventChange(e.target.value)}
                     className="px-3 py-1.5 rounded-md text-xs font-medium bg-white dark:bg-gray-800 border border-gray-350 dark:border-gray-700 text-gray-705 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
                   >
                     <option value="all">All Events (Combined)</option>

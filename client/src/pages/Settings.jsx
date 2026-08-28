@@ -394,7 +394,7 @@ export default function Settings() {
             }
             .payment-grid {
               display: grid;
-              grid-template-columns: 1.2fr 0.8fr;
+              grid-template-columns: 1.2fr 0.9fr 0.9fr;
               gap: 30px;
             }
             .bank-label {
@@ -512,7 +512,7 @@ export default function Settings() {
                       Provides full unrestricted cloud workspace access, including custom points systems, unlimited brackets generation, fixture scheduling, scorekeeper accounts, digital standings boards, and responsive team registration configurations for this academic term.
                     </span>
                   </td>
-                  <td class="amount-col" style="vertical-align: middle;">$130.00 USD</td>
+                  <td class="amount-col" style="vertical-align: middle;">$150.00 USD</td>
                 </tr>
               </tbody>
             </table>
@@ -520,7 +520,7 @@ export default function Settings() {
             <div class="total-section">
               <div class="total-box">
                 <span class="total-label">Total Due:</span>
-                <span class="total-val">$130.00 USD</span>
+                <span class="total-val">$150.00 USD</span>
               </div>
             </div>
 
@@ -537,6 +537,11 @@ export default function Settings() {
                 <div>
                   <div style="font-weight: 700; margin-bottom: 10px; color: #475569; font-size: 12px; text-transform: uppercase;">InnBucks Transfer</div>
                   <div style="margin-bottom: 4px;"><span class="bank-label">Account/No:</span><span class="bank-value">0773257425</span></div>
+                  <div style="margin-bottom: 4px;"><span class="bank-label">Account Name:</span><span class="bank-value">ETECHZIM PVT LTD</span></div>
+                </div>
+                <div>
+                  <div style="font-weight: 700; margin-bottom: 10px; color: #475569; font-size: 12px; text-transform: uppercase;">EcoCash Transfer</div>
+                  <div style="margin-bottom: 4px;"><span class="bank-label">EcoCash No:</span><span class="bank-value">0773257425</span></div>
                   <div style="margin-bottom: 4px;"><span class="bank-label">Account Name:</span><span class="bank-value">ETECHZIM PVT LTD</span></div>
                 </div>
               </div>
@@ -747,6 +752,17 @@ export default function Settings() {
 
         {/* Tab Content Panels */}
         <div className="flex-1 w-full space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {settings?.billing?.status === 'grace_period' && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-400 rounded-xl flex items-start gap-3 shadow-sm">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-sm">License Renewal Required</h3>
+                <p className="text-xs mt-1 text-amber-700 dark:text-amber-300">
+                  Your license expired on <strong>{settings.billing.expires_at ? new Date(settings.billing.expires_at).toLocaleDateString() : 'N/A'}</strong>. You are currently in a grace period and have <strong>{settings.billing.grace_days_remaining || 0} day(s)</strong> remaining to renew before system access is restricted.
+                </p>
+              </div>
+            </div>
+          )}
           {activeTab === 'general' && (
             <>
               {/* Edit Organization Info */}
@@ -1560,6 +1576,11 @@ Please log in to manage fixtures and scores.`}
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400">
                             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                             Active Trial / License
+                          </span>
+                        ) : settings?.billing?.status === 'grace_period' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Grace Period
                           </span>
                         ) : settings?.billing?.status === 'pending_verification' ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">

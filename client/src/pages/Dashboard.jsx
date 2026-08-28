@@ -4,7 +4,8 @@ import { useLogStandings } from '../hooks/useStandings.js';
 import { Link } from 'react-router-dom';
 import SportTag from '../components/SportTag.jsx';
 import TeamPill from '../components/TeamPill.jsx';
-import { Maximize2, Play, Pause, ChevronLeft, ChevronRight, X, Sparkles } from 'lucide-react';
+import { Maximize2, Play, Pause, ChevronLeft, ChevronRight, X, Sparkles, Share2 } from 'lucide-react';
+import { useOrganization } from '../contexts/OrganizationContext.jsx';
 
 function getCurrentPhaseInfo(fixtures) {
   if (!fixtures || fixtures.length === 0) {
@@ -136,6 +137,8 @@ const slides = [
 ];
 
 export default function Dashboard() {
+  const { activeOrg } = useOrganization();
+  const [copiedWatchLink, setCopiedWatchLink] = useState(false);
   const { data: fixtures, isLoading } = useFixtures();
   const { data: log } = useLogStandings();
   const { data: settings } = useSettings();
@@ -144,6 +147,15 @@ export default function Dashboard() {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [slideDuration, setSlideDuration] = useState(5); // in seconds
+
+  const handleCopyWatchLink = () => {
+    if (activeOrg?.slug) {
+      const link = `${window.location.origin}/watch/${activeOrg.slug}`;
+      navigator.clipboard.writeText(link);
+      setCopiedWatchLink(true);
+      setTimeout(() => setCopiedWatchLink(false), 2000);
+    }
+  };
 
   // Auto cycle effect
   useEffect(() => {
@@ -414,23 +426,33 @@ export default function Dashboard() {
       {/* Projector Screen Overlay */}
       {renderProjectorMode()}
 
-      {/* Header with Projector Trigger */}
+      {/* Header with Projector Trigger & Share Link */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-150 dark:border-gray-800 pb-3">
         <div>
           <h1 className="text-2xl font-bold">{orgName} Dashboard</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Live tournament overview and statistics</p>
         </div>
-        <button
-          onClick={() => {
-            setIsProjectorMode(true);
-            setCurrentSlideIndex(0);
-            setIsPlaying(true);
-          }}
-          className="k-btn bg-blue-600 hover:bg-blue-700 text-white border-transparent flex items-center gap-1.5 shadow-sm text-xs font-semibold py-2 px-3.5 cursor-pointer animate-in fade-in"
-        >
-          <Maximize2 size={14} />
-          <span>Projector Mode</span>
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCopyWatchLink}
+            className="k-btn bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 flex items-center gap-1.5 shadow-sm text-xs font-semibold py-2 px-3.5 cursor-pointer transition-all duration-150"
+            title="Share spectator live watch link"
+          >
+            <Share2 size={14} />
+            <span>{copiedWatchLink ? 'Copied Watch Link!' : 'Watch Live Link'}</span>
+          </button>
+          <button
+            onClick={() => {
+              setIsProjectorMode(true);
+              setCurrentSlideIndex(0);
+              setIsPlaying(true);
+            }}
+            className="k-btn bg-blue-600 hover:bg-blue-700 text-white border-transparent flex items-center gap-1.5 shadow-sm text-xs font-semibold py-2 px-3.5 cursor-pointer animate-in fade-in"
+          >
+            <Maximize2 size={14} />
+            <span>Projector Mode</span>
+          </button>
+        </div>
       </div>
 
       {/* Setup Call-To-Action Banner */}

@@ -5,6 +5,13 @@ const OrganizationContext = createContext(null);
 
 export function OrganizationProvider({ children }) {
   const [currentOrgSlug, setCurrentOrgSlug] = useState(() => {
+    const pathParts = window.location.pathname.split('/');
+    if (pathParts[1] === 'watch' && pathParts[2]) {
+      const pathSlug = pathParts[2];
+      localStorage.setItem('organization_slug', pathSlug);
+      return pathSlug;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const urlSlug = params.get('workspace');
     if (urlSlug) {

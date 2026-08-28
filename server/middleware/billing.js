@@ -28,13 +28,31 @@ export async function billingMiddleware(req, res, next) {
     const expiresAt = org.term_expires_at ? new Date(org.term_expires_at) : null;
     let status = org.subscription_status || 'active';
 
-    // 4. Auto-expire active subscription if time is up
-    if (status === 'active' && expiresAt && expiresAt < new Date()) {
-      await query(
-        "UPDATE organizations SET subscription_status = 'suspended' WHERE id = $1",
-        [req.orgId]
-      );
-      status = 'suspended';
+    // 4. Auto-expire active subscription to grace_period, and suspend if grace period has also expired
+    const graceDays = parseInt(process.env.GRACE_PERIOD_DAYS || '3', 10);
+    const gracePeriodMs = graceDays * 24 * 60 * 60 * 1000;
+    const now = new Date();
+
+    if (expiresAt) {
+      const graceExpiresAt = new Date(expiresAt.getTime() + gracePeriodMs);
+
+      if (now >= graceExpiresAt) {
+        if (status === 'active' || status === 'grace_period') {
+          await query(
+            "UPDATE organizations SET subscription_status = 'suspended' WHERE id = $1",
+            [req.orgId]
+          );
+          status = 'suspended';
+        }
+      } else if (now >= expiresAt) {
+        if (status === 'active') {
+          await query(
+            "UPDATE organizations SET subscription_status = 'grace_period' WHERE id = $1",
+            [req.orgId]
+          );
+          status = 'grace_period';
+        }
+      }
     }
 
     // 5. Block write requests if the workspace is suspended
