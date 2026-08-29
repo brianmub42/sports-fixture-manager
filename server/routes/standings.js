@@ -227,13 +227,13 @@ router.get('/', async (req, res) => {
           ELSE 0 
         END), 0)::int as points
       FROM teams t
-      LEFT JOIN fixtures f ON t.id IN (f.team_a_id, f.team_b_id) AND f.status IN ('completed', 'draw') AND f.organization_id = $2 AND f.sport_id = $3
+      LEFT JOIN fixtures f ON t.id IN (f.team_a_id, f.team_b_id) AND f.status IN ('completed', 'draw') AND f.organization_id = $1 AND f.sport_id = $2
       LEFT JOIN sports s ON f.sport_id = s.id
-      WHERE t.organization_id = $2
+      WHERE t.organization_id = $1
       GROUP BY t.id, t.code, t.name, t.color, t.logo_url
       ORDER BY points DESC, (COALESCE(SUM(CASE WHEN f.team_a_id = t.id THEN f.score_a ELSE f.score_b END), 0) - 
                COALESCE(SUM(CASE WHEN f.team_a_id = t.id THEN f.score_b ELSE f.score_a END), 0)) DESC, t.code ASC
-    `, [sport, req.orgId, sportRow.id]);
+    `, [req.orgId, sportRow.id]);
 
     const currentRows = currentRes.rows;
 
