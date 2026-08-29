@@ -114,14 +114,19 @@ router.get('/', async (req, res) => {
     // Execute queries and merge results
     let finalRows = [];
     if (sqlParts.length === 1) {
-      const queryRes = await query(sqlParts[0].sql + ' ORDER BY scheduled_at ASC', sqlParts[0].params);
+      const queryRes = await query(sqlParts[0].sql + ' ORDER BY status ASC, scheduled_at ASC', sqlParts[0].params);
       finalRows = queryRes.rows;
     } else {
       // Execute both separately to avoid param index conflicts in union
       const resFixtures = await query(sqlParts[0].sql, sqlParts[0].params);
       const resAthletics = await query(sqlParts[1].sql, sqlParts[1].params);
       finalRows = [...resFixtures.rows, ...resAthletics.rows];
-      finalRows.sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+      finalRows.sort((a, b) => {
+        if (a.status !== b.status) {
+          return String(a.status).localeCompare(String(b.status));
+        }
+        return new Date(a.scheduled_at) - new Date(b.scheduled_at);
+      });
     }
 
     res.json(finalRows);
@@ -205,7 +210,7 @@ router.get('/team/:code/schedule', async (req, res) => {
           WHERE ar.event_id = ae.id AND t2.code = $1
         )
 
-      ORDER BY scheduled_at ASC
+      ORDER BY status ASC, scheduled_at ASC
     `, [req.params.code, req.orgId]);
     res.json(result.rows);
   } catch (err) {
@@ -270,7 +275,7 @@ router.get('/district/:code/schedule', async (req, res) => {
           WHERE ar.event_id = ae.id AND t2.code = $1
         )
 
-      ORDER BY scheduled_at ASC
+      ORDER BY status ASC, scheduled_at ASC
     `, [req.params.code, req.orgId]);
     res.json(result.rows);
   } catch (err) {
