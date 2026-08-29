@@ -13,6 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../services/api';
 import {
   getOfflineFixtures,
@@ -258,7 +259,7 @@ export default function ScorekeeperFixtures() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Network banner */}
       <View style={[styles.networkBanner, { backgroundColor: isOnline ? '#10b981' : '#f59e0b' }]}>
         <Text style={styles.networkText}>
@@ -471,7 +472,7 @@ export default function ScorekeeperFixtures() {
           </View>
         </Modal>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

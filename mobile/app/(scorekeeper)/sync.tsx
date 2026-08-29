@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../services/api';
 import {
   getPendingSyncQueue,
@@ -126,7 +127,7 @@ export default function OfflineSyncConsole() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Sync Control Header */}
       <View style={styles.syncHeaderCard}>
         <Text style={styles.summaryText}>
@@ -188,7 +189,7 @@ export default function OfflineSyncConsole() {
           </View>
         )}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

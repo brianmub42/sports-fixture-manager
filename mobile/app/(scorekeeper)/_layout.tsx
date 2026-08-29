@@ -1,10 +1,12 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Pressable, Text, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function ScorekeeperLayout() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -16,8 +18,8 @@ export default function ScorekeeperLayout() {
           backgroundColor: '#1e293b',
           borderTopWidth: 1,
           borderColor: '#334155',
-          paddingBottom: 14,
-          height: 60,
+          paddingBottom: insets.bottom > 0 ? insets.bottom - 4 : 4,
+          height: 48 + insets.bottom,
         },
         tabBarLabelStyle: {
           fontSize: 12,

@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import {
@@ -115,8 +116,9 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Profile summary card */}
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* Profile summary card */}
       <View style={styles.card}>
         <Text style={styles.cardHeader}>👤 Authenticated Session</Text>
         
@@ -195,7 +197,8 @@ export default function SettingsScreen() {
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Sign Out of Console</Text>
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -206,7 +209,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 60,
     gap: 16,
   },
   card: {
