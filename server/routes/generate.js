@@ -97,10 +97,10 @@ router.post('/', authMiddleware, async (req, res) => {
       groups = null,
       saveToDb = false,
       saveCustom = false,
-      fixtures
+      fixtures: customFixtures
     } = req.body;
 
-    if (saveCustom && fixtures && Array.isArray(fixtures)) {
+    if (saveCustom && customFixtures && Array.isArray(customFixtures)) {
       if (!sport) return res.status(400).json({ error: 'Sport name required' });
       
       // Get or create sport ID
@@ -115,14 +115,14 @@ router.post('/', authMiddleware, async (req, res) => {
       const scoringType = sportRes.rows[0].scoring_type;
 
       if (scoringType === 'placement' || format === 'placement') {
-        for (const e of fixtures) {
+        for (const e of customFixtures) {
           await query(`
             INSERT INTO athletics_events (organization_id, sport_id, venue_id, name, category, scheduled_at, duration_minutes, status)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           `, [req.orgId, sportId, e.venue_id, e.name, e.category, e.scheduled_at, e.duration || 15, e.status || 'upcoming']);
         }
       } else {
-        for (const f of fixtures) {
+        for (const f of customFixtures) {
           await query(`
             INSERT INTO fixtures (organization_id, sport_id, venue_id, round, team_a_id, team_b_id, scheduled_at, duration_minutes, status, notes)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -132,7 +132,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
       return res.json({
         success: true,
-        count: fixtures.length,
+        count: customFixtures.length,
         message: 'Custom edited fixtures saved successfully!'
       });
     }
