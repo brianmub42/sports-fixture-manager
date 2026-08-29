@@ -95,8 +95,47 @@ router.post('/', authMiddleware, async (req, res) => {
       venues,
       concurrent = 1,
       groups = null,
-      saveToDb = false
+      saveToDb = false,
+      saveCustom = false,
+      fixtures
     } = req.body;
+
+    if (saveCustom && fixtures && Array.isArray(fixtures)) {
+      if (!sport) return res.status(400).json({ error: 'Sport name required' });
+      
+      // Get or create sport ID
+      let sportRes = await query('SELECT id, scoring_type FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
+      if (sportRes.rows.length === 0) {
+        sportRes = await query(
+          "INSERT INTO sports (organization_id, name, scoring_type, win_points, draw_points) VALUES ($1, $2, 'points', 3, 1) RETURNING id, scoring_type",
+          [req.orgId, sport]
+        );
+      }
+      const sportId = sportRes.rows[0].id;
+      const scoringType = sportRes.rows[0].scoring_type;
+
+      if (scoringType === 'placement' || format === 'placement') {
+        for (const e of fixtures) {
+          await query(`
+            INSERT INTO athletics_events (organization_id, sport_id, venue_id, name, category, scheduled_at, duration_minutes, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [req.orgId, sportId, e.venue_id, e.name, e.category, e.scheduled_at, e.duration || 15, e.status || 'upcoming']);
+        }
+      } else {
+        for (const f of fixtures) {
+          await query(`
+            INSERT INTO fixtures (organization_id, sport_id, venue_id, round, team_a_id, team_b_id, scheduled_at, duration_minutes, status, notes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `, [req.orgId, sportId, f.venue_id, f.round, f.team_a_id, f.team_b_id, f.scheduled_at, f.duration || 10, f.status || 'upcoming', f.notes]);
+        }
+      }
+
+      return res.json({
+        success: true,
+        count: fixtures.length,
+        message: 'Custom edited fixtures saved successfully!'
+      });
+    }
 
     if (!sport) return res.status(400).json({ error: 'Sport name required' });
     if (!startDate) return res.status(400).json({ error: 'Start date required' });

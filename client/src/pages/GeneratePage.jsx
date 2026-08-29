@@ -605,12 +605,45 @@ export default function GeneratePage() {
     }
   };
 
+  const handleUpdateFixture = (index, field, value) => {
+    setPreview(prev => {
+      if (!prev) return prev;
+      const updatedFixtures = [...prev.fixtures];
+      const fix = { ...updatedFixtures[index] };
+
+      if (field === 'scheduled_at') {
+        fix.scheduled_at = value;
+        const duration = fix.duration || form.duration || 10;
+        const start = new Date(value);
+        const end = new Date(start.getTime() + duration * 60 * 1000);
+        const offset = end.getTimezoneOffset();
+        const localEnd = new Date(end.getTime() - offset * 60 * 1000);
+        fix.end_time = localEnd.toISOString().substring(0, 19);
+      } else if (field === 'venue') {
+        const vObj = registeredVenues.find(v => String(v.id) === String(value));
+        if (vObj) {
+          fix.venue_id = vObj.id;
+          fix.venue = vObj.name;
+        }
+      } else if (field === 'round') {
+        fix.round = value;
+      } else if (field === 'notes') {
+        fix.notes = value;
+      }
+
+      updatedFixtures[index] = fix;
+      return { ...prev, fixtures: updatedFixtures };
+    });
+  };
+
   const handleSave = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await generateApi.generateAndSave(buildPayload());
-      setPreview(res.data);
+      const res = await generateApi.saveCustom({
+        fixtures: preview.fixtures,
+        sport: form.sport,
+      });
       setSaved(true);
       showToast('Generated fixtures saved to database successfully!', 'success');
       setShowNextSportModal(true);
@@ -1046,11 +1079,23 @@ export default function GeneratePage() {
               </thead>
               <tbody>
                 {preview.fixtures.map((f, i) => (
-                  <tr key={i} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30">
+                  <tr key={i} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 animate-in fade-in duration-150">
                     <td className="py-2 px-3 text-gray-400">{i + 1}</td>
-                    <td className="py-2 px-3 font-medium">{f.round}</td>
-                    <td className="py-2 px-3 text-gray-600">
-                      {formatTime(f.scheduled_at)} - {formatTime(f.end_time)}
+                    <td className="py-2 px-3">
+                      <input
+                        type="text"
+                        value={f.round || ''}
+                        onChange={(e) => handleUpdateFixture(i, 'round', e.target.value)}
+                        className="w-16 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 text-xs text-gray-850 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500 font-semibold"
+                      />
+                    </td>
+                    <td className="py-2 px-3">
+                      <input
+                        type="datetime-local"
+                        value={f.scheduled_at ? f.scheduled_at.substring(0, 16) : ''}
+                        onChange={(e) => handleUpdateFixture(i, 'scheduled_at', e.target.value)}
+                        className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 text-xs text-gray-850 dark:text-gray-250 focus:outline-none focus:ring-1 focus:ring-purple-500 max-w-[190px]"
+                      />
                     </td>
                     <td className="py-2 px-3">
                       {isPlacementSport ? (
@@ -1083,8 +1128,27 @@ export default function GeneratePage() {
                         </span>
                       )}
                     </td>
-                    <td className="py-2 px-3 text-gray-500">{f.venue}</td>
-                    {f.notes && <td className="py-2 px-3 text-xs text-gray-400">{f.notes}</td>}
+                    <td className="py-2 px-3">
+                      <select
+                        value={f.venue_id || ''}
+                        onChange={(e) => handleUpdateFixture(i, 'venue', e.target.value)}
+                        className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 text-xs text-gray-850 dark:text-gray-250 focus:outline-none focus:ring-1 focus:ring-purple-500 max-w-[150px]"
+                      >
+                        {registeredVenues?.map(v => (
+                          <option key={v.id} value={v.id}>{v.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    {preview.fixtures[0]?.notes !== undefined && (
+                      <td className="py-2 px-3">
+                        <input
+                          type="text"
+                          value={f.notes || ''}
+                          onChange={(e) => handleUpdateFixture(i, 'notes', e.target.value)}
+                          className="w-24 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 text-xs text-gray-850 dark:text-gray-250 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

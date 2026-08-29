@@ -91,6 +91,7 @@ export const uploadApi = {
 export const generateApi = {
   preview: (data) => api.post('/generate', { ...data, saveToDb: false }),
   generateAndSave: (data) => api.post('/generate', { ...data, saveToDb: true }),
+  saveCustom: (data) => api.post('/generate', { ...data, saveCustom: true }),
 };
 
 export const teamsApi = {
