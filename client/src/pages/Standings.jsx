@@ -1,9 +1,103 @@
 import React, { useState, useEffect } from 'react';
 import { useStandings, useStandingsEvents } from '../hooks/useStandings.js';
-import { useSettings, useSports } from '../hooks/useFixtures.js';
+import { useSettings, useSports, useTeamSchedule } from '../hooks/useFixtures.js';
 import TeamPill from '../components/TeamPill.jsx';
 import { Download, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 import { exportStandingsToPDF } from '../utils/pdfExport.js';
+
+function TeamResultsBreakdown({ teamCode, teamName, sportName }) {
+  const { data: fixtures, isLoading } = useTeamSchedule(teamCode);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-4 bg-gray-50/30 dark:bg-gray-900/20 border border-dashed border-gray-200 dark:border-gray-800 rounded-lg mx-2 my-1 animate-pulse">
+        <span className="text-xs text-gray-500 dark:text-gray-400">Loading match results...</span>
+      </div>
+    );
+  }
+
+  // Filter completed and draw fixtures for this specific sport
+  const filtered = fixtures?.filter(f => 
+    f.sport_name === sportName && 
+    (f.status === 'completed' || f.status === 'draw')
+  ) || [];
+
+  return (
+    <div className="bg-gray-50/50 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/60 p-4 rounded-lg mt-1 mb-2 mx-2 text-left shadow-inner transition-all animate-fadeIn">
+      <div className="flex items-center justify-between mb-3 border-b border-gray-200/60 dark:border-gray-800 pb-2">
+        <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+          <Trophy size={13} className="text-yellow-500" />
+          Match Performance Breakdown: {teamName}
+        </h4>
+        <span className="text-[10px] bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
+          Played {filtered.length} match(es)
+        </span>
+      </div>
+
+      {filtered.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-gray-650 dark:text-gray-300">
+            <thead>
+              <tr className="border-b border-gray-250 dark:border-gray-800 text-[10px] text-gray-450 uppercase tracking-wider">
+                <th className="py-1.5 px-2 text-left font-medium">Round</th>
+                <th className="py-1.5 px-2 text-left font-medium">Matchup</th>
+                <th className="py-1.5 px-2 text-center font-medium">Result</th>
+                <th className="py-1.5 px-2 text-left font-medium">Venue</th>
+                <th className="py-1.5 px-2 text-right font-medium">Points</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-150/30 dark:divide-gray-800/40">
+              {filtered.map((f) => {
+                const isTeamA = f.team_a_code === teamCode;
+                const ownScore = isTeamA ? f.score_a : f.score_b;
+                const opponentScore = isTeamA ? f.score_b : f.score_a;
+                const opponentName = isTeamA ? f.team_b_name : f.team_a_name;
+                const opponentCode = isTeamA ? f.team_b_code : f.team_a_code;
+
+                let outcome = 'Draw';
+                let outcomeClass = 'bg-gray-100 text-gray-750 dark:bg-gray-800 dark:text-gray-305';
+                let ptsText = '+1';
+
+                if (f.status === 'completed') {
+                  const won = isTeamA ? f.score_a > f.score_b : f.score_b > f.score_a;
+                  if (won) {
+                    outcome = 'Win';
+                    outcomeClass = 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/30 dark:text-green-400';
+                    ptsText = '+3';
+                  } else {
+                    outcome = 'Loss';
+                    outcomeClass = 'bg-red-50 text-red-750 border border-red-200 dark:bg-red-950/20 dark:text-red-450';
+                    ptsText = '+0';
+                  }
+                }
+
+                return (
+                  <tr key={f.id} className="hover:bg-white/40 dark:hover:bg-gray-800/10">
+                    <td className="py-2 px-2 font-medium text-gray-500">{f.round}</td>
+                    <td className="py-2 px-2">
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{ownScore} - {opponentScore}</span> vs <span className="font-medium text-gray-655 dark:text-gray-300">{opponentName} ({opponentCode})</span>
+                    </td>
+                    <td className="py-2 px-2 text-center">
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${outcomeClass}`}>
+                        {outcome}
+                      </span>
+                    </td>
+                    <td className="py-2 px-2 text-gray-500">{f.venue_name || f.venue}</td>
+                    <td className="py-2 px-2 text-right font-bold text-purple-600 dark:text-purple-400">{ptsText} pts</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="text-xs text-gray-400 dark:text-gray-500 italic py-2 text-center">
+          No matches recorded for this sport yet.
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Standings({
   sportsData: propSportsData,
@@ -110,10 +204,10 @@ export default function Standings({
         <div className="text-center py-12 text-gray-400">Loading standings...</div>
       ) : (
         <div className="space-y-3">
-          {isPlacement && eventId === 'all' && (
-            <div className="text-xs text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1.5 bg-purple-50/50 dark:bg-purple-950/20 px-3 py-2 rounded-lg max-w-max border border-purple-100/30 dark:border-purple-900/10">
+          {eventId === 'all' && (
+            <div className="text-xs text-purple-655 dark:text-purple-400 font-semibold flex items-center gap-1.5 bg-purple-50/50 dark:bg-purple-950/20 px-3 py-2 rounded-lg max-w-max border border-purple-100/30 dark:border-purple-900/10 shadow-sm animate-in slide-in-from-top duration-200">
               <span className="animate-pulse">💡</span>
-              Click on any team's row to expand and view their individual event breakdown.
+              Click on any team's row to expand and view the list of results making up their points.
             </div>
           )}
 
@@ -171,12 +265,12 @@ export default function Standings({
                     <div key={team.code} className="flex flex-col">
                       <div 
                         onClick={() => {
-                          if (isPlacement && eventId === 'all') {
+                          if (eventId === 'all') {
                             setExpandedTeam(expandedTeam === team.code ? null : team.code);
                           }
                         }}
                         className={`grid grid-cols-9 gap-2 items-center py-2.5 px-2 border-b border-gray-150/40 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded text-center transition-all ${
-                          isPlacement && eventId === 'all' ? 'cursor-pointer select-none' : ''
+                          eventId === 'all' ? 'cursor-pointer select-none' : ''
                         } ${expandedTeam === team.code && eventId === 'all' ? 'bg-purple-50/20 dark:bg-purple-950/10 border-l-2 border-purple-500' : ''}`}
                       >
                         {/* Rank & Trend */}
@@ -209,11 +303,11 @@ export default function Standings({
                           <>
                             <span className="text-left col-span-3 truncate flex items-center gap-1">
                               <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
-                              {isPlacement && eventId === 'all' && (
+                              {eventId === 'all' && (
                                 expandedTeam === team.code ? (
-                                  <ChevronUp size={14} className="text-gray-400 shrink-0" />
+                                  <ChevronUp size={14} className="text-purple-400 shrink-0" />
                                 ) : (
-                                  <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                                  <ChevronDown size={14} className="text-purple-400 shrink-0" />
                                 )
                               )}
                             </span>
@@ -224,8 +318,15 @@ export default function Standings({
                           </>
                         ) : (
                           <>
-                            <span className="text-left col-span-2 truncate">
+                            <span className="text-left col-span-2 truncate flex items-center gap-1">
                               <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
+                              {eventId === 'all' && (
+                                expandedTeam === team.code ? (
+                                  <ChevronUp size={14} className="text-purple-400 shrink-0" />
+                                ) : (
+                                  <ChevronDown size={14} className="text-purple-400 shrink-0" />
+                                )
+                              )}
                             </span>
                             <span className="text-sm text-gray-600 dark:text-gray-300">{team.played}</span>
                             <span className="text-sm text-gray-600 dark:text-gray-300">{team.won}</span>
@@ -238,42 +339,46 @@ export default function Standings({
                       </div>
 
                       {/* Dropdown breakdown */}
-                      {isPlacement && eventId === 'all' && expandedTeam === team.code && (
-                        <div className="bg-gray-50/50 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/60 p-4 rounded-lg mt-1 mb-2 mx-2 text-left shadow-inner transition-all animate-fadeIn">
-                          <div className="flex items-center justify-between mb-3 border-b border-gray-200/60 dark:border-gray-800 pb-2">
-                            <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                              <Trophy size={13} className="text-yellow-500" />
-                              Event Performance Breakdown: {team.name}
-                            </h4>
-                            <span className="text-[10px] bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">
-                              Competed in {team.played} event(s)
-                            </span>
-                          </div>
-                          {team.event_breakdown && team.event_breakdown.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                              {team.event_breakdown.map((eb, idx) => (
-                                <div key={idx} className="flex justify-between items-center py-2 px-3 rounded-md bg-white dark:bg-gray-850/60 border border-gray-150/40 dark:border-gray-800/40 shadow-sm">
-                                  <span className="text-gray-700 dark:text-gray-300 font-semibold">{eb.event_name}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                      eb.placement === 1 ? 'bg-yellow-50 text-yellow-700 border border-yellow-250 dark:bg-yellow-950/30 dark:text-yellow-400' :
-                                      eb.placement === 2 ? 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800/50 dark:text-gray-300' :
-                                      eb.placement === 3 ? 'bg-amber-50 text-amber-700 border border-amber-250 dark:bg-amber-950/20 dark:text-amber-400' :
-                                      'bg-gray-50 text-gray-500 dark:bg-gray-900 text-gray-400'
-                                    }`}>
-                                      {eb.placement === 1 ? '🥇 1st' : eb.placement === 2 ? '🥈 2nd' : eb.placement === 3 ? '🥉 3rd' : `${eb.placement}th`}
-                                    </span>
-                                    <span className="text-purple-600 dark:text-purple-400 font-bold">+{eb.points} pts</span>
+                      {eventId === 'all' && expandedTeam === team.code && (
+                        isPlacement ? (
+                          <div className="bg-gray-50/50 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/60 p-4 rounded-lg mt-1 mb-2 mx-2 text-left shadow-inner transition-all animate-fadeIn">
+                            <div className="flex items-center justify-between mb-3 border-b border-gray-200/60 dark:border-gray-800 pb-2">
+                              <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                                <Trophy size={13} className="text-yellow-500" />
+                                Event Performance Breakdown: {team.name}
+                              </h4>
+                              <span className="text-[10px] bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">
+                                Competed in {team.played} event(s)
+                              </span>
+                            </div>
+                            {team.event_breakdown && team.event_breakdown.length > 0 ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                {team.event_breakdown.map((eb, idx) => (
+                                  <div key={idx} className="flex justify-between items-center py-2 px-3 rounded-md bg-white dark:bg-gray-850/60 border border-gray-150/40 dark:border-gray-800/40 shadow-sm">
+                                    <span className="text-gray-700 dark:text-gray-300 font-semibold">{eb.event_name}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                        eb.placement === 1 ? 'bg-yellow-50 text-yellow-700 border border-yellow-250 dark:bg-yellow-950/30 dark:text-yellow-400' :
+                                        eb.placement === 2 ? 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800/50 dark:text-gray-300' :
+                                        eb.placement === 3 ? 'bg-amber-50 text-amber-700 border border-amber-250 dark:bg-amber-950/20 dark:text-amber-400' :
+                                        'bg-gray-50 text-gray-500 dark:bg-gray-900 text-gray-400'
+                                      }`}>
+                                        {eb.placement === 1 ? '🥇 1st' : eb.placement === 2 ? '🥈 2nd' : eb.placement === 3 ? '🥉 3rd' : `${eb.placement}th`}
+                                      </span>
+                                      <span className="text-purple-600 dark:text-purple-400 font-bold">+{eb.points} pts</span>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-400 dark:text-gray-500 italic py-2 text-center">
-                              No points recorded for any events yet.
-                            </div>
-                          )}
-                        </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-gray-400 dark:text-gray-500 italic py-2 text-center">
+                                No points recorded for any events yet.
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <TeamResultsBreakdown teamCode={team.code} teamName={team.name} sportName={sport} />
+                        )
                       )}
                     </div>
                   ))}
