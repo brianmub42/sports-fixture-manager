@@ -411,8 +411,9 @@ export default function GeneratePage() {
   const { data: registeredVenues } = useVenues();
   const { data: sports, isLoading: loadingSports } = useSports();
   const { data: registeredTeams } = useTeams();
+  const [initializedTeams, setInitializedTeams] = useState(false);
   const [form, setForm] = useState({
-    teams: 'ZAM, BAR, HAL, SHA, TEH, TOW',
+    teams: '',
     events: '100m, 200m, High Jump, Long Jump',
     genders: 'Boys, Girls, Mixed',
     ageGroups: 'Seniors, Under 13 (U13), Under 15 (U15), Under 17 (U17), Under 20 (U20)',
@@ -425,6 +426,13 @@ export default function GeneratePage() {
     concurrent: 1,
     groupCount: 2,
   });
+
+  useEffect(() => {
+    if (registeredTeams && registeredTeams.length > 0 && !initializedTeams) {
+      setForm(prev => ({ ...prev, teams: registeredTeams.map(t => t.code).join(', ') }));
+      setInitializedTeams(true);
+    }
+  }, [registeredTeams, initializedTeams]);
 
   const selectedSportObj = sports?.find(s => s.name === form.sport);
   const isPlacementSport = selectedSportObj?.scoring_type === 'placement';
