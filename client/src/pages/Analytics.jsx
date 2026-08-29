@@ -10,7 +10,7 @@ export default function Analytics() {
   const { data: sportsData, isLoading: loadingSports } = useSports();
   const { data, isLoading, error } = useAnalytics(filter);
 
-  const sports = ['All', ...(sportsData?.filter(s => s.scoring_type !== 'placement').map(s => s.name) || [])];
+  const sports = ['All', ...(sportsData?.map(s => s.name) || [])];
 
   if (isLoading || loadingSports) return <div className="p-8 text-center text-gray-500">Loading analytics...</div>;
   if (error) return <div className="p-8 text-center text-red-500">Failed to load analytics</div>;
@@ -67,11 +67,18 @@ export default function Analytics() {
     );
   };
 
+  const selectedSportObj = sportsData?.find(s => s.name === filter);
+  const isPlacement = selectedSportObj?.scoring_type === 'placement';
+
   let scoreForLabel = 'PF (Points For)';
   let scoreAgainstLabel = 'PA (Points Against)';
   let scoreDiffLabel = 'Point Diff';
 
-  if (filter === 'Soccer') {
+  if (isPlacement) {
+    scoreForLabel = 'PTS (Medal Points)';
+    scoreAgainstLabel = 'PA';
+    scoreDiffLabel = 'Point Diff';
+  } else if (filter === 'Soccer') {
     scoreForLabel = 'GF (Goals For)';
     scoreAgainstLabel = 'GA (Goals Against)';
     scoreDiffLabel = 'Goal Diff';
@@ -125,16 +132,18 @@ export default function Analytics() {
       )}
 
       {/* Records Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <RecordCard title="Biggest Blowout" fixture={records.biggestBlowout} icon={Zap} colorClass="text-amber-500" />
-        <RecordCard title="Highest Scoring" fixture={records.highestScoring} icon={ArrowUpRight} colorClass="text-green-500" />
-        <RecordCard title="Lowest Scoring" fixture={records.lowestScoring} icon={ArrowDownRight} colorClass="text-blue-500" />
-      </div>
+      {!isPlacement && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <RecordCard title="Biggest Blowout" fixture={records.biggestBlowout} icon={Zap} colorClass="text-amber-500" />
+          <RecordCard title="Highest Scoring" fixture={records.highestScoring} icon={ArrowUpRight} colorClass="text-green-500" />
+          <RecordCard title="Lowest Scoring" fixture={records.lowestScoring} icon={ArrowDownRight} colorClass="text-blue-500" />
+        </div>
+      )}
 
       {/* Dashboard Tables Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Team Metrics */}
-        <div className="k-card lg:col-span-2 overflow-hidden">
+        <div className={`k-card ${isPlacement ? 'lg:col-span-3' : 'lg:col-span-2'} overflow-hidden`}>
           <div className="flex items-center gap-2 mb-4">
             <Target size={18} className="text-purple-500" />
             <h3 className="font-semibold text-sm uppercase tracking-wide">Team Performance Metrics</h3>
@@ -145,10 +154,10 @@ export default function Analytics() {
                 <tr>
                   <th className="px-4 py-3 font-semibold">Team</th>
                   <th className="px-4 py-3 font-semibold text-center">Played</th>
-                  <th className="px-4 py-3 font-semibold text-center">Win Rate</th>
+                  <th className="px-4 py-3 font-semibold text-center">{isPlacement ? 'Gold Rate' : 'Win Rate'}</th>
                   <th className="px-4 py-3 font-semibold text-center">{scoreForLabel}</th>
-                  <th className="px-4 py-3 font-semibold text-center">{scoreAgainstLabel}</th>
-                  <th className="px-4 py-3 font-semibold text-center">{scoreDiffLabel}</th>
+                  {!isPlacement && <th className="px-4 py-3 font-semibold text-center">{scoreAgainstLabel}</th>}
+                  {!isPlacement && <th className="px-4 py-3 font-semibold text-center">{scoreDiffLabel}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -172,12 +181,14 @@ export default function Analytics() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center text-green-600 dark:text-green-400 font-mono">{team.pf || 0}</td>
-                      <td className="px-4 py-3 text-center text-red-600 dark:text-red-400 font-mono">{team.pa || 0}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex items-center justify-center px-2 py-1 rounded font-mono font-bold text-xs ${team.point_diff > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : team.point_diff < 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'}`}>
-                          {team.point_diff > 0 ? '+' : ''}{team.point_diff || 0}
-                        </span>
-                      </td>
+                      {!isPlacement && <td className="px-4 py-3 text-center text-red-600 dark:text-red-400 font-mono">{team.pa || 0}</td>}
+                      {!isPlacement && (
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex items-center justify-center px-2 py-1 rounded font-mono font-bold text-xs ${team.point_diff > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : team.point_diff < 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'}`}>
+                            {team.point_diff > 0 ? '+' : ''}{team.point_diff || 0}
+                          </span>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -187,41 +198,43 @@ export default function Analytics() {
         </div>
 
         {/* Top Scorers */}
-        <div className="k-card overflow-hidden">
-          <div className="flex items-center gap-2 mb-4">
-            <Award size={18} className="text-amber-500" />
-            <h3 className="font-semibold text-sm uppercase tracking-wide">Top Scorers</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-800/50">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Player</th>
-                  <th className="px-4 py-3 font-semibold text-center">Points</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topScorers?.map((player, idx) => (
-                  <tr key={player.id} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                    <td className="px-4 py-2.5 flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-400 font-mono w-4">#{idx + 1}</span>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-gray-900 dark:text-white">{player.name}</span>
-                        <span className="text-[10px] text-gray-400">{player.team_code} · #{player.jersey_number}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 text-center font-bold text-blue-600 dark:text-blue-400 font-mono">{player.total_points}</td>
-                  </tr>
-                ))}
-                {(!topScorers || topScorers.length === 0) && (
+        {!isPlacement && (
+          <div className="k-card overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <Award size={18} className="text-amber-500" />
+              <h3 className="font-semibold text-sm uppercase tracking-wide">Top Scorers</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-800/50">
                   <tr>
-                    <td colSpan={2} className="px-4 py-8 text-center text-xs text-gray-400">No scorer data recorded yet.</td>
+                    <th className="px-4 py-3 font-semibold">Player</th>
+                    <th className="px-4 py-3 font-semibold text-center">Points</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {topScorers?.map((player, idx) => (
+                    <tr key={player.id} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
+                      <td className="px-4 py-2.5 flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-400 font-mono w-4">#{idx + 1}</span>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900 dark:text-white">{player.name}</span>
+                          <span className="text-[10px] text-gray-400">{player.team_code} · #{player.jersey_number}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-center font-bold text-blue-600 dark:text-blue-400 font-mono">{player.total_points}</td>
+                    </tr>
+                  ))}
+                  {(!topScorers || topScorers.length === 0) && (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-8 text-center text-xs text-gray-400">No scorer data recorded yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
