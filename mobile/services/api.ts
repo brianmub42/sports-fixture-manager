@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 // Fallback IP configuration for various emulator/local setups
 // Android emulator uses 10.0.2.2, iOS simulator uses localhost
-const LOCAL_IP = '192.168.1.108';
+const LOCAL_IP = '192.168.1.219';
 const DEFAULT_URL = `http://${LOCAL_IP}:3000/api`;
 
 export const API_URL = DEFAULT_URL;

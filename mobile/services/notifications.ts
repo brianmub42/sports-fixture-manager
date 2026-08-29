@@ -1,19 +1,38 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { api } from './api';
+import Constants from 'expo-constants';
 
-// Set up the default background notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  } as any),
-});
+let Notifications: any = null;
+const isExpoGo = Constants.appOwnership === 'expo';
+
+if (!isExpoGo && Platform.OS !== 'web') {
+  try {
+    Notifications = require('expo-notifications');
+    // Set up the default background notification behavior
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      } as any),
+    });
+  } catch (err) {
+    console.warn('[Notifications] Failed to load expo-notifications:', err);
+  }
+}
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
   if (Platform.OS === 'web') {
     console.log('[Notifications] Push notifications are not supported on web platforms');
+    return null;
+  }
+
+  if (isExpoGo) {
+    console.log('[Notifications] Remote push notifications are disabled in Expo Go (SDK 53+ restriction). Use a custom development build to enable.');
+    return null;
+  }
+
+  if (!Notifications) {
     return null;
   }
 
@@ -43,7 +62,6 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     // 3. Retrieve Expo Push Token
-    // Expo projectId will be automatically resolved from app.json
     const tokenData = await Notifications.getExpoPushTokenAsync();
     const token = tokenData.data;
 
