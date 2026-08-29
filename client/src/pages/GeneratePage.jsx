@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { generateApi } from '../api.js';
 import { Wand2, Save, Clock, Users, MapPin, Calendar, RotateCcw, CheckCircle, AlertTriangle, ShieldAlert, Trophy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -406,12 +407,14 @@ function BulkInputManager({ label, value, onChange, placeholder, suggestionGroup
 }
 
 export default function GeneratePage() {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const { data: registeredVenues } = useVenues();
   const { data: sports, isLoading: loadingSports } = useSports();
   const { data: registeredTeams } = useTeams();
   const [initializedTeams, setInitializedTeams] = useState(false);
+  const [showNextSportModal, setShowNextSportModal] = useState(false);
   const [form, setForm] = useState({
     teams: '',
     events: '100m, 200m, High Jump, Long Jump',
@@ -610,11 +613,25 @@ export default function GeneratePage() {
       setPreview(res.data);
       setSaved(true);
       showToast('Generated fixtures saved to database successfully!', 'success');
+      setShowNextSportModal(true);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetFormForNextSport = () => {
+    setForm(prev => ({
+      ...prev,
+      sport: '',
+      events: '100m, 200m, High Jump, Long Jump',
+      format: 'single',
+    }));
+    setPreview(null);
+    setSaved(false);
+    setError(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const formatTime = (iso) => {
@@ -1151,6 +1168,46 @@ export default function GeneratePage() {
                   Done
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Next Sport Modal Overlay */}
+      {showNextSportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-purple-600 dark:text-purple-400">
+              <Wand2 size={24} className="animate-pulse" />
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Fixtures Saved Successfully!</h3>
+            </div>
+            
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Would you like to proceed and generate fixtures for another sporting discipline?
+            </p>
+            
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNextSportModal(false);
+                  navigate('/fixtures');
+                }}
+                className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 transition-colors"
+              >
+                No, View Fixtures
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNextSportModal(false);
+                  resetFormForNextSport();
+                }}
+                className="px-4 py-2 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg shadow-md shadow-purple-500/10 transition-colors"
+              >
+                Yes, Generate Another
+              </button>
             </div>
           </div>
         </div>
