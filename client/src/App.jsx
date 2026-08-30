@@ -16,6 +16,7 @@ import UploadPage from './pages/UploadPage.jsx';
 import GeneratePage from './pages/GeneratePage.jsx';
 import Settings from './pages/Settings.jsx';
 import Login from './pages/Login.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 import Brackets from './pages/Brackets.jsx';
 import TvMode from './pages/TvMode.jsx';
 import AthleticsPage from './pages/AthleticsPage.jsx';
@@ -24,9 +25,9 @@ import PublicWatchPage from './pages/PublicWatchPage.jsx';
 
 function App() {
   const { activeOrg } = useOrganization();
-  const isWatchRoute = window.location.pathname.startsWith('/watch/');
+  const isPublicBypassRoute = window.location.pathname.startsWith('/watch/') || window.location.pathname.startsWith('/reset-password');
 
-  if (!activeOrg && !isWatchRoute) {
+  if (!activeOrg && !isPublicBypassRoute) {
     return <SelectOrganization />;
   }
 
@@ -47,6 +48,7 @@ function App() {
               <Route path="/generate" element={<GeneratePage />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/brackets" element={<Brackets />} />
               <Route path="/athletics" element={<AthleticsPage />} />
               <Route path="/superadmin" element={<SuperadminDashboard />} />

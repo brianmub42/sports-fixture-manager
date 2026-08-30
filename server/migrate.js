@@ -28,6 +28,17 @@ async function migrate() {
           created_at TIMESTAMP DEFAULT NOW(),
           UNIQUE(fixture_id, player_id)
       );
+
+      CREATE TABLE IF NOT EXISTS password_resets (
+          id SERIAL PRIMARY KEY,
+          user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          token_hash VARCHAR(64) NOT NULL,
+          otp_hash VARCHAR(64) NOT NULL,
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
     `);
     console.log('Migration successful');
   } catch (err) {

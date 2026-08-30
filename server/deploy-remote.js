@@ -17,6 +17,7 @@ conn.on('ready', () => {
     'npm run install:all',
     'npm run build',
     'cd server',
+    'node migrate.js',
     'pm2 restart kalife-backend || pm2 start ecosystem.config.cjs'
   ];
 

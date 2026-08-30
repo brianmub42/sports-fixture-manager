@@ -67,4 +67,15 @@ export const authService = {
     });
     return response.data;
   },
+
+  async forgotPassword(email: string): Promise<any> {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  async resetPassword(payload: { email: string; otp: string; newPassword: string }): Promise<any> {
+    const response = await api.post('/auth/reset-password', payload);
+    return response.data;
+  },
 };
+

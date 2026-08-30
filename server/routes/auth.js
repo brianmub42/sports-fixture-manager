@@ -3,9 +3,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../db.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { hashToken, generateOTP, generateToken, sendPasswordResetEmail } from '../utils/email.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'kalife-2026-secret-key-change-in-production';
+
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -214,4 +216,145 @@ router.delete('/users/:id', authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/auth/forgot-password - Request password reset link and OTP
+router.post('/forgot-password', async (req, res) => {
+  try {
+    let { email, clientUrl } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    email = email.trim().toLowerCase();
+
+    // Look up user by email
+    const userRes = await query('SELECT id, email, name FROM users WHERE email = $1', [email]);
+    const user = userRes.rows[0];
+
+    if (user) {
+      const resetToken = generateToken();
+      const otp = generateOTP();
+      const tokenHash = hashToken(resetToken);
+      const otpHash = hashToken(otp);
+
+      // Clean up previous tokens for this user
+      await query('DELETE FROM password_resets WHERE user_id = $1', [user.id]);
+
+      // Insert new token and OTP valid for 15 minutes
+      await query(
+        "INSERT INTO password_resets (user_id, token_hash, otp_hash, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL '15 minutes')",
+        [user.id, tokenHash, otpHash]
+      );
+
+      // Send email (async)
+      await sendPasswordResetEmail({
+        toEmail: user.email,
+        name: user.name,
+        resetToken,
+        otp,
+        clientUrl
+      });
+    }
+
+    // Always respond with success message to prevent email enumeration
+    res.json({
+      success: true,
+      message: 'If an account exists with this email, password reset instructions have been sent.'
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/verify-reset-code - Validate OTP or token
+router.post('/verify-reset-code', async (req, res) => {
+  try {
+    let { email, otp, token } = req.body;
+
+    if (token) {
+      const tokenHash = hashToken(token);
+      const check = await query(
+        'SELECT id, user_id FROM password_resets WHERE token_hash = $1 AND expires_at > NOW()',
+        [tokenHash]
+      );
+      if (check.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new one.' });
+      }
+      return res.json({ valid: true });
+    }
+
+    if (email && otp) {
+      email = email.trim().toLowerCase();
+      const otpHash = hashToken(otp);
+      const check = await query(
+        'SELECT pr.id FROM password_resets pr JOIN users u ON pr.user_id = u.id WHERE u.email = $1 AND pr.otp_hash = $2 AND pr.expires_at > NOW()',
+        [email, otpHash]
+      );
+      if (check.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid or expired 6-digit code. Please check and try again.' });
+      }
+      return res.json({ valid: true });
+    }
+
+    return res.status(400).json({ error: 'Either token or email + OTP is required' });
+  } catch (err) {
+    console.error('Verify reset code error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/reset-password - Complete password reset
+router.post('/reset-password', async (req, res) => {
+  try {
+    let { token, email, otp, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    }
+
+    let resetRecord = null;
+
+    if (token) {
+      const tokenHash = hashToken(token);
+      const resQuery = await query(
+        'SELECT pr.*, u.id as user_id, u.email FROM password_resets pr JOIN users u ON pr.user_id = u.id WHERE pr.token_hash = $1 AND pr.expires_at > NOW()',
+        [tokenHash]
+      );
+      resetRecord = resQuery.rows[0];
+    } else if (email && otp) {
+      email = email.trim().toLowerCase();
+      const otpHash = hashToken(otp);
+      const resQuery = await query(
+        'SELECT pr.*, u.id as user_id, u.email FROM password_resets pr JOIN users u ON pr.user_id = u.id WHERE u.email = $1 AND pr.otp_hash = $2 AND pr.expires_at > NOW()',
+        [email, otpHash]
+      );
+      resetRecord = resQuery.rows[0];
+    } else {
+      return res.status(400).json({ error: 'A valid reset token or email + OTP is required' });
+    }
+
+    if (!resetRecord) {
+      return res.status(400).json({ error: 'Invalid or expired reset link / verification code. Please request a new one.' });
+    }
+
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    // Update user's password
+    await query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, resetRecord.user_id]);
+
+    // Clean up all reset tokens for this user
+    await query('DELETE FROM password_resets WHERE user_id = $1', [resetRecord.user_id]);
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully! You can now log in with your new password.'
+    });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
+
