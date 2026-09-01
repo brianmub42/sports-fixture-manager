@@ -2,10 +2,11 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-import { useColorScheme } from 'react-native';
+import { useColorScheme, View, StyleSheet } from 'react-native';
 import { AuthProvider } from '../contexts/AuthContext';
+import AnimatedSplash from './AnimatedSplash';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -32,6 +33,7 @@ function RootLayoutContent() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+  const [splashAnimationDone, setSplashAnimationDone] = useState(false);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -40,6 +42,7 @@ function RootLayoutContent() {
 
   useEffect(() => {
     if (loaded) {
+      // Native splash screen hands off immediately to AnimatedSplash (same #0F172A background)
       SplashScreen.hideAsync();
     }
   }, [loaded]);
@@ -48,7 +51,17 @@ function RootLayoutContent() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <View style={styles.rootContainer}>
+      {/* Real navigator mounts underneath immediately */}
+      <RootLayoutNav />
+
+      {/* Custom animated splash overlays on top and unmounts once completed */}
+      {!splashAnimationDone && (
+        <AnimatedSplash onFinish={() => setSplashAnimationDone(true)} />
+      )}
+    </View>
+  );
 }
 
 function RootLayoutNav() {
@@ -66,3 +79,11 @@ function RootLayoutNav() {
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
+});
+
