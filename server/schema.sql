@@ -168,3 +168,33 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
 
+CREATE TABLE IF NOT EXISTS tv_adverts (
+    id SERIAL PRIMARY KEY,
+    organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+    title VARCHAR(150) NOT NULL,
+    tagline VARCHAR(200),
+    banner_url TEXT,
+    logo_url TEXT,
+    website_url TEXT,
+    display_duration_seconds INT DEFAULT 10,
+    display_type VARCHAR(30) DEFAULT 'both',
+    is_active BOOLEAN DEFAULT TRUE,
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tv_announcements (
+    id SERIAL PRIMARY KEY,
+    organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+    title VARCHAR(150),
+    message TEXT NOT NULL,
+    priority VARCHAR(20) DEFAULT 'normal',
+    display_duration_seconds INT DEFAULT 15,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tv_adverts_org ON tv_adverts(organization_id);
+CREATE INDEX IF NOT EXISTS idx_tv_announcements_org ON tv_announcements(organization_id);
+

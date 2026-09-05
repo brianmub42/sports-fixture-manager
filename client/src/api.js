@@ -86,6 +86,13 @@ export const uploadApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  uploadAdvertBanner: (file) => {
+    const formData = new FormData();
+    formData.append('banner', file);
+    return api.post('/upload/advert-banner', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
 };
 
 export const generateApi = {
@@ -162,3 +169,18 @@ export const superadminApi = {
   suspendTenant: (id) => api.post(`/superadmin/tenants/${id}/suspend`),
   extendTenant: (id, expiresAt) => api.post(`/superadmin/tenants/${id}/extend`, { expiresAt }),
 };
+
+export const mediaApi = {
+  getAdverts: (activeOnly = false) => api.get('/media/adverts', { params: { activeOnly } }),
+  createAdvert: (data) => api.post('/media/adverts', data),
+  updateAdvert: (id, data) => api.put(`/media/adverts/${id}`, data),
+  deleteAdvert: (id) => api.delete(`/media/adverts/${id}`),
+
+  getAnnouncements: (activeOnly = false) => api.get('/media/announcements', { params: { activeOnly } }),
+  createAnnouncement: (data) => api.post('/media/announcements', data),
+  deleteAnnouncement: (id) => api.delete(`/media/announcements/${id}`),
+
+  setLayoutOverride: (mode) => api.post('/media/tv-layout-override', { mode }),
+  forceCompleteFixture: (id) => api.post(`/media/force-complete-fixture/${id}`),
+};
+

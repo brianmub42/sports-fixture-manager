@@ -51,8 +51,10 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token');
   };
 
-  const isAdmin = user?.role === 'admin';
-  const isScorekeeper = user?.role === 'admin' || user?.role === 'scorekeeper';
+  const isSuperadmin = user?.role === 'superadmin';
+  const isAdmin = user?.role === 'admin' || isSuperadmin;
+  const isScorekeeper = user?.role === 'admin' || user?.role === 'scorekeeper' || isSuperadmin;
+  const isMediaManager = user?.role === 'admin' || user?.role === 'media_manager' || isSuperadmin;
   const isAuthenticated = !!user;
 
   return (
@@ -61,7 +63,9 @@ export function AuthProvider({ children }) {
       token,
       isLoading,
       isAdmin,
+      isSuperadmin,
       isScorekeeper,
+      isMediaManager,
       isAuthenticated,
       login,
       register,

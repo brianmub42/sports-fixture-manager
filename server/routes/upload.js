@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import xlsx from 'xlsx';
 import { query } from '../db.js';
-import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { authMiddleware, requireAdmin, requireMediaOrAdmin } from '../middleware/auth.js';
 import { sendPopUploadNotification } from '../lib/email.js';
 
 const router = Router();
@@ -234,8 +234,8 @@ router.post('/pop', authMiddleware, requireAdmin, upload.single('pop'), async (r
   }
 });
 
-// POST /api/upload/sponsor-logo (Admin)
-router.post('/sponsor-logo', authMiddleware, requireAdmin, upload.single('sponsorLogo'), async (req, res) => {
+// POST /api/upload/sponsor-logo (Admin or Media Manager)
+router.post('/sponsor-logo', authMiddleware, requireMediaOrAdmin, upload.single('sponsorLogo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No logo file uploaded' });
     const logoUrl = `/uploads/${req.file.filename}`;
@@ -244,6 +244,18 @@ router.post('/sponsor-logo', authMiddleware, requireAdmin, upload.single('sponso
     res.status(500).json({ error: err.message });
   }
 });
+
+// POST /api/upload/advert-banner (Admin or Media Manager)
+router.post('/advert-banner', authMiddleware, requireMediaOrAdmin, upload.single('banner'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No banner image uploaded' });
+    const bannerUrl = `/uploads/${req.file.filename}`;
+    res.json({ success: true, bannerUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // GET /api/upload/template
 router.get('/template', (req, res) => {

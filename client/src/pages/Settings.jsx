@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useSettings, useUpdateSettings, useResetDatabase, useVenues, useCreateVenue, useDeleteVenue, useSports, useCreateSport, useDeleteSport } from '../hooks/useFixtures.js';
-import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff, CreditCard } from 'lucide-react';
+import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff, CreditCard, Megaphone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { settingsApi, authApi, uploadApi } from '../api.js';
@@ -47,7 +48,7 @@ export default function Settings() {
 
   const visibleTabs = settings?.billing?.status === 'suspended' ? tabs.filter(t => t.id === 'billing') : tabs;
 
-  const [form, setForm] = useState({ org_name: '', event_title: '', enable_player_registration: false });
+  const [form, setForm] = useState({ org_name: '', event_title: '', enable_player_registration: false, enable_tv_adverts: true });
   const [resetType, setResetType] = useState('results_only');
   const [confirmText, setConfirmText] = useState('');
   const [resetSuccess, setResetSuccess] = useState(null);
@@ -608,22 +609,13 @@ export default function Settings() {
     }
   };
 
-  if (!isAuthenticated || !isAdmin) {
-    return (
-      <div className="p-8 text-center bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-xl max-w-lg mx-auto mt-12 shadow-lg">
-        <ShieldAlert className="w-12 h-12 mx-auto mb-3 text-red-500 animate-bounce" />
-        <h2 className="text-xl font-bold mb-1">Access Denied</h2>
-        <p className="text-sm">You must be logged in as an official administrator to view or edit workspace settings.</p>
-      </div>
-    );
-  }
-
   useEffect(() => {
     if (settings && !isInitializedRef.current) {
       setForm({
         org_name: settings.org_name || '',
         event_title: settings.event_title || '',
-        enable_player_registration: !!settings.enable_player_registration
+        enable_player_registration: !!settings.enable_player_registration,
+        enable_tv_adverts: settings.enable_tv_adverts !== false
       });
       setSponsors(settings.sponsors || []);
 
@@ -724,6 +716,16 @@ export default function Settings() {
     return <div className="text-center py-8 text-gray-400">Loading settings...</div>;
   }
 
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="p-8 text-center bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-xl max-w-lg mx-auto mt-12 shadow-lg">
+        <ShieldAlert className="w-12 h-12 mx-auto mb-3 text-red-500" />
+        <h2 className="text-xl font-bold mb-1">Access Denied</h2>
+        <p className="text-sm">You must be logged in as an official administrator to view or edit workspace settings.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4">
       <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -812,6 +814,19 @@ export default function Settings() {
                       Enable Player Registration & Team Sheets (Lineups)
                     </label>
                   </div>
+
+                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <input
+                      type="checkbox"
+                      id="enable_tv_adverts"
+                      checked={form.enable_tv_adverts}
+                      onChange={(e) => setForm({ ...form, enable_tv_adverts: e.target.checked })}
+                      className="w-4 h-4 text-purple-600 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 cursor-pointer"
+                    />
+                    <label htmlFor="enable_tv_adverts" className="text-sm font-medium select-none cursor-pointer">
+                      Enable TV Mode Adverts &amp; Live Announcements
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 mt-6">
@@ -835,9 +850,26 @@ export default function Settings() {
                   <Star size={18} className="text-yellow-500" />
                   <h2 className="text-lg font-semibold">Sponsors &amp; Partners Ribbon</h2>
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                   Add event sponsors and partners. They will scroll across the bottom ribbon visible to all visitors.
                 </p>
+
+                {/* Media Manager Cross-reference banner */}
+                <div className="mb-6 p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <Megaphone className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">
+                      Looking for <strong>TV Mode High-Def 16:9 Posters, QR Codes, and Custom Dwell Times</strong>?
+                    </span>
+                  </div>
+                  <Link
+                    to="/media"
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors whitespace-nowrap inline-flex items-center gap-1.5 shrink-0"
+                  >
+                    <span>Open Media &amp; Adverts</span>
+                    <ExternalLink size={12} />
+                  </Link>
+                </div>
 
                 {/* Existing sponsors list */}
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Current Sponsors ({sponsors.length})</h3>
@@ -1348,11 +1380,13 @@ export default function Settings() {
                         <div className={`px-2 py-1 rounded text-xs font-medium ${
                           u.role === 'admin' 
                             ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' 
+                            : u.role === 'media_manager'
+                            ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400'
                             : u.role === 'scorekeeper'
                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                             : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                         }`}>
-                          {u.role.toUpperCase()}
+                          {u.role === 'media_manager' ? 'MEDIA MANAGER' : u.role.toUpperCase()}
                         </div>
                         <button
                           type="button"
@@ -1437,6 +1471,7 @@ export default function Settings() {
                         className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
                       >
                         <option value="scorekeeper">Scorekeeper</option>
+                        <option value="media_manager">Media &amp; Sponsor Manager</option>
                         <option value="admin">Admin</option>
                         <option value="viewer">Viewer</option>
                       </select>
@@ -1506,6 +1541,7 @@ export default function Settings() {
                         className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
                       >
                         <option value="scorekeeper">Scorekeeper</option>
+                        <option value="media_manager">Media &amp; Sponsor Manager</option>
                         <option value="admin">Admin</option>
                         <option value="viewer">Viewer</option>
                       </select>

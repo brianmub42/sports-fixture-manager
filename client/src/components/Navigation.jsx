@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { ChevronDown, FolderKanban, Play, BarChart3, Settings, Trophy, Calendar, Activity, List, MapPin, Upload, Wand2, Network, Tv, LineChart, Award, ShieldCheck } from 'lucide-react';
+import { ChevronDown, FolderKanban, Play, BarChart3, Settings, Trophy, Calendar, Activity, List, MapPin, Upload, Wand2, Network, Tv, LineChart, Award, ShieldCheck, Megaphone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 const categories = [
@@ -48,11 +48,12 @@ const categories = [
   },
   {
     type: 'dropdown',
-    label: 'Settings & Displays',
-    icon: Settings,
+    label: 'Displays & Media',
+    icon: Tv,
     links: [
-      { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
       { to: '/tv', label: 'TV Mode', icon: Tv },
+      { to: '/media', label: 'Media & Adverts', icon: Megaphone, mediaOnly: true },
+      { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
     ]
   },
   {
@@ -67,7 +68,7 @@ const categories = [
 ];
 
 export default function Navigation() {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isMediaManager, user } = useAuth();
   const isSuperadmin = user?.role === 'superadmin';
   const { pathname } = useLocation();
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -118,8 +119,12 @@ export default function Navigation() {
             );
           }
 
-          // Filter out link options that require admin access
-          const visibleLinks = cat.links.filter(link => !link.adminOnly || isAdmin || isSuperadmin);
+          // Filter out link options based on role access
+          const visibleLinks = cat.links.filter(link => {
+            if (link.adminOnly && !isAdmin && !isSuperadmin) return false;
+            if (link.mediaOnly && !isMediaManager && !isAdmin && !isSuperadmin) return false;
+            return true;
+          });
           if (visibleLinks.length === 0) return null;
 
           const isActive = isCategoryActive(cat);

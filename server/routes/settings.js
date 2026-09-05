@@ -89,6 +89,8 @@ router.get('/', async (req, res) => {
       sports_count: sportsCountRes.rows[0].count,
       sponsors,
       enable_player_registration: enablePlayerRegistration,
+      enable_tv_adverts: settings.enable_tv_adverts !== 'false',
+      tv_layout_mode: settings.tv_layout_mode || 'auto',
       points_allocation: pointsAllocation,
       billing: {
         status,
@@ -114,7 +116,7 @@ router.get('/', async (req, res) => {
 // POST /api/settings
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { org_name, event_title, enable_player_registration, points_allocation } = req.body;
+    const { org_name, event_title, enable_player_registration, enable_tv_adverts, tv_layout_mode, points_allocation } = req.body;
     if (org_name !== undefined) {
       await query(
         "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'org_name', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
@@ -134,6 +136,24 @@ router.post('/', authMiddleware, async (req, res) => {
         "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'enable_player_registration', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
         [req.orgId, enable_player_registration ? 'true' : 'false']
       );
+    }
+    if (enable_tv_adverts !== undefined) {
+      await query(
+        "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'enable_tv_adverts', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
+        [req.orgId, enable_tv_adverts ? 'true' : 'false']
+      );
+      if (req.io) {
+        req.io.to(`tenant-${req.orgId}`).emit('tv-adverts-updated', { action: 'settings' });
+      }
+    }
+    if (tv_layout_mode !== undefined) {
+      await query(
+        "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'tv_layout_mode', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
+        [req.orgId, tv_layout_mode]
+      );
+      if (req.io) {
+        req.io.to(`tenant-${req.orgId}`).emit('tv-layout-override', { mode: tv_layout_mode });
+      }
     }
     if (points_allocation !== undefined) {
       const json = points_allocation ? JSON.stringify(points_allocation) : null;

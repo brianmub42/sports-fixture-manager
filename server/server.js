@@ -20,6 +20,7 @@ import venueRoutes from './routes/venues.js';
 import athleticsRoutes from './routes/athletics.js';
 import sportRoutes from './routes/sports.js';
 import superadminRoutes from './routes/superadmin.js';
+import mediaRoutes from './routes/media.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { billingMiddleware } from './middleware/billing.js';
 import { query } from './db.js';
@@ -105,6 +106,7 @@ app.use('/api/venues', venueRoutes);
 app.use('/api/athletics', athleticsRoutes);
 app.use('/api/sports', sportRoutes);
 app.use('/api/superadmin', superadminRoutes);
+app.use('/api/media', mediaRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

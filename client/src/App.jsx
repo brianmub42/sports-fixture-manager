@@ -22,6 +22,7 @@ import TvMode from './pages/TvMode.jsx';
 import AthleticsPage from './pages/AthleticsPage.jsx';
 import SuperadminDashboard from './pages/SuperadminDashboard.jsx';
 import PublicWatchPage from './pages/PublicWatchPage.jsx';
+import MediaManager from './pages/MediaManager.jsx';
 
 function App() {
   const { activeOrg } = useOrganization();
@@ -47,6 +48,7 @@ function App() {
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/generate" element={<GeneratePage />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/media" element={<MediaManager />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/brackets" element={<Brackets />} />
