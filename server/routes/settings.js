@@ -90,6 +90,7 @@ router.get('/', async (req, res) => {
       sponsors,
       enable_player_registration: enablePlayerRegistration,
       enable_tv_adverts: settings.enable_tv_adverts !== 'false',
+      enable_tv_post_event_beam: settings.enable_tv_post_event_beam !== 'false',
       tv_layout_mode: settings.tv_layout_mode || 'auto',
       points_allocation: pointsAllocation,
       billing: {
@@ -116,7 +117,7 @@ router.get('/', async (req, res) => {
 // POST /api/settings
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { org_name, event_title, enable_player_registration, enable_tv_adverts, tv_layout_mode, points_allocation } = req.body;
+    const { org_name, event_title, enable_player_registration, enable_tv_adverts, enable_tv_post_event_beam, tv_layout_mode, points_allocation } = req.body;
     if (org_name !== undefined) {
       await query(
         "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'org_name', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
@@ -145,6 +146,12 @@ router.post('/', authMiddleware, async (req, res) => {
       if (req.io) {
         req.io.to(`tenant-${req.orgId}`).emit('tv-adverts-updated', { action: 'settings' });
       }
+    }
+    if (enable_tv_post_event_beam !== undefined) {
+      await query(
+        "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'enable_tv_post_event_beam', $2) ON CONFLICT (organization_id, key) DO UPDATE SET value = $2",
+        [req.orgId, enable_tv_post_event_beam ? 'true' : 'false']
+      );
     }
     if (tv_layout_mode !== undefined) {
       await query(

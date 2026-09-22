@@ -10,9 +10,12 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTheme } from '../../contexts/ThemeContext';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function SpectatorWatchPortal() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
   const [slug, setSlug] = useState('');
 
   const handleWatch = () => {
@@ -27,18 +30,29 @@ export default function SpectatorWatchPortal() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <View style={styles.card}>
-        <Text style={styles.title}>Spectator Watch</Text>
-        <Text style={styles.subtitle}>Enter a tournament slug to view live leaderboards.</Text>
+      <View style={styles.topBar}>
+        <ThemeToggle />
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
+        <Text style={[styles.title, { color: colors.success }]}>Spectator Watch</Text>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Enter a tournament slug to view live leaderboards.</Text>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Tournament Slug</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Tournament Slug</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.inputBg,
+                borderColor: colors.inputBorder,
+                color: colors.inputText,
+              },
+            ]}
             placeholder="e.g. bible-temple-primary-school"
-            placeholderTextColor="#64748b"
+            placeholderTextColor={colors.inputPlaceholder}
             autoCapitalize="none"
             autoCorrect={false}
             value={slug}
@@ -46,7 +60,10 @@ export default function SpectatorWatchPortal() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleWatch}>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.success }]}
+          onPress={handleWatch}
+        >
           <Text style={styles.buttonText}>Watch Live Leaderboard</Text>
         </TouchableOpacity>
 
@@ -54,7 +71,7 @@ export default function SpectatorWatchPortal() {
           style={styles.backButton}
           onPress={() => router.replace('/login')}
         >
-          <Text style={styles.backButtonText}>← Go Back to Login</Text>
+          <Text style={[styles.backButtonText, { color: colors.textMuted }]}>← Go Back to Login</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -62,31 +79,33 @@ export default function SpectatorWatchPortal() {
 }
 
 const styles = StyleSheet.create({
+  topBar: {
+    position: 'absolute',
+    top: 48,
+    right: 16,
+    zIndex: 20,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
     justifyContent: 'center',
     padding: 20,
   },
   card: {
-    backgroundColor: '#1e293b',
     borderRadius: 24,
     padding: 30,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 8,
   },
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#10b981',
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#94a3b8',
     textAlign: 'center',
     marginTop: 6,
     marginBottom: 30,
@@ -98,23 +117,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94a3b8',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: '#334155',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#f8fafc',
   },
   button: {
-    backgroundColor: '#10b981',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -129,7 +143,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButtonText: {
-    color: '#94a3b8',
     fontSize: 14,
     fontWeight: '600',
   },

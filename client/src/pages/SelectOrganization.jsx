@@ -5,6 +5,7 @@ import {
   Calendar, Award, Activity, BarChart3, CheckCircle2, 
   ShieldCheck, ArrowDownRight, Zap 
 } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle.jsx';
 
 function AnimatedCounter({ value, duration = 1500, suffix = '' }) {
   const [count, setCount] = useState(0);
@@ -98,6 +99,7 @@ export default function SelectOrganization() {
           </div>
           
           <nav className="flex items-center gap-3">
+            <ThemeToggle />
             <button 
               onClick={scrollToWorkspaces}
               className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"

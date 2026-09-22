@@ -15,6 +15,7 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../services/api';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   getOfflineFixtures,
   getOfflineSports,
@@ -35,6 +36,7 @@ function generateUUID(): string {
 }
 
 export default function ScorekeeperFixtures() {
+  const { colors, isDark } = useTheme();
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [sports, setSports] = useState<any[]>([]);
   const [queueHistory, setQueueHistory] = useState<any[]>([]);
@@ -259,7 +261,7 @@ export default function ScorekeeperFixtures() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Network banner */}
       <View style={[styles.networkBanner, { backgroundColor: isOnline ? '#10b981' : '#f59e0b' }]}>
         <Text style={styles.networkText}>
@@ -268,31 +270,31 @@ export default function ScorekeeperFixtures() {
       </View>
 
       {/* Hero Overview Panel */}
-      <View style={styles.heroCard}>
+      <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.heroItem}>
-          <Text style={styles.heroNumber}>{totalMatches}</Text>
-          <Text style={styles.heroLabel}>Total Matches</Text>
+          <Text style={[styles.heroNumber, { color: colors.text }]}>{totalMatches}</Text>
+          <Text style={[styles.heroLabel, { color: colors.textMuted }]}>Total Matches</Text>
         </View>
-        <View style={styles.heroDivider} />
+        <View style={[styles.heroDivider, { backgroundColor: colors.border }]} />
         <View style={styles.heroItem}>
           <Text style={[styles.heroNumber, { color: '#10b981' }]}>{completedMatches}</Text>
-          <Text style={styles.heroLabel}>Completed</Text>
+          <Text style={[styles.heroLabel, { color: colors.textMuted }]}>Completed</Text>
         </View>
-        <View style={styles.heroDivider} />
+        <View style={[styles.heroDivider, { backgroundColor: colors.border }]} />
         <View style={styles.heroItem}>
-          <Text style={[styles.heroNumber, { color: pendingSyncs > 0 ? '#f59e0b' : '#94a3b8' }]}>
+          <Text style={[styles.heroNumber, { color: pendingSyncs > 0 ? '#f59e0b' : colors.textMuted }]}>
             {pendingSyncs}
           </Text>
-          <Text style={styles.heroLabel}>Pending Sync</Text>
+          <Text style={[styles.heroLabel, { color: colors.textMuted }]}>Pending Sync</Text>
         </View>
       </View>
 
       {/* Search Input */}
       <View style={styles.searchContainer}>
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.inputText }]}
           placeholder="🔍 Search teams, venues, sports..."
-          placeholderTextColor="#64748b"
+          placeholderTextColor={colors.inputPlaceholder}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCorrect={false}
@@ -303,10 +305,20 @@ export default function ScorekeeperFixtures() {
       <View style={styles.filtersContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           <TouchableOpacity
-            style={[styles.filterPill, selectedSport === 'All' && styles.filterPillActive]}
+            style={[
+              styles.filterPill,
+              { backgroundColor: colors.card, borderColor: colors.border },
+              selectedSport === 'All' && styles.filterPillActive,
+            ]}
             onPress={() => setSelectedSport('All')}
           >
-            <Text style={[styles.filterPillText, selectedSport === 'All' && styles.filterPillTextActive]}>
+            <Text
+              style={[
+                styles.filterPillText,
+                { color: colors.textSecondary },
+                selectedSport === 'All' && styles.filterPillTextActive,
+              ]}
+            >
               🏆 All Sports
             </Text>
           </TouchableOpacity>
@@ -314,10 +326,20 @@ export default function ScorekeeperFixtures() {
           {sports.map((sport) => (
             <TouchableOpacity
               key={sport.id}
-              style={[styles.filterPill, selectedSport === sport.name && styles.filterPillActive]}
+              style={[
+                styles.filterPill,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                selectedSport === sport.name && styles.filterPillActive,
+              ]}
               onPress={() => setSelectedSport(sport.name)}
             >
-              <Text style={[styles.filterPillText, selectedSport === sport.name && styles.filterPillTextActive]}>
+              <Text
+                style={[
+                  styles.filterPillText,
+                  { color: colors.textSecondary },
+                  selectedSport === sport.name && styles.filterPillTextActive,
+                ]}
+              >
                 🏃 {sport.name}
               </Text>
             </TouchableOpacity>
@@ -330,23 +352,26 @@ export default function ScorekeeperFixtures() {
         data={filteredFixtures}
         keyExtractor={(item) => String(item.id)}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No fixtures match your criteria.</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>No fixtures match your criteria.</Text>
           </View>
         }
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.fixtureCard} onPress={() => openScoringModal(item)}>
+          <TouchableOpacity
+            style={[styles.fixtureCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => openScoringModal(item)}
+          >
             <View style={styles.fixtureHeader}>
-              <Text style={styles.sportName}>{item.sport_name}</Text>
+              <Text style={[styles.sportName, { color: colors.primary }]}>{item.sport_name}</Text>
               {getStatusIconBadge(item)}
             </View>
 
             <View style={styles.matchup}>
-              <Text style={styles.teamText} numberOfLines={2}>
+              <Text style={[styles.teamText, { color: colors.text }]} numberOfLines={2}>
                 {item.team_a_name}
               </Text>
               <View style={styles.scoreBadge}>
@@ -354,14 +379,14 @@ export default function ScorekeeperFixtures() {
                   {item.score_a !== null ? `${item.score_a} - ${item.score_b}` : 'VS'}
                 </Text>
               </View>
-              <Text style={styles.teamText} numberOfLines={2}>
+              <Text style={[styles.teamText, { color: colors.text }]} numberOfLines={2}>
                 {item.team_b_name}
               </Text>
             </View>
 
             <View style={styles.fixtureFooterRow}>
-              <Text style={styles.fixtureFooterText}>📍 {item.venue_name || 'Main Field'}</Text>
-              <Text style={styles.fixtureFooterText}>⏱️ {item.round}</Text>
+              <Text style={[styles.fixtureFooterText, { color: colors.textMuted }]}>📍 {item.venue_name || 'Main Field'}</Text>
+              <Text style={[styles.fixtureFooterText, { color: colors.textMuted }]}>⏱️ {item.round}</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -376,11 +401,11 @@ export default function ScorekeeperFixtures() {
           onRequestClose={() => setModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
+            <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
                 {isCorrectionMode ? '✏️ Correct Fixture Score' : '🏆 Submit Match Score'}
               </Text>
-              <Text style={styles.modalSubtitle}>
+              <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
                 {selectedFixture.sport_name} • {selectedFixture.round}
               </Text>
 
@@ -407,56 +432,77 @@ export default function ScorekeeperFixtures() {
               <View style={styles.scorersContainer}>
                 {/* Team A score selector */}
                 <View style={styles.scoreController}>
-                  <Text style={styles.teamCodeLabel}>{selectedFixture.team_a_code || 'T1'}</Text>
-                  <Text style={styles.teamNameLabel} numberOfLines={1}>
+                  <Text style={[styles.teamCodeLabel, { color: colors.primary }]}>{selectedFixture.team_a_code || 'T1'}</Text>
+                  <Text style={[styles.teamNameLabel, { color: colors.text }]} numberOfLines={1}>
                     {selectedFixture.team_a_name}
                   </Text>
                   
                   <View style={styles.adjusterRow}>
-                    <TouchableOpacity style={styles.adjustButton} onPress={() => decrementScore('A')}>
-                      <Text style={styles.adjustButtonText}>-</Text>
+                    <TouchableOpacity
+                      style={[styles.adjustButton, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}
+                      onPress={() => decrementScore('A')}
+                    >
+                      <Text style={[styles.adjustButtonText, { color: colors.text }]}>-</Text>
                     </TouchableOpacity>
                     <TextInput
-                      style={styles.adjustScoreDisplay}
+                      style={[
+                        styles.adjustScoreDisplay,
+                        { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.inputText },
+                      ]}
                       keyboardType="number-pad"
                       value={scoreA}
                       onChangeText={setScoreA}
                       selectTextOnFocus
                     />
-                    <TouchableOpacity style={styles.adjustButton} onPress={() => incrementScore('A')}>
-                      <Text style={styles.adjustButtonText}>+</Text>
+                    <TouchableOpacity
+                      style={[styles.adjustButton, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}
+                      onPress={() => incrementScore('A')}
+                    >
+                      <Text style={[styles.adjustButtonText, { color: colors.text }]}>+</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                <Text style={styles.scorersSeparator}>vs</Text>
+                <Text style={[styles.scorersSeparator, { color: colors.textMuted }]}>vs</Text>
 
                 {/* Team B score selector */}
                 <View style={styles.scoreController}>
-                  <Text style={styles.teamCodeLabel}>{selectedFixture.team_b_code || 'T2'}</Text>
-                  <Text style={styles.teamNameLabel} numberOfLines={1}>
+                  <Text style={[styles.teamCodeLabel, { color: colors.primary }]}>{selectedFixture.team_b_code || 'T2'}</Text>
+                  <Text style={[styles.teamNameLabel, { color: colors.text }]} numberOfLines={1}>
                     {selectedFixture.team_b_name}
                   </Text>
 
                   <View style={styles.adjusterRow}>
-                    <TouchableOpacity style={styles.adjustButton} onPress={() => decrementScore('B')}>
-                      <Text style={styles.adjustButtonText}>-</Text>
+                    <TouchableOpacity
+                      style={[styles.adjustButton, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}
+                      onPress={() => decrementScore('B')}
+                    >
+                      <Text style={[styles.adjustButtonText, { color: colors.text }]}>-</Text>
                     </TouchableOpacity>
                     <TextInput
-                      style={styles.adjustScoreDisplay}
+                      style={[
+                        styles.adjustScoreDisplay,
+                        { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.inputText },
+                      ]}
                       keyboardType="number-pad"
                       value={scoreB}
                       onChangeText={setScoreB}
                       selectTextOnFocus
                     />
-                    <TouchableOpacity style={styles.adjustButton} onPress={() => incrementScore('B')}>
-                      <Text style={styles.adjustButtonText}>+</Text>
+                    <TouchableOpacity
+                      style={[styles.adjustButton, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}
+                      onPress={() => incrementScore('B')}
+                    >
+                      <Text style={[styles.adjustButtonText, { color: colors.text }]}>+</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               </View>
 
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveResult}>
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: colors.primary }]}
+                onPress={handleSaveResult}
+              >
                 <Text style={styles.saveButtonText}>
                   {isCorrectionMode ? 'Overwrite Score' : 'Save & Queue Result'}
                 </Text>
@@ -466,7 +512,7 @@ export default function ScorekeeperFixtures() {
                 style={styles.closeButton}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.closeButtonText}>Cancel</Text>
+                <Text style={[styles.closeButtonText, { color: colors.textMuted }]}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>

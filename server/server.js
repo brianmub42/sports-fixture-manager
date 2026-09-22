@@ -25,6 +25,7 @@ import { tenantMiddleware } from './middleware/tenant.js';
 import { billingMiddleware } from './middleware/billing.js';
 import { query } from './db.js';
 import publicRoutes from './routes/public.js';
+import pushRoutes from './routes/push.js';
 import './db-patch.js';
 import { startBillingReminderCron } from './lib/billing-scheduler.js';
 
@@ -86,6 +87,7 @@ app.use((req, res, next) => {
 
 // Spectator Public Routes (Structurally exempt from headers & billing checks)
 app.use('/api/public', publicRoutes);
+app.use('/api/public/push', pushRoutes);
 
 app.use(tenantMiddleware);
 app.use(billingMiddleware);

@@ -14,11 +14,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import ThemeToggle from '../components/ThemeToggle';
 import { authService } from '../services/api';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
+  const { colors, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -120,18 +123,29 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <View style={styles.card}>
-        <Text style={styles.title}>FixtureGrid</Text>
-        <Text style={styles.subtitle}>Tournament Manager</Text>
+      <View style={styles.topBar}>
+        <ThemeToggle />
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
+        <Text style={[styles.title, { color: colors.primary }]}>FixtureGrid</Text>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Tournament Manager</Text>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email Address</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Email Address</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.inputBg,
+                borderColor: colors.inputBorder,
+                color: colors.inputText,
+              },
+            ]}
             placeholder="enter official email..."
-            placeholderTextColor="#64748b"
+            placeholderTextColor={colors.inputPlaceholder}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -142,21 +156,29 @@ export default function LoginScreen() {
 
         <View style={styles.inputContainer}>
           <View style={styles.labelRow}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Password</Text>
             <TouchableOpacity
               onPress={() => {
                 setForgotEmail(email);
                 setModalVisible(true);
               }}
             >
-              <Text style={styles.forgotText}>Forgot password?</Text>
+              <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.passwordWrapper}>
+          <View
+            style={[
+              styles.passwordWrapper,
+              {
+                backgroundColor: colors.inputBg,
+                borderColor: colors.inputBorder,
+              },
+            ]}
+          >
             <TextInput
-              style={styles.passwordInput}
+              style={[styles.passwordInput, { color: colors.inputText }]}
               placeholder="••••••••"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.inputPlaceholder}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
@@ -167,7 +189,7 @@ export default function LoginScreen() {
               onPress={() => setShowPassword(!showPassword)}
               style={styles.eyeButton}
             >
-              <Text style={styles.toggleText}>
+              <Text style={[styles.toggleText, { color: colors.primary }]}>
                 {showPassword ? 'HIDE' : 'SHOW'}
               </Text>
             </TouchableOpacity>
@@ -175,7 +197,7 @@ export default function LoginScreen() {
         </View>
 
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, { backgroundColor: colors.primary }]}
           onPress={handleLogin}
           disabled={loading}
         >
@@ -187,16 +209,16 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <Text style={[styles.dividerText, { color: colors.textMuted }]}>or</Text>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
         </View>
 
         <TouchableOpacity
-          style={styles.spectatorButton}
+          style={[styles.spectatorButton, { borderColor: colors.primary }]}
           onPress={handleSpectatorAccess}
         >
-          <Text style={styles.spectatorButtonText}>Watch Live (No Login)</Text>
+          <Text style={[styles.spectatorButtonText, { color: colors.primary }]}>Watch Live (No Login)</Text>
         </TouchableOpacity>
       </View>
 
@@ -211,29 +233,36 @@ export default function LoginScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
                   {forgotStep === 'success' ? 'Password Updated!' : 'Reset Password'}
                 </Text>
                 <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-                  <Text style={styles.closeButtonText}>✕</Text>
+                  <Text style={[styles.closeButtonText, { color: colors.textMuted }]}>✕</Text>
                 </TouchableOpacity>
               </View>
 
               {forgotStep === 'request' && (
                 <View>
-                  <Text style={styles.modalDescription}>
+                  <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
                     Enter your official account email to receive a 6-digit verification code.
                   </Text>
 
                   <View style={styles.inputContainer}>
-                    <Text style={styles.label}>Account Email</Text>
+                    <Text style={[styles.label, { color: colors.textSecondary }]}>Account Email</Text>
                     <TextInput
-                      style={styles.input}
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: colors.inputBg,
+                          borderColor: colors.inputBorder,
+                          color: colors.inputText,
+                        },
+                      ]}
                       placeholder="official@sportsday.com"
-                      placeholderTextColor="#64748b"
+                      placeholderTextColor={colors.inputPlaceholder}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -243,7 +272,7 @@ export default function LoginScreen() {
                   </View>
 
                   <TouchableOpacity
-                    style={styles.button}
+                    style={[styles.button, { backgroundColor: colors.primary }]}
                     onPress={handleRequestOtp}
                     disabled={forgotLoading}
                   >
@@ -258,23 +287,31 @@ export default function LoginScreen() {
                     style={styles.switchStepButton}
                     onPress={() => setForgotStep('otp')}
                   >
-                    <Text style={styles.switchStepText}>Already have a code? Enter code</Text>
+                    <Text style={[styles.switchStepText, { color: colors.primary }]}>Already have a code? Enter code</Text>
                   </TouchableOpacity>
                 </View>
               )}
 
               {forgotStep === 'otp' && (
                 <View>
-                  <Text style={styles.modalDescription}>
+                  <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
                     Enter the 6-digit code sent to your email along with your new password.
                   </Text>
 
                   <View style={styles.inputContainer}>
-                    <Text style={styles.label}>6-Digit Verification Code</Text>
+                    <Text style={[styles.label, { color: colors.textSecondary }]}>6-Digit Verification Code</Text>
                     <TextInput
-                      style={[styles.input, styles.otpInput]}
+                      style={[
+                        styles.input,
+                        styles.otpInput,
+                        {
+                          backgroundColor: colors.inputBg,
+                          borderColor: colors.inputBorder,
+                          color: colors.inputText,
+                        },
+                      ]}
                       placeholder="123456"
-                      placeholderTextColor="#64748b"
+                      placeholderTextColor={colors.inputPlaceholder}
                       keyboardType="number-pad"
                       maxLength={6}
                       value={forgotOtp}
@@ -283,11 +320,18 @@ export default function LoginScreen() {
                   </View>
 
                   <View style={styles.inputContainer}>
-                    <Text style={styles.label}>New Password</Text>
+                    <Text style={[styles.label, { color: colors.textSecondary }]}>New Password</Text>
                     <TextInput
-                      style={styles.input}
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: colors.inputBg,
+                          borderColor: colors.inputBorder,
+                          color: colors.inputText,
+                        },
+                      ]}
                       placeholder="Minimum 6 characters"
-                      placeholderTextColor="#64748b"
+                      placeholderTextColor={colors.inputPlaceholder}
                       secureTextEntry
                       value={forgotNewPassword}
                       onChangeText={setForgotNewPassword}
@@ -295,11 +339,18 @@ export default function LoginScreen() {
                   </View>
 
                   <View style={styles.inputContainer}>
-                    <Text style={styles.label}>Confirm New Password</Text>
+                    <Text style={[styles.label, { color: colors.textSecondary }]}>Confirm New Password</Text>
                     <TextInput
-                      style={styles.input}
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: colors.inputBg,
+                          borderColor: colors.inputBorder,
+                          color: colors.inputText,
+                        },
+                      ]}
                       placeholder="Repeat new password"
-                      placeholderTextColor="#64748b"
+                      placeholderTextColor={colors.inputPlaceholder}
                       secureTextEntry
                       value={forgotConfirmPassword}
                       onChangeText={setForgotConfirmPassword}
@@ -307,7 +358,7 @@ export default function LoginScreen() {
                   </View>
 
                   <TouchableOpacity
-                    style={styles.button}
+                    style={[styles.button, { backgroundColor: colors.primary }]}
                     onPress={handleResetPassword}
                     disabled={forgotLoading}
                   >
@@ -322,19 +373,19 @@ export default function LoginScreen() {
                     style={styles.switchStepButton}
                     onPress={() => setForgotStep('request')}
                   >
-                    <Text style={styles.switchStepText}>Back to Email Request</Text>
+                    <Text style={[styles.switchStepText, { color: colors.primary }]}>Back to Email Request</Text>
                   </TouchableOpacity>
                 </View>
               )}
 
               {forgotStep === 'success' && (
                 <View style={styles.successContainer}>
-                  <Text style={styles.successMessage}>
+                  <Text style={[styles.successMessage, { color: colors.success }]}>
                     Your password has been reset successfully. You can now login with your new password.
                   </Text>
 
                   <TouchableOpacity
-                    style={styles.button}
+                    style={[styles.button, { backgroundColor: colors.primary }]}
                     onPress={() => {
                       setEmail(forgotEmail);
                       closeModal();
@@ -353,6 +404,12 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  topBar: {
+    position: 'absolute',
+    top: 48,
+    right: 16,
+    zIndex: 20,
+  },
   container: {
     flex: 1,
     backgroundColor: '#0f172a',

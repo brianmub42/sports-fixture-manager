@@ -423,6 +423,7 @@ router.get('/events/:eventSlug/standings', async (req, res) => {
     const teamsRes = await query('SELECT id, code, name, color, logo_url FROM teams WHERE organization_id = $1', [orgId]);
     teamsRes.rows.forEach(t => {
       teamPoints[t.code] = { 
+        id: t.id,
         code: t.code, name: t.name, color: t.color, logo_url: t.logo_url,
         BB: 0, VB: 0, SC: 0, TW: 0, AT: 0, NV: 0,
         total: 0, gold: 0, silver: 0, bronze: 0, medals: 0
@@ -522,6 +523,39 @@ router.get('/events/:eventSlug/standings', async (req, res) => {
       console.error('Redis cache set error:', err);
     }
     res.json(sorted);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/public/events/:eventSlug/latest-result
+// Returns the most recently logged heat/placement result for projector or spectator feed
+router.get('/events/:eventSlug/latest-result', async (req, res) => {
+  try {
+    const { eventSlug } = req.params;
+    const orgRes = await query('SELECT id FROM organizations WHERE slug = $1', [eventSlug]);
+    if (orgRes.rows.length === 0) {
+      return res.status(404).json({ error: `Event not found: ${eventSlug}` });
+    }
+    const orgId = orgRes.rows[0].id;
+
+    const result = await query(
+      "SELECT value FROM settings WHERE organization_id = $1 AND key = 'latest_event_result'",
+      [orgId]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].value) {
+      return res.json({ latestResult: null });
+    }
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(result.rows[0].value);
+    } catch (err) {
+      console.error('Error parsing latest_event_result in public route:', err);
+    }
+
+    res.json({ latestResult: parsed });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

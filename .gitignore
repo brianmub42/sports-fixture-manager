@@ -6,4 +6,5 @@ uploads/
 .DS_Store
 theme-previewer.html
 icons-preview.html
+.vscode/
 

@@ -1,17 +1,26 @@
 import { useEffect, useState, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFixtures, useSettings } from '../hooks/useFixtures.js';
 import { useLiveUpdates } from '../hooks/useLiveUpdates.js';
 import { useLogStandings, useAnalytics } from '../hooks/useStandings.js';
 import { useSocket } from '../contexts/SocketContext.jsx';
-import { mediaApi } from '../api.js';
+import { mediaApi, athleticsApi, publicApi } from '../api.js';
 import TeamPill from '../components/TeamPill.jsx';
 import MatchTimerDisplay from '../components/MatchTimerDisplay.jsx';
-import { Trophy, Clock, Tv, Award, Zap, Sparkles, Megaphone } from 'lucide-react';
+import { Trophy, Clock, Tv, Award, Zap, Sparkles, Megaphone, Timer, Play, X, Flame } from 'lucide-react';
 
 export default function TvMode() {
+  const { eventSlug } = useParams();
   const queryClient = useQueryClient();
   const socket = useSocket();
+
+  // If viewing via /watch/:eventSlug/display, ensure tenant slug is in localStorage for Axios
+  useEffect(() => {
+    if (eventSlug) {
+      localStorage.setItem('organization_slug', eventSlug);
+    }
+  }, [eventSlug]);
 
   const { data: liveFixtures, isLoading: loadingLive } = useFixtures({ status: 'live' });
   const { data: upcomingFixtures } = useFixtures({ status: 'upcoming' });
@@ -28,6 +37,14 @@ export default function TvMode() {
   const [urgentAlert, setUrgentAlert] = useState(null);
   const dismissedUrgentRef = useRef(new Set());
   const urgentTimeoutRef = useRef(null);
+
+  // 2-Minute Post-Event Beam states (for placement sports e.g. Athletics / Swimming)
+  const [latestResult, setLatestResult] = useState(null);
+  const [beamedResult, setBeamedResult] = useState(null);
+  const [isBeamActive, setIsBeamActive] = useState(false);
+  const [beamTimeRemaining, setBeamTimeRemaining] = useState(120);
+  const [tvBeamToggle, setTvBeamToggle] = useState(true); // TV display-level override toggle
+  const hasInitialBeamedRef = useRef(false);
 
   const isFeatureEnabled = settings?.enable_tv_adverts !== false;
   const overrideMode = settings?.tv_layout_mode || 'auto';
@@ -62,6 +79,62 @@ export default function TvMode() {
     refetchInterval: 15000
   });
 
+  // Fetch latest logged event result (Athletics / Swimming heats)
+  const { data: latestResultData } = useQuery({
+    queryKey: ['tv-latest-result', eventSlug],
+    queryFn: async () => {
+      try {
+        if (eventSlug) {
+          const res = await publicApi.getLatestResult(eventSlug);
+          return res.data?.latestResult;
+        } else {
+          const res = await athleticsApi.getLatestResult();
+          return res.data?.latestResult;
+        }
+      } catch (err) {
+        console.error('Failed to load latest result in TvMode:', err);
+        return null;
+      }
+    },
+    refetchInterval: 30000,
+  });
+
+  // Check if initial latest result was published in the last 2 minutes (120s)
+  useEffect(() => {
+    if (latestResultData) {
+      setLatestResult(latestResultData);
+      if (!hasInitialBeamedRef.current) {
+        hasInitialBeamedRef.current = true;
+        const publishedTime = new Date(latestResultData.publishedAt).getTime();
+        const elapsedSec = Math.floor((Date.now() - publishedTime) / 1000);
+        const isPlacement = latestResultData.scoringType === 'placement' || latestResultData.sportName === 'Athletics' || latestResultData.sportName === 'Swimming';
+        const isBeamEnabled = settings?.enable_tv_post_event_beam !== false && tvBeamToggle !== false;
+
+        if (isPlacement && isBeamEnabled && elapsedSec < 120 && elapsedSec >= 0) {
+          setBeamedResult(latestResultData);
+          setBeamTimeRemaining(120 - elapsedSec);
+          setIsBeamActive(true);
+        }
+      }
+    }
+  }, [latestResultData, settings, tvBeamToggle]);
+
+  // 120-second active beam countdown timer
+  useEffect(() => {
+    if (!isBeamActive) return;
+    const timer = setInterval(() => {
+      setBeamTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsBeamActive(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isBeamActive]);
+
   // Sync active urgent announcement from query when loaded / refetched
   useEffect(() => {
     if (announcements && announcements.length > 0) {
@@ -93,9 +166,29 @@ export default function TvMode() {
     };
   }, []);
 
-  // Listen to socket events for instant announcements, layout overrides, and adverts updates
+  // Listen to socket events for instant announcements, layout overrides, adverts updates, and event results beam
   useEffect(() => {
     if (!socket) return;
+
+    if (eventSlug) {
+      socket.emit('join-tenant', eventSlug);
+      socket.emit('join-event', { tenantSlug: eventSlug, eventId: 'all' });
+    }
+
+    const handleEventResultsPublished = (payload) => {
+      console.log('[TV] Received eventResultsPublished:', payload);
+      setLatestResult(payload);
+      queryClient.setQueryData(['tv-latest-result', eventSlug], payload);
+
+      const isPlacement = payload?.scoringType === 'placement' || payload?.sportName === 'Athletics' || payload?.sportName === 'Swimming';
+      const isBeamEnabled = settings?.enable_tv_post_event_beam !== false && tvBeamToggle !== false;
+
+      if (isPlacement && isBeamEnabled) {
+        setBeamedResult(payload);
+        setBeamTimeRemaining(120);
+        setIsBeamActive(true);
+      }
+    };
 
     const handleAnnouncement = (data) => {
       if (data.priority === 'urgent') {
@@ -128,18 +221,20 @@ export default function TvMode() {
       queryClient.invalidateQueries({ queryKey: ['tv-adverts-active'] });
     };
 
+    socket.on('eventResultsPublished', handleEventResultsPublished);
     socket.on('tv-announcement', handleAnnouncement);
     socket.on('tv-announcement-dismissed', handleAnnouncementDismissed);
     socket.on('tv-layout-override', handleLayoutOverride);
     socket.on('tv-adverts-updated', handleAdvertsUpdated);
 
     return () => {
+      socket.off('eventResultsPublished', handleEventResultsPublished);
       socket.off('tv-announcement', handleAnnouncement);
       socket.off('tv-announcement-dismissed', handleAnnouncementDismissed);
       socket.off('tv-layout-override', handleLayoutOverride);
       socket.off('tv-adverts-updated', handleAdvertsUpdated);
     };
-  }, [socket, queryClient]);
+  }, [socket, queryClient, eventSlug, settings, tvBeamToggle]);
 
   const resolveUrl = (url) => {
     if (!url) return '';
@@ -586,7 +681,7 @@ export default function TvMode() {
       )}
 
       {/* Header */}
-      <header className="flex justify-between items-center mb-8 pb-6 border-b border-gray-800">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-gray-800">
         <div>
           <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-500 flex items-center gap-4">
             <Tv className="w-10 h-10 text-blue-500" />
@@ -596,6 +691,37 @@ export default function TvMode() {
             {settings?.org_name || 'Sports Manager'}
           </p>
         </div>
+
+        {/* Center / Controls: Beam indicator & manual trigger */}
+        <div className="flex items-center gap-3">
+          {latestResult && (
+            <button
+              onClick={() => {
+                setBeamedResult(latestResult);
+                setBeamTimeRemaining(120);
+                setIsBeamActive(true);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold transition-all cursor-pointer"
+              title="Click to spotlight the latest event results"
+            >
+              <Zap size={14} className="text-amber-400 animate-pulse" />
+              <span>Latest: {latestResult.eventName}</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setTvBeamToggle(prev => !prev)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+              tvBeamToggle
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                : 'bg-gray-800 border-gray-700 text-gray-400'
+            }`}
+            title="Toggle 2-minute auto-beam for placement sport results"
+          >
+            <span>Auto-Beam: {tvBeamToggle ? 'ON' : 'OFF'}</span>
+          </button>
+        </div>
+
         <div className="text-right">
           <div className="text-5xl font-extrabold font-mono tracking-tighter">
             {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -608,7 +734,239 @@ export default function TvMode() {
 
       {/* Main Content Layout */}
       <div className="flex-1 flex flex-col">
-        {showLiveSplit ? (
+        {isBeamActive && beamedResult ? (
+          /* Dedicated 2-Minute Post-Event Results Spotlight Card */
+          <div className="flex-1 flex flex-col justify-between max-w-6xl mx-auto w-full bg-gradient-to-b from-gray-900 via-gray-950 to-gray-900 border-2 border-amber-500/60 rounded-[36px] p-8 md:p-10 shadow-[0_0_80px_rgba(245,158,11,0.25)] relative overflow-hidden animate-in zoom-in-95 duration-500">
+            {/* Top Amber Countdown Progress Line */}
+            <div
+              className="absolute top-0 left-0 h-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 transition-all duration-1000 ease-linear shadow-[0_0_15px_rgba(245,158,11,0.8)]"
+              style={{ width: `${Math.max(1, (beamTimeRemaining / 120) * 100)}%` }}
+            />
+
+            {/* Header info */}
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-800 pb-6 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-amber-500/20 border border-amber-500/40 rounded-2xl text-amber-400">
+                    <Trophy className="w-9 h-9 animate-bounce" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500 text-black">
+                        ⚡ Official Results
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-800 text-gray-300 border border-gray-700">
+                        {beamedResult.sportName || 'Athletics'}
+                      </span>
+                      {beamedResult.category && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-900/60 text-blue-300 border border-blue-700/50">
+                          {beamedResult.category}
+                        </span>
+                      )}
+                      {beamedResult.venueName && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-800/80 text-gray-400">
+                          📍 {beamedResult.venueName}
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight">
+                      {beamedResult.eventName}
+                    </h2>
+                  </div>
+                </div>
+
+                {/* Countdown & Resume Slideshow Button */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-950/80 border border-gray-800 text-xs font-mono text-amber-300">
+                    <Clock size={14} className="animate-spin" style={{ animationDuration: '4s' }} />
+                    <span>Auto-resuming in {Math.floor(beamTimeRemaining / 60)}:{String(beamTimeRemaining % 60).padStart(2, '0')}</span>
+                  </div>
+                  <button
+                    onClick={() => setIsBeamActive(false)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
+                  >
+                    <Play size={14} fill="white" />
+                    <span>Resume Slideshow</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Placements Cards */}
+              <div className="space-y-4 my-4">
+                {/* Top 3 Podium Cards */}
+                {beamedResult.results && beamedResult.results.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    {/* 1st Place */}
+                    {beamedResult.results[0] && (
+                      <div className="relative p-6 rounded-2xl bg-gradient-to-b from-yellow-950/40 via-gray-900 to-gray-950 border-2 border-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.2)] flex flex-col justify-between overflow-hidden">
+                        <div className="absolute top-0 right-0 px-3 py-1 bg-yellow-500 text-black text-xs font-black uppercase rounded-bl-xl tracking-wider flex items-center gap-1">
+                          🥇 1st Place
+                        </div>
+                        <div className="mb-4">
+                          <div className="text-3xl font-black text-yellow-400 mb-1">
+                            #1 Winner
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span
+                              className="w-3.5 h-3.5 rounded-full shrink-0 shadow"
+                              style={{ backgroundColor: beamedResult.results[0].teamColor || '#eab308' }}
+                            />
+                            <span className="text-xl font-black text-white">
+                              {beamedResult.results[0].teamName}
+                            </span>
+                            <span className="text-xs font-bold text-gray-400 uppercase">
+                              ({beamedResult.results[0].teamCode})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="pt-4 border-t border-yellow-500/20 flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Time</span>
+                            <div className="text-2xl font-mono font-black text-yellow-300">
+                              {beamedResult.results[0].timeFormatted || '—'}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Points</span>
+                            <div className="text-2xl font-bold text-yellow-400">
+                              +{beamedResult.results[0].points} pts
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2nd Place */}
+                    {beamedResult.results[1] && (
+                      <div className="relative p-6 rounded-2xl bg-gradient-to-b from-slate-800/30 via-gray-900 to-gray-950 border-2 border-slate-400 shadow-[0_0_20px_rgba(148,163,184,0.15)] flex flex-col justify-between overflow-hidden">
+                        <div className="absolute top-0 right-0 px-3 py-1 bg-slate-300 text-black text-xs font-black uppercase rounded-bl-xl tracking-wider flex items-center gap-1">
+                          🥈 2nd Place
+                        </div>
+                        <div className="mb-4">
+                          <div className="text-3xl font-black text-slate-300 mb-1">
+                            #2 Runner Up
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span
+                              className="w-3.5 h-3.5 rounded-full shrink-0 shadow"
+                              style={{ backgroundColor: beamedResult.results[1].teamColor || '#94a3b8' }}
+                            />
+                            <span className="text-xl font-black text-white">
+                              {beamedResult.results[1].teamName}
+                            </span>
+                            <span className="text-xs font-bold text-gray-400 uppercase">
+                              ({beamedResult.results[1].teamCode})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="pt-4 border-t border-slate-700/50 flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Time</span>
+                            <div className="text-2xl font-mono font-black text-slate-200">
+                              {beamedResult.results[1].timeFormatted || '—'}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Points</span>
+                            <div className="text-2xl font-bold text-slate-300">
+                              +{beamedResult.results[1].points} pts
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3rd Place */}
+                    {beamedResult.results[2] && (
+                      <div className="relative p-6 rounded-2xl bg-gradient-to-b from-amber-950/25 via-gray-900 to-gray-950 border-2 border-amber-700/80 shadow-[0_0_20px_rgba(180,83,9,0.15)] flex flex-col justify-between overflow-hidden">
+                        <div className="absolute top-0 right-0 px-3 py-1 bg-amber-600 text-white text-xs font-black uppercase rounded-bl-xl tracking-wider flex items-center gap-1">
+                          🥉 3rd Place
+                        </div>
+                        <div className="mb-4">
+                          <div className="text-3xl font-black text-amber-500 mb-1">
+                            #3 Bronze
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span
+                              className="w-3.5 h-3.5 rounded-full shrink-0 shadow"
+                              style={{ backgroundColor: beamedResult.results[2].teamColor || '#b45309' }}
+                            />
+                            <span className="text-xl font-black text-white">
+                              {beamedResult.results[2].teamName}
+                            </span>
+                            <span className="text-xs font-bold text-gray-400 uppercase">
+                              ({beamedResult.results[2].teamCode})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="pt-4 border-t border-amber-900/50 flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Time</span>
+                            <div className="text-2xl font-mono font-black text-amber-300">
+                              {beamedResult.results[2].timeFormatted || '—'}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Points</span>
+                            <div className="text-2xl font-bold text-amber-400">
+                              +{beamedResult.results[2].points} pts
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4th and beyond list */}
+                {beamedResult.results && beamedResult.results.length > 3 && (
+                  <div className="bg-gray-950/60 border border-gray-800 rounded-2xl p-4">
+                    <div className="text-xs uppercase font-extrabold tracking-wider text-gray-400 mb-3">
+                      Remaining Participants &amp; Times
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {beamedResult.results.slice(3).map((r) => (
+                        <div
+                          key={r.placement}
+                          className="flex items-center justify-between p-3 bg-gray-900/80 border border-gray-800/80 rounded-xl"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-6 h-6 rounded-full bg-gray-800 text-gray-300 text-xs font-black flex items-center justify-center">
+                              {r.placement}
+                            </span>
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: r.teamColor || '#64748b' }}
+                            />
+                            <span className="font-bold text-white text-sm">
+                              {r.teamName}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {r.timeFormatted && (
+                              <span className="text-xs font-mono font-semibold text-gray-300">
+                                {r.timeFormatted}
+                              </span>
+                            )}
+                            <span className="text-xs font-bold text-amber-400">
+                              +{r.points} pts
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom info footer */}
+            <div className="pt-4 border-t border-gray-800/80 flex items-center justify-between text-xs text-gray-500 font-medium">
+              <span>Spotlight mode active for 2 minutes · All championship scores updated in real time</span>
+              <span>Press "Resume Slideshow" to skip back to rotation</span>
+            </div>
+          </div>
+        ) : showLiveSplit ? (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 flex-1">
             
             {/* Live Matches Column (Takes up 2 columns) */}

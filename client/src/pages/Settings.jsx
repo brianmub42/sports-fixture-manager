@@ -48,7 +48,7 @@ export default function Settings() {
 
   const visibleTabs = settings?.billing?.status === 'suspended' ? tabs.filter(t => t.id === 'billing') : tabs;
 
-  const [form, setForm] = useState({ org_name: '', event_title: '', enable_player_registration: false, enable_tv_adverts: true });
+  const [form, setForm] = useState({ org_name: '', event_title: '', enable_player_registration: false, enable_tv_adverts: true, enable_tv_post_event_beam: true });
   const [resetType, setResetType] = useState('results_only');
   const [confirmText, setConfirmText] = useState('');
   const [resetSuccess, setResetSuccess] = useState(null);
@@ -615,7 +615,8 @@ export default function Settings() {
         org_name: settings.org_name || '',
         event_title: settings.event_title || '',
         enable_player_registration: !!settings.enable_player_registration,
-        enable_tv_adverts: settings.enable_tv_adverts !== false
+        enable_tv_adverts: settings.enable_tv_adverts !== false,
+        enable_tv_post_event_beam: settings.enable_tv_post_event_beam !== false
       });
       setSponsors(settings.sponsors || []);
 
@@ -826,6 +827,24 @@ export default function Settings() {
                     <label htmlFor="enable_tv_adverts" className="text-sm font-medium select-none cursor-pointer">
                       Enable TV Mode Adverts &amp; Live Announcements
                     </label>
+                  </div>
+
+                  <div className="flex items-start gap-2 mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <input
+                      type="checkbox"
+                      id="enable_tv_post_event_beam"
+                      checked={form.enable_tv_post_event_beam}
+                      onChange={(e) => setForm({ ...form, enable_tv_post_event_beam: e.target.checked })}
+                      className="w-4 h-4 mt-0.5 text-amber-500 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 cursor-pointer"
+                    />
+                    <div>
+                      <label htmlFor="enable_tv_post_event_beam" className="text-sm font-medium select-none cursor-pointer">
+                        Beam Heat / Event Results in TV Mode (2-Minute Spotlight)
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        When placement results are logged (e.g. Athletics heats, Swimming finals), prominently beam them on TV mode for 2 minutes before returning to slideshow.
+                      </p>
+                    </div>
                   </div>
                 </div>
 

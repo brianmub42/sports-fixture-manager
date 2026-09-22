@@ -26,7 +26,7 @@ import MediaManager from './pages/MediaManager.jsx';
 
 function App() {
   const { activeOrg } = useOrganization();
-  const isPublicBypassRoute = window.location.pathname.startsWith('/watch/') || window.location.pathname.startsWith('/reset-password');
+  const isPublicBypassRoute = window.location.pathname.startsWith('/watch') || window.location.pathname.startsWith('/reset-password');
 
   if (!activeOrg && !isPublicBypassRoute) {
     return <SelectOrganization />;
@@ -56,6 +56,8 @@ function App() {
               <Route path="/superadmin" element={<SuperadminDashboard />} />
             </Route>
             <Route path="/tv" element={<TvMode />} />
+            <Route path="/watch/display" element={<TvMode />} />
+            <Route path="/watch/:eventSlug/display" element={<TvMode />} />
             <Route path="/watch/:eventSlug" element={<PublicWatchPage />} />
           </Routes>
         </TimerProvider>

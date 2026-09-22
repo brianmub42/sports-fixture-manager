@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authMiddleware, requireScorekeeperOrAdmin } from '../middleware/auth.js';
+import { notifyPlacementResults, checkAndNotifyLeaderChange } from '../services/notificationService.js';
 
 const router = Router();
 
@@ -214,8 +215,81 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
     // Update event status to completed
     await query('UPDATE athletics_events SET status = \'completed\' WHERE id = $1', [eventId]);
 
+    // Format time helper (e.g. 11.42s or 1:24.50)
+    const formatTime = (ms) => {
+      if (ms == null) return null;
+      const num = Number(ms);
+      if (isNaN(num)) return null;
+      if (num < 60000) {
+        return `${(num / 1000).toFixed(2)}s`;
+      }
+      const totalSeconds = Math.floor(num / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const hundredths = Math.floor((num % 1000) / 10);
+      return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+    };
+
+    // Fetch full event metadata & sport info
+    const fullEventRes = await query(`
+      SELECT ae.*, s.name as sport_name, s.scoring_type as scoring_type, v.name as venue_name
+      FROM athletics_events ae
+      JOIN sports s ON ae.sport_id = s.id
+      LEFT JOIN venues v ON ae.venue_id = v.id
+      WHERE ae.id = $1 AND ae.organization_id = $2
+    `, [eventId, req.orgId]);
+    const eventInfo = fullEventRes.rows[0] || eventRes.rows[0];
+
+    // Fetch team results with team names, codes, colors
+    const resultsDetailsRes = await query(`
+      SELECT ar.*, t.code as team_code, t.name as team_name, t.logo_url as team_logo, t.color as team_color
+      FROM athletics_results ar
+      JOIN teams t ON ar.team_id = t.id
+      WHERE ar.event_id = $1
+      ORDER BY ar.placement ASC
+    `, [eventId]);
+
+    const formattedResults = resultsDetailsRes.rows.map(r => ({
+      placement: r.placement,
+      teamId: r.team_id,
+      teamName: r.team_name,
+      teamCode: r.team_code,
+      teamColor: r.team_color,
+      teamLogo: r.team_logo,
+      points: r.points,
+      timeMs: r.time_ms,
+      timeFormatted: formatTime(r.time_ms)
+    }));
+
+    const latestResultPayload = {
+      eventId: eventInfo.id,
+      eventName: eventInfo.name,
+      category: eventInfo.category,
+      sportName: eventInfo.sport_name || 'Athletics',
+      scoringType: eventInfo.scoring_type || 'placement',
+      venueName: eventInfo.venue_name || 'Main Track',
+      publishedAt: new Date().toISOString(),
+      results: formattedResults
+    };
+
+    // Store in settings table for persistence across spectator page reloads
+    try {
+      await query(`
+        INSERT INTO settings (organization_id, key, value)
+        VALUES ($1, 'latest_event_result', $2)
+        ON CONFLICT (organization_id, key)
+        DO UPDATE SET value = $2
+      `, [req.orgId, JSON.stringify(latestResultPayload)]);
+    } catch (dbErr) {
+      console.error('Failed to persist latest_event_result in settings:', dbErr);
+    }
+
     // Broadcast update via Socket.io if available
     if (req.io) {
+      req.io.to(`tenant-${req.orgId}`).emit('eventResultsPublished', latestResultPayload);
+      if (req.orgSlug) {
+        req.io.to(`tenant-${req.orgSlug}`).emit('eventResultsPublished', latestResultPayload);
+      }
       req.io.to(`tenant-${req.orgId}`).emit('score-updated', { eventId, status: 'completed' });
     }
 
@@ -230,7 +304,20 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       console.error('Redis cache invalidation error:', err);
     }
 
-    return { success: true, message: 'Results saved successfully' };
+    // Dispatch push notifications to followers
+    notifyPlacementResults({
+      orgId: req.orgId,
+      orgSlug: req.orgSlug,
+      eventInfo,
+      results: formattedResults
+    }).catch(err => console.error('[Push Service] Athletics results notification error:', err));
+
+    checkAndNotifyLeaderChange({
+      orgId: req.orgId,
+      orgSlug: req.orgSlug
+    }).catch(err => console.error('[Push Service] Leader check error:', err));
+
+    return { success: true, message: 'Results saved successfully', latestResult: latestResultPayload };
   })();
 
   pendingAthletics.set(key, promise);
@@ -247,6 +334,31 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
     setTimeout(() => {
       pendingAthletics.delete(key);
     }, 10000);
+  }
+});
+
+// GET /api/athletics/latest-result
+router.get('/latest-result', async (req, res) => {
+  try {
+    const result = await query(
+      "SELECT value FROM settings WHERE organization_id = $1 AND key = 'latest_event_result'",
+      [req.orgId]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].value) {
+      return res.json({ latestResult: null });
+    }
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(result.rows[0].value);
+    } catch (err) {
+      console.error('Error parsing latest_event_result JSON:', err);
+    }
+
+    res.json({ latestResult: parsed });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

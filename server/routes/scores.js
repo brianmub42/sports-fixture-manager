@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authMiddleware, requireScorekeeperOrAdmin } from '../middleware/auth.js';
+import { notifyScoreUpdate, checkAndNotifyLeaderChange } from '../services/notificationService.js';
 
 const router = Router();
 const pendingScores = new Map();
@@ -30,8 +31,15 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
   }
 
   const promise = (async () => {
-    // Get fixture details
-    const fixtureRes = await query('SELECT * FROM fixtures WHERE id = $1 AND organization_id = $2', [fixtureId, req.orgId]);
+    // Get fixture details with team names for notifications
+    const fixtureRes = await query(`
+      SELECT f.*, ta.name as team_a_name, tb.name as team_b_name, o.slug as org_slug
+      FROM fixtures f
+      LEFT JOIN teams ta ON f.team_a_id = ta.id
+      LEFT JOIN teams tb ON f.team_b_id = tb.id
+      LEFT JOIN organizations o ON f.organization_id = o.id
+      WHERE f.id = $1 AND f.organization_id = $2
+    `, [fixtureId, req.orgId]);
     const fixture = fixtureRes.rows[0];
 
     if (!fixture) throw new Error('Fixture not found');
@@ -135,6 +143,23 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
       console.error('Redis cache invalidation error:', err);
     }
 
+    // Dispatch push notifications to followers
+    notifyScoreUpdate({
+      orgId: req.orgId,
+      orgSlug: fixture.org_slug || req.orgSlug,
+      fixture,
+      oldScoreA: fixture.score_a,
+      oldScoreB: fixture.score_b,
+      newScoreA: score_a,
+      newScoreB: score_b,
+      status
+    }).catch(err => console.error('[Push Service] Score notification error:', err));
+
+    checkAndNotifyLeaderChange({
+      orgId: req.orgId,
+      orgSlug: fixture.org_slug || req.orgSlug
+    }).catch(err => console.error('[Push Service] Leader check error:', err));
+
     return { success: true, fixtureId, score_a, score_b, status };
   })();
 
@@ -172,8 +197,15 @@ router.post('/:id/correct', authMiddleware, requireScorekeeperOrAdmin, async (re
   }
 
   try {
-    // Get fixture details
-    const fixtureRes = await query('SELECT * FROM fixtures WHERE id = $1 AND organization_id = $2', [fixtureId, req.orgId]);
+    // Get fixture details with team names for notifications
+    const fixtureRes = await query(`
+      SELECT f.*, ta.name as team_a_name, tb.name as team_b_name, o.slug as org_slug
+      FROM fixtures f
+      LEFT JOIN teams ta ON f.team_a_id = ta.id
+      LEFT JOIN teams tb ON f.team_b_id = tb.id
+      LEFT JOIN organizations o ON f.organization_id = o.id
+      WHERE f.id = $1 AND f.organization_id = $2
+    `, [fixtureId, req.orgId]);
     const fixture = fixtureRes.rows[0];
 
     if (!fixture) {
@@ -252,6 +284,23 @@ router.post('/:id/correct', authMiddleware, requireScorekeeperOrAdmin, async (re
     } catch (err) {
       console.error('Redis cache invalidation error:', err);
     }
+
+    // Dispatch push notifications to followers
+    notifyScoreUpdate({
+      orgId: req.orgId,
+      orgSlug: fixture.org_slug || req.orgSlug,
+      fixture,
+      oldScoreA: fixture.score_a,
+      oldScoreB: fixture.score_b,
+      newScoreA: score_a,
+      newScoreB: score_b,
+      status
+    }).catch(err => console.error('[Push Service] Score notification error:', err));
+
+    checkAndNotifyLeaderChange({
+      orgId: req.orgId,
+      orgSlug: fixture.org_slug || req.orgSlug
+    }).catch(err => console.error('[Push Service] Leader check error:', err));
 
     res.json({ success: true, fixtureId, score_a, score_b, status });
   } catch (err) {

@@ -32,7 +32,12 @@ api.interceptors.request.use((config) => {
 export const publicApi = {
   getEventInfo: (slug) => api.get(`/public/events/${slug}`),
   getFixtures: (slug, params) => api.get(`/public/events/${slug}/fixtures`, { params }),
-  getStandings: (slug, params) => api.get(`/public/events/${slug}/standings`, { params })
+  getStandings: (slug, params) => api.get(`/public/events/${slug}/standings`, { params }),
+  getLatestResult: (slug) => api.get(`/public/events/${slug}/latest-result`),
+  getVapidPublicKey: () => api.get('/public/push/vapid-public-key'),
+  subscribePush: (data) => api.post('/public/push/subscribe', data),
+  unsubscribePush: (data) => api.post('/public/push/unsubscribe', data),
+  getPushStatus: (params) => api.get('/public/push/status', { params }),
 };
 
 export const fixturesApi = {
@@ -121,6 +126,7 @@ export const athleticsApi = {
   updateEvent: (id, data) => api.put(`/athletics/events/${id}`, data),
   deleteEvent: (id) => api.delete(`/athletics/events/${id}`),
   saveResults: (id, results) => api.post(`/athletics/events/${id}/results`, { results }),
+  getLatestResult: () => api.get('/athletics/latest-result'),
 };
 
 export const settingsApi = {

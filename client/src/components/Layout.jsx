@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Navigation from './Navigation.jsx';
 import SponsorsRibbon from './SponsorsRibbon.jsx';
 import HelpWizard from './HelpWizard.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
 import { useSettings } from '../hooks/useFixtures.js';
 import { useLiveUpdates } from '../hooks/useLiveUpdates.js';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
@@ -95,6 +96,7 @@ export default function Layout() {
             <LogOut className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:inline">Switch Workspace</span>
           </button>
+          <ThemeToggle />
           <div className="flex items-center gap-2 text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             <LiveClock />

@@ -14,11 +14,23 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import io, { Socket } from 'socket.io-client';
 import axios from 'axios';
 import { API_URL } from '../../services/api';
+import { useTheme } from '../../contexts/ThemeContext';
+import ThemeToggle from '../../components/ThemeToggle';
+import { useMobilePush } from '../../hooks/useMobilePush';
 
 export default function PublicEventScoreboard() {
   const { eventSlug } = useLocalSearchParams<{ eventSlug: string }>();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'log' | 'sports' | 'fixtures'>('log');
+  const { colors, isDark } = useTheme();
+  const {
+    followedEntity,
+    loading: pushLoading,
+    statusMessage,
+    followEntity,
+    unfollowEntity,
+  } = useMobilePush(eventSlug || '');
+
+  const [activeTab, setActiveTab] = useState<'latest' | 'log' | 'sports' | 'fixtures'>('log');
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -26,6 +38,7 @@ export default function PublicEventScoreboard() {
   const [logStandings, setLogStandings] = useState<any[]>([]);
   const [sportsStandings, setSportsStandings] = useState<Record<string, any>>({});
   const [fixtures, setFixtures] = useState<any[]>([]);
+  const [latestResult, setLatestResult] = useState<any>(null);
 
   const fetchPublicData = async () => {
     try {
@@ -41,6 +54,16 @@ export default function PublicEventScoreboard() {
       // 3. Fetch fixtures
       const fixRes = await axios.get(`${API_URL}/public/events/${eventSlug}/fixtures`);
       setFixtures(fixRes.data || []);
+
+      // 4. Fetch latest event result
+      try {
+        const latestRes = await axios.get(`${API_URL}/public/events/${eventSlug}/latest-result`);
+        if (latestRes.data?.latestResult) {
+          setLatestResult(latestRes.data.latestResult);
+        }
+      } catch (e) {
+        console.log('[Latest Result Error]:', e);
+      }
     } catch (err) {
       console.error('[Spectator API Error]:', err);
     } finally {
@@ -66,10 +89,17 @@ export default function PublicEventScoreboard() {
     socket.on('connect', () => {
       console.log('[Socket] Spectator connected to socket.io');
       socket.emit('join-tenant', eventSlug);
+      socket.emit('join-event', { tenantSlug: eventSlug, eventId: 'all' });
     });
 
     socket.on('score-updated', (data) => {
       console.log('[Socket] Score update received, invalidating cache...');
+      fetchPublicData();
+    });
+
+    socket.on('eventResultsPublished', (payload) => {
+      console.log('[Socket] Received eventResultsPublished on mobile:', payload);
+      setLatestResult(payload);
       fetchPublicData();
     });
 
@@ -100,23 +130,153 @@ export default function PublicEventScoreboard() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg, borderColor: colors.headerBorder }]}>
         <TouchableOpacity onPress={() => router.replace('/login')}>
-          <Text style={styles.exitText}>Exit</Text>
+          <Text style={[styles.exitText, { color: colors.primary }]}>Exit</Text>
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.eventTitle}>{eventDetails.name || 'Tournament Scoreboard'}</Text>
-          <Text style={styles.schoolTitle}>Hosted by {eventDetails.school_name}</Text>
+          <Text style={[styles.eventTitle, { color: colors.text }]}>{eventDetails.name || 'Tournament Scoreboard'}</Text>
+          <Text style={[styles.schoolTitle, { color: colors.textMuted }]}>Hosted by {eventDetails.school_name}</Text>
         </View>
-        <View style={styles.liveBadge}>
-          <Text style={styles.liveText}>● LIVE</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <ThemeToggle compact={true} />
+          <View style={styles.liveBadge}>
+            <Text style={styles.liveText}>● LIVE</Text>
+          </View>
         </View>
       </View>
 
+      {/* Opt-In Notification Follow Bar */}
+      <View style={[styles.followBanner, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+        <View style={styles.followBannerTop}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+            <View style={[styles.bellCircle, { backgroundColor: followedEntity ? '#2563eb' : (isDark ? '#334155' : '#e2e8f0') }]}>
+              <Text style={{ fontSize: 13 }}>{followedEntity ? '🔔' : '🔕'}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.followBannerTitle, { color: colors.text }]} numberOfLines={1}>
+                  {followedEntity ? `Following ${followedEntity.name}` : 'Live Alerts'}
+                </Text>
+                {followedEntity && (
+                  <View style={styles.activePill}>
+                    <Text style={styles.activePillText}>ACTIVE</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.followBannerSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
+                {followedEntity
+                  ? 'Push alerts enabled for live scores'
+                  : 'Follow a house or team for score alerts'}
+              </Text>
+            </View>
+          </View>
+
+          {followedEntity && (
+            <TouchableOpacity
+              onPress={unfollowEntity}
+              disabled={pushLoading}
+              style={[styles.unfollowBtn, { borderColor: isDark ? '#475569' : '#cbd5e1' }]}
+            >
+              <Text style={[styles.unfollowBtnText, { color: colors.textMuted }]}>
+                {pushLoading ? '...' : 'Unfollow'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {!followedEntity && eventDetails?.teams && eventDetails.teams.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.teamPillsScroll}>
+            {eventDetails.teams.map((t: any) => (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => followEntity({ type: 'team', id: t.id, name: t.name })}
+                disabled={pushLoading}
+                style={[
+                  styles.teamFollowPill,
+                  { backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: isDark ? '#334155' : '#cbd5e1' }
+                ]}
+              >
+                <View style={[styles.teamFollowDot, { backgroundColor: t.color || '#3b82f6' }]} />
+                <Text style={[styles.teamFollowName, { color: colors.text }]}>+ {t.code || t.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
+      {/* Prominent Post-Event Results Spotlight Banner (Persistent above feed) */}
+      {latestResult && (
+        <View style={[styles.spotlightBanner, { backgroundColor: isDark ? '#1e1b4b' : '#fffbeb', borderColor: '#f59e0b' }]}>
+          <View style={styles.spotlightHeader}>
+            <View style={styles.spotlightBadgeRow}>
+              <View style={styles.spotlightPulseBadge}>
+                <Text style={styles.spotlightPulseText}>⚡ LATEST RESULT</Text>
+              </View>
+              <Text style={[styles.spotlightSportText, { color: isDark ? '#cbd5e1' : '#78350f' }]} numberOfLines={1}>
+                {latestResult.sportName} · {latestResult.category}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setActiveTab(activeTab === 'latest' ? 'log' : 'latest')}
+              style={styles.spotlightToggleBtn}
+            >
+              <Text style={styles.spotlightToggleText}>
+                {activeTab === 'latest' ? 'View Log' : 'View Card'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.spotlightTitle, { color: colors.text }]}>
+            {latestResult.eventName}
+          </Text>
+
+          {/* Quick Podium Top 3 */}
+          {latestResult.results && latestResult.results.length > 0 && (
+            <View style={styles.spotlightPodium}>
+              {latestResult.results.slice(0, 3).map((r: any) => {
+                const medal = r.placement === 1 ? '🥇' : r.placement === 2 ? '🥈' : '🥉';
+                return (
+                  <View
+                    key={r.placement}
+                    style={[
+                      styles.podiumItem,
+                      { backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#334155' : '#fde68a' }
+                    ]}
+                  >
+                    <View style={styles.podiumRankRow}>
+                      <Text style={styles.podiumMedal}>{medal}</Text>
+                      <View style={[styles.colorIndicatorSmall, { backgroundColor: r.teamColor || '#3b82f6' }]} />
+                      <Text style={[styles.podiumTeam, { color: colors.text }]} numberOfLines={1}>
+                        {r.teamName}
+                      </Text>
+                    </View>
+                    <View style={styles.podiumTimeRow}>
+                      {r.timeFormatted ? (
+                        <Text style={[styles.podiumTime, { color: colors.primary }]}>{r.timeFormatted}</Text>
+                      ) : null}
+                      <Text style={styles.podiumPts}>+{r.points} pts</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Tabs */}
       <View style={styles.tabBar}>
+        {latestResult && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'latest' && styles.activeTabLatest]}
+            onPress={() => setActiveTab('latest')}
+          >
+            <Text style={[styles.tabText, activeTab === 'latest' && styles.activeTabTextLatest]}>⚡ Result</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={[styles.tab, activeTab === 'log' && styles.activeTab]}
           onPress={() => setActiveTab('log')}
@@ -144,22 +304,100 @@ export default function PublicEventScoreboard() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#10b981" />
         }
       >
+        {activeTab === 'latest' && latestResult && (
+          <View style={[styles.card, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+            <View style={styles.latestFullHeader}>
+              <View style={styles.latestBadgeRow}>
+                <View style={styles.latestOfficialBadge}>
+                  <Text style={styles.latestOfficialText}>OFFICIAL RESULT</Text>
+                </View>
+                <Text style={[styles.latestSportCat, { color: colors.primary }]}>
+                  {latestResult.sportName} · {latestResult.category}
+                </Text>
+              </View>
+              <Text style={[styles.latestEventName, { color: colors.text }]}>
+                {latestResult.eventName}
+              </Text>
+              {latestResult.venueName && (
+                <Text style={[styles.latestVenue, { color: colors.textMuted }]}>
+                  📍 {latestResult.venueName}
+                </Text>
+              )}
+            </View>
+
+            {latestResult.results && latestResult.results.map((r: any) => {
+              const medal = r.placement === 1 ? '🥇 1st' : r.placement === 2 ? '🥈 2nd' : r.placement === 3 ? '🥉 3rd' : `#${r.placement}`;
+              const isPodium = r.placement <= 3;
+              return (
+                <View
+                  key={r.placement}
+                  style={[
+                    styles.row,
+                    { borderColor: isDark ? '#334155' : '#f1f5f9' },
+                    isPodium && { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.08)' }
+                  ]}
+                >
+                  <Text style={[styles.rank, isPodium && { color: '#f59e0b', fontWeight: '900' }]}>
+                    {medal}
+                  </Text>
+                  <View style={styles.teamContainer}>
+                    <View style={[styles.colorIndicator, { backgroundColor: r.teamColor || '#2563eb' }]} />
+                    <View>
+                      <Text style={[styles.teamName, { color: colors.text }]}>{r.teamName}</Text>
+                      {r.teamCode && (
+                        <Text style={[styles.teamCodeSmall, { color: colors.textMuted }]}>({r.teamCode})</Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    {r.timeFormatted ? (
+                      <Text style={[styles.timeText, { color: colors.text }]}>{r.timeFormatted}</Text>
+                    ) : null}
+                    <Text style={[styles.points, { color: colors.primary }]}>+{r.points} pts</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {activeTab === 'log' && (
           <View style={styles.card}>
             <Text style={styles.cardHeader}>Combined Championship Standings</Text>
             {logStandings.length === 0 ? (
               <Text style={styles.noDataText}>No standings computed yet.</Text>
             ) : (
-              logStandings.map((team, idx) => (
-                <View key={team.id || idx} style={styles.row}>
-                  <Text style={styles.rank}>{idx + 1}</Text>
-                  <View style={styles.teamContainer}>
-                    <View style={[styles.colorIndicator, { backgroundColor: team.color || '#2563eb' }]} />
-                    <Text style={styles.teamName}>{team.name}</Text>
+              logStandings.map((team, idx) => {
+                const teamId = team.id || eventDetails?.teams?.find((t: any) => t.code === team.code)?.id;
+                const isFollowed = followedEntity && (String(followedEntity.id) === String(teamId));
+                return (
+                  <View key={team.id || idx} style={styles.row}>
+                    <Text style={styles.rank}>{idx + 1}</Text>
+                    <View style={styles.teamContainer}>
+                      <View style={[styles.colorIndicator, { backgroundColor: team.color || '#2563eb' }]} />
+                      <Text style={styles.teamName}>{team.name}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.points}>{team.points || team.total || 0} pts</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (isFollowed) {
+                            unfollowEntity();
+                          } else if (teamId) {
+                            followEntity({ type: 'team', id: teamId, name: team.name });
+                          }
+                        }}
+                        disabled={pushLoading}
+                        style={[styles.followBtn, isFollowed && styles.followBtnActive]}
+                      >
+                        <Text style={[styles.followBtnText, isFollowed && styles.followBtnTextActive]}>
+                          {isFollowed ? 'Following' : '+ Follow'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <Text style={styles.points}>{team.points || team.total || 0} pts</Text>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         )}
@@ -489,5 +727,248 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     fontWeight: '500',
+  },
+  spotlightBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 4,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  spotlightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  spotlightBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  spotlightPulseBadge: {
+    backgroundColor: '#f59e0b',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  spotlightPulseText: {
+    color: '#000000',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  spotlightSportText: {
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+  spotlightToggleBtn: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  spotlightToggleText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#f59e0b',
+  },
+  spotlightTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  spotlightPodium: {
+    gap: 6,
+  },
+  podiumItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  podiumRankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  podiumMedal: {
+    fontSize: 13,
+  },
+  colorIndicatorSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  podiumTeam: {
+    fontSize: 13,
+    fontWeight: '700',
+    flex: 1,
+  },
+  podiumTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  podiumTime: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  podiumPts: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#f59e0b',
+  },
+  activeTabLatest: {
+    backgroundColor: '#f59e0b',
+  },
+  activeTabTextLatest: {
+    color: '#000000',
+    fontWeight: '900',
+  },
+  latestFullHeader: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: '#334155',
+  },
+  latestBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  latestOfficialBadge: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  latestOfficialText: {
+    color: '#000000',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  latestSportCat: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  latestEventName: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  latestVenue: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  teamCodeSmall: {
+    fontSize: 11,
+  },
+  timeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  followBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+  },
+  followBannerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bellCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  activePill: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  activePillText: {
+    color: '#22c55e',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  followBannerSubtitle: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  unfollowBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  unfollowBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  teamPillsScroll: {
+    marginTop: 10,
+    flexDirection: 'row',
+  },
+  teamFollowPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 6,
+    gap: 5,
+  },
+  teamFollowDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  teamFollowName: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  followBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    marginLeft: 8,
+  },
+  followBtnActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#1d4ed8',
+  },
+  followBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2563eb',
+  },
+  followBtnTextActive: {
+    color: '#ffffff',
   },
 });

@@ -1,10 +1,11 @@
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 
-import { useColorScheme, View, StyleSheet } from 'react-native';
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { AuthProvider } from '../contexts/AuthContext';
 import AnimatedSplash from './AnimatedSplash';
 
@@ -23,13 +24,16 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootLayoutContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <RootLayoutContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 function RootLayoutContent() {
+  const { colors } = useTheme();
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -42,7 +46,7 @@ function RootLayoutContent() {
 
   useEffect(() => {
     if (loaded) {
-      // Native splash screen hands off immediately to AnimatedSplash (same #0F172A background)
+      // Native splash screen hands off immediately to AnimatedSplash
       SplashScreen.hideAsync();
     }
   }, [loaded]);
@@ -52,7 +56,7 @@ function RootLayoutContent() {
   }
 
   return (
-    <View style={styles.rootContainer}>
+    <View style={[styles.rootContainer, { backgroundColor: colors.background }]}>
       {/* Real navigator mounts underneath immediately */}
       <RootLayoutNav />
 
@@ -65,25 +69,53 @@ function RootLayoutContent() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const { isDark, colors } = useTheme();
+
+  const navTheme = isDark
+    ? {
+        ...DarkTheme,
+        colors: {
+          ...DarkTheme.colors,
+          background: colors.background,
+          card: colors.card,
+          text: colors.text,
+          border: colors.border,
+          primary: colors.primary,
+        },
+      }
+    : {
+        ...DefaultTheme,
+        colors: {
+          ...DefaultTheme.colors,
+          background: colors.background,
+          card: colors.card,
+          text: colors.text,
+          border: colors.border,
+          primary: colors.primary,
+        },
+      };
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <NavigationThemeProvider value={navTheme}>
+      <Stack
+        screenOptions={{
+          contentStyle: { backgroundColor: colors.background },
+          headerStyle: { backgroundColor: colors.headerBg },
+          headerTintColor: colors.headerTint,
+        }}
+      >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="unauthenticated/watch" options={{ title: 'Spectator Portal', headerShown: false }} />
         <Stack.Screen name="unauthenticated/[eventSlug]" options={{ title: 'Live Dashboard', headerShown: false }} />
         <Stack.Screen name="(scorekeeper)" options={{ headerShown: false }} />
       </Stack>
-    </ThemeProvider>
+    </NavigationThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#0F172A',
   },
 });
-

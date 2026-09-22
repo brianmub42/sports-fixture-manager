@@ -69,6 +69,24 @@ async function migrate() {
 
       CREATE INDEX IF NOT EXISTS idx_tv_adverts_org ON tv_adverts(organization_id);
       CREATE INDEX IF NOT EXISTS idx_tv_announcements_org ON tv_announcements(organization_id);
+
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+          id SERIAL PRIMARY KEY,
+          organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+          device_id VARCHAR(100) NOT NULL,
+          platform VARCHAR(20) NOT NULL,
+          followed_type VARCHAR(20) NOT NULL DEFAULT 'team',
+          followed_id INT NOT NULL,
+          followed_name VARCHAR(100),
+          subscription_json TEXT,
+          expo_push_token VARCHAR(200),
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(organization_id, device_id, platform)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_push_subs_org_team ON push_subscriptions(organization_id, followed_type, followed_id);
+      CREATE INDEX IF NOT EXISTS idx_push_subs_device ON push_subscriptions(organization_id, device_id);
     `);
     console.log('Migration successful');
   } catch (err) {

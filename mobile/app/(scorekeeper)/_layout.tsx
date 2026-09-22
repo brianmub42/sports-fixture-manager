@@ -3,21 +3,24 @@ import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function ScorekeeperLayout() {
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#64748b',
+        tabBarActiveTintColor: colors.tabIconSelected,
+        tabBarInactiveTintColor: colors.tabIconDefault,
         tabBarIconStyle: { display: 'none' }, // Hide empty icon slots for centered text-only tabs
         tabBarStyle: {
-          backgroundColor: '#1e293b',
+          backgroundColor: colors.tabBg,
           borderTopWidth: 1,
-          borderColor: '#334155',
+          borderColor: colors.tabBorder,
           paddingBottom: insets.bottom > 0 ? insets.bottom - 4 : 4,
           height: 48 + insets.bottom,
         },
@@ -26,14 +29,15 @@ export default function ScorekeeperLayout() {
           fontWeight: '800',
         },
         headerStyle: {
-          backgroundColor: '#0f172a',
+          backgroundColor: colors.headerBg,
           borderBottomWidth: 1,
-          borderColor: '#1e293b',
+          borderColor: colors.headerBorder,
         },
-        headerTintColor: '#f8fafc',
+        headerTintColor: colors.headerTint,
         headerTitleStyle: {
           fontWeight: '800',
         },
+        headerRight: () => <ThemeToggle compact={false} />,
       }}
     >
       <Tabs.Screen
