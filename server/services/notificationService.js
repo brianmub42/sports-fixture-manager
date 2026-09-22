@@ -1,5 +1,4 @@
 import webpush from 'web-push';
-import axios from 'axios';
 import { query } from '../db.js';
 
 let vapidInitialized = false;
@@ -214,19 +213,21 @@ export async function dispatchNotificationToFollowers({ orgId, followedType = 't
         const chunkSize = 100;
         for (let i = 0; i < expoMessages.length; i += chunkSize) {
           const chunk = expoMessages.slice(i, i + chunkSize);
-          const response = await axios.post('https://exp.host/--/api/v2/push/send', chunk, {
+          const response = await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
             headers: {
-              Accept: 'application/json',
-              'Accept-encoding': 'gzip, deflate',
+              'Accept': 'application/json',
               'Content-Type': 'application/json',
             },
+            body: JSON.stringify(chunk)
           });
-          if (response.data && response.data.data) {
-            mobileSuccessCount += response.data.data.filter(item => item.status === 'ok').length;
+          const resData = await response.json();
+          if (resData && resData.data) {
+            mobileSuccessCount += resData.data.filter(item => item.status === 'ok').length;
           }
         }
       } catch (expoErr) {
-        console.error('[Push Service] Expo push dispatch error:', expoErr.response?.data || expoErr.message);
+        console.error('[Push Service] Expo push dispatch error:', expoErr.message);
       }
     }
 
