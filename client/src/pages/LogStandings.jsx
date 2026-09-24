@@ -1,38 +1,54 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLogStandings } from '../hooks/useStandings.js';
+import { useSports } from '../hooks/useFixtures.js';
 import TeamPill from '../components/TeamPill.jsx';
 import { Maximize2, Play, Pause, ChevronLeft, ChevronRight, X, Sparkles } from 'lucide-react';
 
-const slides = [
-  { id: 'overall', title: 'Overall Championship Log', subtitle: 'All Sports Combined Points' },
-  { id: 'BB', title: 'Basketball Standings', subtitle: 'Championship Log Points' },
-  { id: 'VB', title: 'Volleyball Standings', subtitle: 'Championship Log Points' },
-  { id: 'SC', title: 'Soccer Standings', subtitle: 'Championship Log Points' },
-  { id: 'TW', title: 'Tug of War Standings', subtitle: 'Championship Log Points' },
-  { id: 'AT', title: 'Athletics Standings', subtitle: 'Championship Log Points' },
-  { id: 'NV', title: 'Novelty Standings', subtitle: 'Championship Log Points' },
-  { id: 'medals', title: 'Medal Leaderboard', subtitle: 'Championship Medal Standings' }
-];
-
 export default function LogStandings() {
-  const { data: log, isLoading } = useLogStandings();
+  const { data: sports = [], isLoading: loadingSports } = useSports();
+  const { data: log = [], isLoading: loadingLog } = useLogStandings();
   const [isProjectorMode, setIsProjectorMode] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [slideDuration, setSlideDuration] = useState(5); // in seconds
 
+  // Dynamically generate slides based on configured sports using full discipline names
+  const slides = useMemo(() => {
+    const list = [
+      { id: 'overall', title: 'Overall Championship Log', subtitle: 'All Sports Combined Points' }
+    ];
+    sports.forEach(sport => {
+      list.push({
+        id: `sport_${sport.id}`,
+        sportId: sport.id,
+        sportName: sport.name,
+        title: `${sport.name} Standings`,
+        subtitle: `${sport.name} Championship Log Points`
+      });
+    });
+    list.push({ id: 'medals', title: 'Medal Leaderboard', subtitle: 'Championship Medal Standings' });
+    return list;
+  }, [sports]);
+
+  // Keep slide index within range if sports change
+  useEffect(() => {
+    if (slides.length > 0 && currentSlideIndex >= slides.length) {
+      setCurrentSlideIndex(0);
+    }
+  }, [slides.length, currentSlideIndex]);
+
   // Auto cycle effect
   useEffect(() => {
-    if (!isProjectorMode || !isPlaying) return;
+    if (!isProjectorMode || !isPlaying || slides.length === 0) return;
     const interval = setInterval(() => {
       setCurrentSlideIndex(prev => (prev + 1) % slides.length);
     }, slideDuration * 1000);
     return () => clearInterval(interval);
-  }, [isProjectorMode, isPlaying, slideDuration]);
+  }, [isProjectorMode, isPlaying, slideDuration, slides.length]);
 
   // Keyboard shortcut listener
   useEffect(() => {
-    if (!isProjectorMode) return;
+    if (!isProjectorMode || slides.length === 0) return;
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowRight') {
         setCurrentSlideIndex(prev => (prev + 1) % slides.length);
@@ -47,13 +63,21 @@ export default function LogStandings() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isProjectorMode]);
+  }, [isProjectorMode, slides.length]);
 
-  if (isLoading) return <div className="text-center py-12 text-gray-400">Loading log standings...</div>;
+  if (loadingLog || loadingSports) {
+    return <div className="text-center py-12 text-gray-400">Loading log standings...</div>;
+  }
 
-  const maxTotal = Math.max(...(log?.map(d => d.total) || [1]));
+  const maxTotal = Math.max(...(log?.map(d => d.total) || [1]), 1);
 
-  const slide = slides[currentSlideIndex];
+  const slide = slides[currentSlideIndex] || slides[0] || { id: 'overall', title: 'Overall Championship Log', subtitle: 'All Sports Combined Points' };
+
+  const getSportPoints = (team, sport) => {
+    if (!team || !sport) return 0;
+    const pts = team.sport_points?.[sport.id] ?? team[sport.name];
+    return pts !== undefined ? pts : 0;
+  };
 
   // Dynamic sorting for active slide
   let displayTeams = [];
@@ -62,7 +86,13 @@ export default function LogStandings() {
   } else if (slide.id === 'medals') {
     displayTeams = [...(log || [])].sort((a, b) => b.gold - a.gold || b.silver - a.silver || b.bronze - a.bronze || a.name.localeCompare(b.name));
   } else {
-    displayTeams = [...(log || [])].sort((a, b) => (b[slide.id] || 0) - (a[slide.id] || 0) || a.name.localeCompare(b.name));
+    const sportId = slide.sportId;
+    const sportName = slide.sportName;
+    displayTeams = [...(log || [])].sort((a, b) => {
+      const ptsA = a.sport_points?.[sportId] ?? a[sportName] ?? 0;
+      const ptsB = b.sport_points?.[sportId] ?? b[sportName] ?? 0;
+      return (ptsB - ptsA) || a.name.localeCompare(b.name);
+    });
   }
 
   const renderProjectorMode = () => {
@@ -149,34 +179,48 @@ export default function LogStandings() {
         </div>
 
         {/* Content Section (Large, clear tables) */}
-        <div className="flex-1 flex flex-col justify-center max-w-5xl mx-auto w-full">
+        <div className="flex-1 flex flex-col justify-center max-w-6xl mx-auto w-full overflow-hidden">
           {slide.id === 'overall' && (
-            <div className="w-full bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-sm">
-              <div className="grid grid-cols-10 gap-4 text-xs font-bold text-slate-500 uppercase tracking-widest pb-3 border-b border-slate-800 text-center mb-4">
-                <span>Rank</span>
-                <span className="text-left col-span-2">Team</span>
-                <span>BB</span><span>VB</span><span>SC</span><span>TOW</span><span>ATH</span><span>NOV</span>
-                <span>Total</span>
-              </div>
-              <div className="space-y-3.5">
-                {displayTeams.map((d, idx) => (
-                  <div key={d.code} className="grid grid-cols-10 gap-4 items-center text-center text-lg hover:bg-slate-800/20 py-2 rounded-xl transition-all duration-150">
-                    <span className={`font-mono font-bold ${idx === 0 ? 'text-yellow-400 text-2xl' : idx === 1 ? 'text-slate-300 text-xl' : idx === 2 ? 'text-amber-600 text-xl' : 'text-slate-500'}`}>
-                      {idx + 1}
-                    </span>
-                    <span className="text-left col-span-2">
-                      <TeamPill code={d.code} name={d.name} logoUrl={d.logo_url} size="lg" />
-                    </span>
-                    <span className="font-mono text-slate-300">{d.BB || '—'}</span>
-                    <span className="font-mono text-slate-300">{d.VB || '—'}</span>
-                    <span className="font-mono text-slate-300">{d.SC || '—'}</span>
-                    <span className="font-mono text-slate-300">{d.TW || '—'}</span>
-                    <span className="font-mono text-slate-300">{d.AT || '—'}</span>
-                    <span className="font-mono text-slate-300">{d.NV || '—'}</span>
-                    <span className="font-extrabold text-blue-400 font-mono text-xl">{d.total}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="w-full bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-sm overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    <th className="py-3 px-3 text-center w-14">Rank</th>
+                    <th className="py-3 px-4 min-w-[200px]">Team</th>
+                    {sports.map(s => (
+                      <th key={s.id} className="py-3 px-4 text-center font-bold text-slate-300 min-w-[120px]">
+                        {s.name}
+                      </th>
+                    ))}
+                    <th className="py-3 px-4 text-center text-blue-400 font-extrabold w-24">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/50">
+                  {displayTeams.map((d, idx) => (
+                    <tr key={d.code} className="hover:bg-slate-800/20 text-lg transition-all duration-150">
+                      <td className="py-3 px-3 text-center">
+                        <span className={`font-mono font-bold ${idx === 0 ? 'text-yellow-400 text-2xl' : idx === 1 ? 'text-slate-300 text-xl' : idx === 2 ? 'text-amber-600 text-xl' : 'text-slate-500'}`}>
+                          {idx + 1}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <TeamPill code={d.code} name={d.name} logoUrl={d.logo_url} size="lg" />
+                      </td>
+                      {sports.map(s => {
+                        const pts = getSportPoints(d, s);
+                        return (
+                          <td key={s.id} className="py-3 px-4 text-center font-mono text-slate-300">
+                            {pts > 0 ? pts : '—'}
+                          </td>
+                        );
+                      })}
+                      <td className="py-3 px-4 text-center font-extrabold text-blue-400 font-mono text-xl">
+                        {d.total}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -212,20 +256,23 @@ export default function LogStandings() {
               <div className="grid grid-cols-4 gap-4 text-xs font-bold text-slate-500 uppercase tracking-widest pb-3 border-b border-slate-800 text-center mb-4">
                 <span>Rank</span>
                 <span className="text-left col-span-2">Team</span>
-                <span>Points</span>
+                <span>{slide.sportName} Points</span>
               </div>
               <div className="space-y-4">
-                {displayTeams.map((d, idx) => (
-                  <div key={d.code} className="grid grid-cols-4 gap-4 items-center text-center text-xl hover:bg-slate-800/20 py-2 rounded-xl transition-all duration-150">
-                    <span className={`font-mono font-bold ${idx === 0 ? 'text-yellow-400 text-2xl' : idx === 1 ? 'text-slate-300 text-xl' : idx === 2 ? 'text-amber-600 text-xl' : 'text-slate-500'}`}>
-                      {idx + 1}
-                    </span>
-                    <span className="text-left col-span-2">
-                      <TeamPill code={d.code} name={d.name} logoUrl={d.logo_url} size="lg" />
-                    </span>
-                    <span className="font-extrabold text-blue-400 font-mono text-2xl">{d[slide.id] || 0}</span>
-                  </div>
-                ))}
+                {displayTeams.map((d, idx) => {
+                  const pts = getSportPoints(d, { id: slide.sportId, name: slide.sportName });
+                  return (
+                    <div key={d.code} className="grid grid-cols-4 gap-4 items-center text-center text-xl hover:bg-slate-800/20 py-2 rounded-xl transition-all duration-150">
+                      <span className={`font-mono font-bold ${idx === 0 ? 'text-yellow-400 text-2xl' : idx === 1 ? 'text-slate-300 text-xl' : idx === 2 ? 'text-amber-600 text-xl' : 'text-slate-500'}`}>
+                        {idx + 1}
+                      </span>
+                      <span className="text-left col-span-2">
+                        <TeamPill code={d.code} name={d.name} logoUrl={d.logo_url} size="lg" />
+                      </span>
+                      <span className="font-extrabold text-blue-400 font-mono text-2xl">{pts}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -272,39 +319,49 @@ export default function LogStandings() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <div className="min-w-[600px]">
-            <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 font-medium mb-2 text-center">
-              <span>#</span>
-              <span className="text-left col-span-2">Team</span>
-              <span>BB</span><span>VB</span><span>SC</span><span>TOW</span><span>ATH</span><span>NOV</span>
-              <span>Total</span>
-            </div>
-            {log?.map((d, i) => {
-              const pct = Math.round((d.total / maxTotal) * 100);
-              const barColor = i === 0 ? 'bg-green-500' : i === 1 ? 'bg-blue-500' : i === 2 ? 'bg-emerald-500' : 'bg-gray-400';
-              return (
-                <div key={d.code}>
-                  <div className="grid grid-cols-10 gap-2 items-center py-2 text-center text-sm hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded">
-                    <span className="font-semibold text-gray-500">{i + 1}</span>
-                    <span className="text-left col-span-2">
+        <div className="overflow-x-auto pb-2">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead>
+              <tr className="border-b border-gray-150 dark:border-gray-800 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="py-2.5 px-3 w-12 text-center">#</th>
+                <th className="py-2.5 px-3 min-w-[180px]">Team</th>
+                {sports.map(s => (
+                  <th key={s.id} className="py-2.5 px-3 text-center min-w-[120px] font-semibold text-gray-700 dark:text-gray-300">
+                    {s.name}
+                  </th>
+                ))}
+                <th className="py-2.5 px-3 text-center font-bold text-gray-900 dark:text-white w-20">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium">
+              {log?.map((d, i) => {
+                const pct = Math.round((d.total / maxTotal) * 100);
+                const barColor = i === 0 ? 'bg-green-500' : i === 1 ? 'bg-blue-500' : i === 2 ? 'bg-emerald-500' : 'bg-gray-400';
+                return (
+                  <tr key={d.code} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                    <td className="py-3 px-3 text-center font-semibold text-gray-500">{i + 1}</td>
+                    <td className="py-3 px-3">
                       <TeamPill code={d.code} name={d.name} logoUrl={d.logo_url} />
-                    </span>
-                    <span>{d.BB || '—'}</span>
-                    <span>{d.VB || '—'}</span>
-                    <span>{d.SC || '—'}</span>
-                    <span>{d.TW || '—'}</span>
-                    <span>{d.AT || '—'}</span>
-                    <span>{d.NV || '—'}</span>
-                    <span className="font-semibold">{d.total}</span>
-                  </div>
-                  <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mb-2">
-                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                      <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mt-1.5 max-w-[140px]">
+                        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </td>
+                    {sports.map(s => {
+                      const pts = getSportPoints(d, s);
+                      return (
+                        <td key={s.id} className="py-3 px-3 text-center text-gray-700 dark:text-gray-300 font-mono">
+                          {pts > 0 ? pts : '—'}
+                        </td>
+                      );
+                    })}
+                    <td className="py-3 px-3 text-center font-bold text-gray-900 dark:text-white text-base font-mono">
+                      {d.total}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 

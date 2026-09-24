@@ -425,9 +425,18 @@ router.get('/events/:eventSlug/standings', async (req, res) => {
       teamPoints[t.code] = { 
         id: t.id,
         code: t.code, name: t.name, color: t.color, logo_url: t.logo_url,
-        BB: 0, VB: 0, SC: 0, TW: 0, AT: 0, NV: 0,
+        sport_points: {},
         total: 0, gold: 0, silver: 0, bronze: 0, medals: 0
       };
+      // Initialize zero for all configured sports
+      sports.forEach(s => {
+        teamPoints[t.code].sport_points[s.id] = 0;
+        teamPoints[t.code][s.name] = 0;
+      });
+      // Backward compatibility for legacy static keys
+      ['BB', 'VB', 'SC', 'TW', 'AT', 'NV'].forEach(k => {
+        teamPoints[t.code][k] = 0;
+      });
     });
 
     const pointsSettingRes = await query("SELECT value FROM settings WHERE organization_id = $1 AND key = 'points_allocation'", [orgId]);
@@ -489,18 +498,20 @@ router.get('/events/:eventSlug/standings', async (req, res) => {
         `, [sport.id, orgId]);
       }
 
-      const key = sport.name === 'Basketball' ? 'BB' : 
-                  sport.name === 'Volleyball' ? 'VB' : 
-                  sport.name === 'Soccer' ? 'SC' : 
-                  sport.name === 'Tug of War' ? 'TW' :
-                  sport.name === 'Athletics' ? 'AT' :
-                  sport.name === 'Novelty' ? 'NV' : null;
+      const legacyKey = sport.name === 'Basketball' ? 'BB' : 
+                        sport.name === 'Volleyball' ? 'VB' : 
+                        sport.name === 'Soccer' ? 'SC' : 
+                        sport.name === 'Tug of War' ? 'TW' :
+                        sport.name === 'Athletics' ? 'AT' :
+                        sport.name === 'Novelty' ? 'NV' : null;
 
       standingsRes.rows.forEach((row, idx) => {
         const rank = idx + 1;
         const pts = getPointsForPlacement(rank, pointMap);
         if (teamPoints[row.code]) {
-          if (key) teamPoints[row.code][key] = pts;
+          teamPoints[row.code].sport_points[sport.id] = pts;
+          teamPoints[row.code][sport.name] = pts;
+          if (legacyKey) teamPoints[row.code][legacyKey] = pts;
           teamPoints[row.code].total += pts;
           if (rank === 1) teamPoints[row.code].gold++;
           if (rank === 2) teamPoints[row.code].silver++;
