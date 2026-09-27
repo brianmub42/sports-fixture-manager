@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { 
   useAthleticsEvents, 
@@ -255,6 +256,7 @@ function StopwatchTimeInput({ value = '', onChange, disabled, placeholder = '00:
 }
 
 export default function AthleticsPage() {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const { data: events, isLoading: eventsLoading } = useAthleticsEvents();
@@ -693,8 +695,8 @@ export default function AthleticsPage() {
                     <h4 className="text-xs uppercase font-bold text-gray-400 flex items-center gap-1 mb-1">
                       <Award size={13} className="text-yellow-500" /> Placements & Medals
                     </h4>
-                    <div className="grid grid-cols-1 gap-2">
-                      {event.results.slice(0, 3).map((r, i) => (
+                    <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-1">
+                      {event.results.map((r, i) => (
                         <div key={r.id || `${r.placement}-${r.team_id}`} className="flex justify-between items-center py-1 border-b border-gray-100/50 dark:border-gray-800 last:border-0">
                           <div className="flex items-center gap-2">
                             <span className={`min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full text-[10px] font-bold ${
@@ -722,35 +724,51 @@ export default function AthleticsPage() {
                 )}
               </div>
 
-              {/* Admin Actions Panel */}
-              {isAuthenticated && (
-                <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-800">
-                  <div className="flex gap-2">
+              {/* Actions Panel */}
+              <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-800">
+                {isAuthenticated ? (
+                  <>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openEventModal(event)}
+                        className="p-1.5 rounded bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+                        title="Edit Event"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="p-1.5 rounded bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 text-red-600 dark:text-red-400 transition-colors"
+                        title="Delete Event"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
                     <button
-                      onClick={() => openEventModal(event)}
-                      className="p-1.5 rounded bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-                      title="Edit Event"
+                      onClick={() => openResultModal(event)}
+                      className={`text-xs py-1.5 px-3 rounded-lg font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer ${
+                        event.status === 'completed'
+                          ? 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/20'
+                      }`}
                     >
-                      <Edit2 size={14} />
+                      <Award size={14} className={event.status === 'completed' ? 'text-purple-500' : 'text-white'} />
+                      {event.status === 'completed' ? 'Modify Placements' : 'Capture Results'}
                     </button>
+                  </>
+                ) : (
+                  <div className="w-full flex justify-between items-center text-xs">
+                    <span className="text-gray-400 text-[11px]">Official access required to capture results</span>
                     <button
-                      onClick={() => handleDeleteEvent(event.id)}
-                      className="p-1.5 rounded bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 text-red-600 dark:text-red-400 transition-colors"
-                      title="Delete Event"
+                      onClick={() => navigate('/login')}
+                      className="px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 font-semibold text-xs flex items-center gap-1 cursor-pointer"
                     >
-                      <Trash2 size={14} />
+                      Official Login
                     </button>
                   </div>
-
-                  <button
-                    onClick={() => openResultModal(event)}
-                    className="k-btn text-xs py-1.5 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center gap-1.5"
-                  >
-                    <Award size={14} className="text-purple-500" />
-                    {event.status === 'completed' ? 'Modify Placements' : 'Log Placements'}
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ))}
 
