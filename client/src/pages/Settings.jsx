@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSettings, useUpdateSettings, useResetDatabase, useVenues, useCreateVenue, useDeleteVenue, useSports, useCreateSport, useDeleteSport } from '../hooks/useFixtures.js';
-import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff, CreditCard, Megaphone } from 'lucide-react';
+import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff, CreditCard, Megaphone, HelpCircle, BookOpen } from 'lucide-react';
+import ScoringFormatsModal from '../components/ScoringFormatsModal.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { settingsApi, authApi, uploadApi } from '../api.js';
@@ -28,6 +29,7 @@ const formatMinutes = (minutes) => {
 export default function Settings() {
   const { data: settings, isLoading, refetch } = useSettings();
   const { showToast } = useToast();
+  const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
   const updateSettings = useUpdateSettings();
   const resetDb = useResetDatabase();
   const { isAdmin, isAuthenticated } = useAuth();
@@ -1241,7 +1243,17 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1 text-gray-550">Scoring Format</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-medium text-gray-550">Scoring Format</label>
+                        <button
+                          type="button"
+                          onClick={() => setIsFormatModalOpen(true)}
+                          className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline font-medium cursor-pointer"
+                        >
+                          <HelpCircle size={12} />
+                          <span>Explain Formats</span>
+                        </button>
+                      </div>
                       <select
                         value={newSport.scoring_type}
                         onChange={(e) => setNewSport(s => ({ ...s, scoring_type: e.target.value }))}
@@ -2000,6 +2012,13 @@ Please log in to manage fixtures and scores.`}
           )}
         </div>
       </div>
+
+      <ScoringFormatsModal
+        isOpen={isFormatModalOpen}
+        onClose={() => setIsFormatModalOpen(false)}
+        currentFormat={newSport.scoring_type}
+        onSelectFormat={(fKey) => setNewSport(s => ({ ...s, scoring_type: fKey }))}
+      />
     </div>
   );
 }

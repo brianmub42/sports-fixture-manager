@@ -21,6 +21,7 @@ import {
   ArrowRight,
   BookOpen
 } from 'lucide-react';
+import ScoringFormatsModal from './ScoringFormatsModal.jsx';
 
 const PAGE_GUIDES = {
   '/': {
@@ -119,6 +120,7 @@ const PAGE_GUIDES = {
 export default function HelpWizard() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -277,6 +279,26 @@ export default function HelpWizard() {
               </div>
             )}
 
+            {/* Scoring Formats Explainer Banner */}
+            <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
+                  <span className="text-blue-500">🏆</span>
+                  <span>Scoring Formats Guide</span>
+                </p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-tight">
+                  Round-robins, groups, playoffs, &amp; athletics time ranking rules.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFormatModalOpen(true)}
+                className="shrink-0 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold shadow-sm transition-colors cursor-pointer"
+              >
+                Explain Formats
+              </button>
+            </div>
+
             {/* Quick Navigation Panel */}
             <div className="space-y-2.5 pt-2">
               <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
@@ -316,6 +338,11 @@ export default function HelpWizard() {
           </div>
         </div>
       )}
+
+      <ScoringFormatsModal
+        isOpen={isFormatModalOpen}
+        onClose={() => setIsFormatModalOpen(false)}
+      />
     </div>
   );
 }

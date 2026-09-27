@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useStandings, useStandingsEvents } from '../hooks/useStandings.js';
 import { useSettings, useSports, useTeamSchedule } from '../hooks/useFixtures.js';
 import TeamPill from '../components/TeamPill.jsx';
-import { Download, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, Trophy, ChevronDown, ChevronUp, BookOpen, HelpCircle } from 'lucide-react';
 import { exportStandingsToPDF } from '../utils/pdfExport.js';
+import ScoringFormatsModal from '../components/ScoringFormatsModal.jsx';
 
 function TeamResultsBreakdown({ teamCode, teamName, sportName }) {
   const { data: fixtures, isLoading } = useTeamSchedule(teamCode);
@@ -115,6 +116,7 @@ export default function Standings({
   const [sport, setSport] = useState('');
   const [eventId, setEventId] = useState('all');
   const [expandedTeam, setExpandedTeam] = useState(null);
+  const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
 
   const { data: hookSportsData, isLoading: loadingSports } = useSports({ enabled: !isCustom });
   const { data: hookStandings, isLoading: loadingStandings } = useStandings(sport, eventId, { enabled: !isCustom && !!sport });
@@ -213,8 +215,19 @@ export default function Standings({
 
           <div className="k-card">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b border-gray-100 dark:border-gray-800 pb-3">
-              <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {sport} — {sport === 'Athletics' ? 'Track Events' : 'Round-Robin Standings'}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  {sport} — {sport === 'Athletics' ? 'Track Events' : 'Round-Robin Standings'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsFormatModalOpen(true)}
+                  className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium px-2 py-0.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                  title="View scoring rules and standings calculation breakdown"
+                >
+                  <BookOpen size={12} />
+                  <span>Scoring Rules</span>
+                </button>
               </div>
               
               {isPlacement && eventsList && eventsList.length > 0 && (
@@ -388,6 +401,12 @@ export default function Standings({
           </div>
         </div>
       )}
+
+      <ScoringFormatsModal
+        isOpen={isFormatModalOpen}
+        onClose={() => setIsFormatModalOpen(false)}
+        currentFormat={isPlacement ? 'placement' : (selectedSportObj?.scoring_type || 'single')}
+      />
     </div>
   );
 }

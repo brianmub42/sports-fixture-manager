@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateApi } from '../api.js';
-import { Wand2, Save, Clock, Users, MapPin, Calendar, RotateCcw, CheckCircle, AlertTriangle, ShieldAlert, Trophy } from 'lucide-react';
+import { Wand2, Save, Clock, Users, MapPin, Calendar, RotateCcw, CheckCircle, AlertTriangle, ShieldAlert, Trophy, HelpCircle, BookOpen } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useVenues, useSports, useTeams } from '../hooks/useFixtures.js';
 import { useToast } from '../contexts/ToastContext.jsx';
+import ScoringFormatsModal from '../components/ScoringFormatsModal.jsx';
 
 const getLocalDateTimeString = () => {
   const now = new Date();
@@ -444,6 +445,7 @@ export default function GeneratePage() {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
+  const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
 
   const [guideActive, setGuideActive] = useState(false);
   const [guideStep, setGuideStep] = useState(1);
@@ -881,7 +883,17 @@ export default function GeneratePage() {
                 : ''
             }`}
           >
-            <label className="block text-sm font-medium mb-1.5">Format</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium">Format</label>
+              <button
+                type="button"
+                onClick={() => setIsFormatModalOpen(true)}
+                className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline font-medium cursor-pointer"
+              >
+                <HelpCircle size={13} />
+                <span>Explain Formats</span>
+              </button>
+            </div>
             <select
               value={form.format}
               onChange={(e) => handleChange('format', e.target.value)}
@@ -1189,7 +1201,18 @@ export default function GeneratePage() {
               {guideStep === 2 && 'Select which teams will participate. You can search, select all registered teams, clear selection, or add custom guest teams not in the database.'}
               {guideStep === 3 && (isPlacementSport 
                 ? 'For Athletics, select the Events, Genders, and Age Groups to automatically compile all three-way combinations (e.g. 100m Boys U13).'
-                : 'Choose your desired match schedule format: Single Round-Robin, Double Round-Robin, Group Stage, or Playoffs.')}
+                : (
+                  <span>
+                    Choose your desired match schedule format: Single Round-Robin, Double Round-Robin, Group Stage, or Playoffs.{' '}
+                    <button
+                      type="button"
+                      onClick={() => setIsFormatModalOpen(true)}
+                      className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 font-bold hover:underline ml-1 cursor-pointer"
+                    >
+                      <BookOpen size={11} /> Explain Formats
+                    </button>
+                  </span>
+                ))}
               {guideStep === 4 && 'Define the start date & time, the duration of each event/match slot, and the buffer/break times in between.'}
               {guideStep === 5 && 'Specify where the games will take place (venues) and the number of events or matches that can run simultaneously.'}
               {guideStep === 6 && 'Click "Preview Schedule" to review the times, slots, and matchups. Check for any venue conflict warnings, then click "Save to Database" to publish.'}
@@ -1276,6 +1299,13 @@ export default function GeneratePage() {
           </div>
         </div>
       )}
+
+      <ScoringFormatsModal
+        isOpen={isFormatModalOpen}
+        onClose={() => setIsFormatModalOpen(false)}
+        currentFormat={form.format}
+        onSelectFormat={(fKey) => handleChange('format', fKey)}
+      />
     </div>
   );
 }
