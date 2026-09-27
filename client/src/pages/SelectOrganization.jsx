@@ -225,7 +225,7 @@ export default function SelectOrganization() {
             <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
               <Calendar className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-lg mb-2">Fixtures</h3>
+            <h3 className="font-bold text-lg mb-2">Tournament Fixtures</h3>
             <p className="text-slate-400 text-sm leading-relaxed">
               Schedule matches across teams and venues dynamically with built-in clash detection.
             </p>

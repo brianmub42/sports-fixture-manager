@@ -1045,7 +1045,7 @@ export default function Settings() {
                 <h2 className="text-lg font-semibold">Points Allocation &amp; Positions</h2>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
-                Configure the points awarded to teams based on their position/placement in Athletics/Novelty events, and the overall sport standings.
+                Configure the points awarded to teams based on their position/placement in Athletics/Aquatics events, and the overall sport standings.
               </p>
 
               {pointsAllocation.length === 0 ? (
@@ -1209,7 +1209,7 @@ export default function Settings() {
                                   s.scoring_type === 'group' ? 'Group Stage' :
                                   s.scoring_type === 'playoff' ? 'Single Elimination Playoff' : 'Points-based'
                                 }` 
-                              : 'Placement / Novelty'}
+                              : 'Placement / Aquatics'}
                           </p>
                         </div>
                         <button
@@ -1252,7 +1252,7 @@ export default function Settings() {
                         <option value="double">Double Round-Robin — Each pair plays twice (home + away)</option>
                         <option value="group">Group Stage — Teams split into groups, round-robin within each</option>
                         <option value="playoff">Single Elimination Playoff — Knockout tournament (requires 4 or 8 teams)</option>
-                        <option value="placement">Placement-Based (Athletics & Novelty Runs)</option>
+                        <option value="placement">Placement-Based (Athletics & Aquatics)</option>
                       </select>
                     </div>
                   </div>

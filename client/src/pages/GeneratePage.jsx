@@ -21,7 +21,7 @@ const ALL_FORMATS = [
   { value: 'double', label: 'Double Round-Robin', desc: 'Each pair plays twice (home + away)' },
   { value: 'group', label: 'Group Stage', desc: 'Teams split into groups, round-robin within each' },
   { value: 'playoff', label: 'Single Elimination Playoff', desc: 'Knockout tournament (requires 4 or 8 teams)' },
-  { value: 'placement', label: 'Placement-Based (Athletics & Novelty Runs)', desc: 'Schedule all event-category combinations' }
+  { value: 'placement', label: 'Placement-Based (Athletics & Aquatics)', desc: 'Schedule all event-category combinations' }
 ];
 
 const OLYMPIC_EVENTS_GROUPS = [

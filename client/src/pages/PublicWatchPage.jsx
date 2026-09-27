@@ -389,7 +389,7 @@ export default function PublicWatchPage() {
             }`}
           >
             <Calendar size={14} />
-            <span>Fixtures &amp; Schedule</span>
+            <span>Tournament Fixtures</span>
           </button>
         </div>
 

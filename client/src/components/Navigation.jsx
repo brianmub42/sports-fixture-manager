@@ -26,8 +26,8 @@ const categories = [
     icon: Play,
     links: [
       { to: '/live', label: 'Live Scores', icon: Activity },
-      { to: '/fixtures', label: 'Fixtures', icon: Calendar },
-      { to: '/athletics', label: 'Athletics & Novelty', icon: Award },
+      { to: '/fixtures', label: 'Tournament Fixtures', icon: Calendar },
+      { to: '/athletics', label: 'Athletics & Aquatics', icon: Award },
       { to: '/brackets', label: 'Brackets', icon: Network },
     ]
   },

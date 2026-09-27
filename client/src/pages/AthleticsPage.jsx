@@ -248,7 +248,7 @@ export default function AthleticsPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Trophy className="text-orange-500" />
-            Athletics & Novelty Events
+            Athletics & Aquatics Events
           </h1>
           <p className="text-gray-500 dark:text-gray-400">View and manage placement-based sports fixtures and results</p>
         </div>

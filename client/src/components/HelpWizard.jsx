@@ -94,8 +94,8 @@ const PAGE_GUIDES = {
     proTip: 'Upload sponsor logo images to display them in the rotating carousel footer on every page.',
   },
   '/athletics': {
-    title: 'Athletics Event Manager',
-    desc: 'Log and calculate placements (1st, 2nd, 3rd) and award championship points for individual athletics tracks, novelty runs, and field events.',
+    title: 'Athletics & Aquatics Event Manager',
+    desc: 'Log and calculate placements (1st, 2nd, 3rd) and award championship points for individual athletics tracks, aquatics events, and field events.',
     icon: Activity,
     role: 'Admins & Referees',
     proTip: 'Points are allocated automatically based on final rankings and stored in the district results matrix.',

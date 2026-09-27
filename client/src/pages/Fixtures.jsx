@@ -58,7 +58,7 @@ export default function Fixtures({
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Calendar className="text-blue-500" />
-            Match Fixtures
+            Tournament Fixtures
           </h1>
           <p className="text-gray-500 dark:text-gray-400">Complete tournament schedule</p>
         </div>
