@@ -301,7 +301,11 @@ export default function PublicWatchPage() {
             {latestResult.results && latestResult.results.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {latestResult.results.slice(0, 3).map((r) => {
-                  const medalEmoji = r.placement === 1 ? '🥇 1st' : r.placement === 2 ? '🥈 2nd' : '🥉 3rd';
+                  const medalEmoji = r.status && r.status !== 'OK'
+                    ? r.status
+                    : r.tied
+                    ? `T-${r.placement}${r.placement === 1 ? 'st' : r.placement === 2 ? 'nd' : 'rd'}`
+                    : r.placement === 1 ? '🥇 1st' : r.placement === 2 ? '🥈 2nd' : '🥉 3rd';
                   const medalBorder = r.placement === 1
                     ? 'border-yellow-400/80 bg-yellow-50/60 dark:bg-yellow-950/20 text-yellow-900 dark:text-yellow-200'
                     : r.placement === 2
@@ -309,7 +313,7 @@ export default function PublicWatchPage() {
                     : 'border-amber-600/60 bg-amber-50/60 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200';
                   return (
                     <div
-                      key={r.placement}
+                      key={r.teamId || r.placement}
                       className={`p-3 rounded-xl border flex items-center justify-between ${medalBorder}`}
                     >
                       <div className="flex items-center gap-2">

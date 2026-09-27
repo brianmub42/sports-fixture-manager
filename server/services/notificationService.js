@@ -318,7 +318,11 @@ export async function notifyPlacementResults({ orgId, orgSlug, eventInfo, result
     const teamId = r.teamId;
     const teamName = r.teamName || 'Your team';
     const placement = r.placement;
-    const placementStr = placement === 1 ? '1st' : placement === 2 ? '2nd' : placement === 3 ? '3rd' : `${placement}th`;
+    const placementStr = r.status && r.status !== 'OK'
+      ? r.status
+      : r.tied
+      ? `T-${placement === 1 ? '1st' : placement === 2 ? '2nd' : placement === 3 ? '3rd' : `${placement}th`}`
+      : placement === 1 ? '1st' : placement === 2 ? '2nd' : placement === 3 ? '3rd' : `${placement}th`;
     const timeOrPts = r.timeFormatted || (r.points ? `+${r.points} pts` : '');
 
     const title = `${teamName} — ${eventName} Result`;

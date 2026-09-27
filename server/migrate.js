@@ -87,6 +87,9 @@ async function migrate() {
 
       CREATE INDEX IF NOT EXISTS idx_push_subs_org_team ON push_subscriptions(organization_id, followed_type, followed_id);
       CREATE INDEX IF NOT EXISTS idx_push_subs_device ON push_subscriptions(organization_id, device_id);
+
+      ALTER TABLE athletics_results ADD COLUMN IF NOT EXISTS tied BOOLEAN DEFAULT FALSE;
+      ALTER TABLE athletics_results ADD COLUMN IF NOT EXISTS status VARCHAR(10) DEFAULT 'OK';
     `);
     console.log('Migration successful');
   } catch (err) {

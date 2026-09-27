@@ -52,6 +52,208 @@ const getPlacementLabel = (num, pointsAllocation) => {
   return `${num}${suffix} (${pts} pts)${requiredStar}`;
 };
 
+// -------------------------------------------------------------
+// Stopwatch-Style Time Formatting & Parsing Helpers
+// Raw 6-digit buffer (MMSSCC), right-to-left typing, auto mm:ss.ss
+// -------------------------------------------------------------
+function formatTimeBuffer(buffer) {
+  if (!buffer || buffer.length === 0) return '';
+  const padded = buffer.padStart(6, '0');
+  const mm = padded.slice(0, 2);
+  const ss = padded.slice(2, 4);
+  const cc = padded.slice(4, 6);
+  return `${mm}:${ss}.${cc}`;
+}
+
+function bufferToTotalSeconds(buffer) {
+  if (!buffer || buffer.length === 0) return null;
+  const padded = buffer.padStart(6, '0');
+  const mm = parseInt(padded.slice(0, 2), 10);
+  const ss = parseInt(padded.slice(2, 4), 10);
+  const cc = parseInt(padded.slice(4, 6), 10);
+  return mm * 60 + ss + cc / 100;
+}
+
+function msToTimeBuffer(ms) {
+  if (ms == null || isNaN(ms)) return '';
+  const totalSec = ms / 1000;
+  const mm = Math.floor(totalSec / 60);
+  const ss = Math.floor(totalSec % 60);
+  const cc = Math.round((totalSec - Math.floor(totalSec)) * 100);
+  const raw = `${String(mm).padStart(2, '0')}${String(ss).padStart(2, '0')}${String(cc).padStart(2, '0')}`;
+  const stripped = raw.replace(/^0+(?=\d)/, '');
+  return stripped === '0' ? '' : stripped;
+}
+
+function formatTimeDisplay(ms) {
+  if (ms == null || isNaN(ms)) return null;
+  const totalSec = ms / 1000;
+  const mm = Math.floor(totalSec / 60);
+  const ss = Math.floor(totalSec % 60);
+  const cc = Math.round((totalSec - Math.floor(totalSec)) * 100);
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.${String(cc).padStart(2, '0')}`;
+}
+
+// Compute live placements with dead heats / skip-rank convention:
+// tied 1st -> both "1st", next real time -> "3rd" (2nd skipped). Points follow shared place.
+function computeTimePlacements(lanes, pointsAllocation) {
+  const processed = (lanes || []).map((lane, originalIndex) => {
+    const isSpecialStatus = ['DNS', 'DNF', 'DQ'].includes(lane.status);
+    const hasTime = !isSpecialStatus && !!lane.rawBuffer && lane.rawBuffer.length > 0;
+    const totalSeconds = hasTime ? bufferToTotalSeconds(lane.rawBuffer) : null;
+    return {
+      ...lane,
+      originalIndex,
+      hasTime,
+      totalSeconds,
+      timeMs: totalSeconds != null ? Math.round(totalSeconds * 1000) : null,
+      placement: null,
+      tied: false,
+      points: 0
+    };
+  });
+
+  const timed = processed.filter(l => l.hasTime && l.totalSeconds != null);
+  timed.sort((a, b) => a.totalSeconds - b.totalSeconds);
+
+  for (let i = 0; i < timed.length; i++) {
+    if (i > 0 && timed[i].totalSeconds === timed[i - 1].totalSeconds) {
+      timed[i].placement = timed[i - 1].placement;
+      timed[i].tied = true;
+      timed[i - 1].tied = true;
+    } else {
+      timed[i].placement = i + 1; // 0-indexed + 1 skip rank
+      timed[i].tied = false;
+    }
+  }
+
+  for (let i = 0; i < timed.length - 1; i++) {
+    if (timed[i].totalSeconds === timed[i + 1].totalSeconds) {
+      timed[i].tied = true;
+    }
+  }
+
+  timed.forEach(l => {
+    if (pointsAllocation && l.placement != null) {
+      const pts = pointsAllocation[l.placement] ?? pointsAllocation[String(l.placement)] ?? 0;
+      l.points = Number(pts);
+    }
+  });
+
+  const timedMap = new Map(timed.map(t => [t.originalIndex, t]));
+  return processed.map(l => timedMap.get(l.originalIndex) || l);
+}
+
+function getPlacementBadge(placement, tied, status, points) {
+  if (status && status !== 'OK') {
+    return {
+      label: status,
+      pointsText: '0 pts',
+      bgClass: 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-bold'
+    };
+  }
+  if (!placement) {
+    return {
+      label: '—',
+      pointsText: '',
+      bgClass: 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 border-gray-200 dark:border-gray-700'
+    };
+  }
+  const suffix = placement === 1 ? 'st' : placement === 2 ? 'nd' : placement === 3 ? 'rd' : 'th';
+  const prefix = tied ? 'T-' : '';
+  const label = `${prefix}${placement}${suffix}`;
+  const pointsText = points != null ? `+${points} pts` : '';
+
+  let bgClass = 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700 font-semibold';
+  if (placement === 1) {
+    bgClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700 font-black';
+  } else if (placement === 2) {
+    bgClass = 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700 font-bold';
+  } else if (placement === 3) {
+    bgClass = 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400 border-amber-300 dark:border-amber-700 font-bold';
+  }
+
+  return { label, pointsText, bgClass };
+}
+
+function StopwatchTimeInput({ value = '', onChange, disabled, placeholder = '00:00.00' }) {
+  const displayValue = formatTimeBuffer(value);
+
+  const handleKeyDown = (e) => {
+    if (disabled) return;
+
+    if (['Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Escape', 'Enter'].includes(e.key)) {
+      return;
+    }
+
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      onChange(value.slice(0, -1));
+      return;
+    }
+
+    if (e.key === 'Delete') {
+      e.preventDefault();
+      onChange('');
+      return;
+    }
+
+    if (/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      if (value.length < 6) {
+        const next = value === '0' ? e.key : value + e.key;
+        if (next.length <= 6) {
+          onChange(next);
+        }
+      }
+      return;
+    }
+
+    // Ignore non-numeric keys (colon, dot, letter, symbol)
+    e.preventDefault();
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    if (disabled) return;
+    const text = e.clipboardData.getData('text');
+    const digits = text.replace(/\D/g, '').slice(0, 6);
+    if (digits) onChange(digits);
+  };
+
+  return (
+    <div className="relative flex items-center w-full">
+      <input
+        type="text"
+        inputMode="numeric"
+        disabled={disabled}
+        value={displayValue}
+        placeholder={placeholder}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        onChange={() => {}}
+        className={`w-full py-1.5 px-2 text-center font-mono text-xs rounded-lg border transition-all ${
+          disabled
+            ? 'bg-gray-100 dark:bg-gray-800/40 text-gray-400 border-gray-200 dark:border-gray-800 cursor-not-allowed'
+            : value
+            ? 'bg-blue-50/60 dark:bg-blue-950/30 text-blue-600 dark:text-blue-300 font-bold border-blue-400 dark:border-blue-700'
+            : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 focus:border-blue-500'
+        }`}
+      />
+      {value && !disabled && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="absolute right-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 text-[10px]"
+          title="Clear time"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function AthleticsPage() {
   const { isAuthenticated } = useAuth();
   const { showToast } = useToast();
@@ -87,7 +289,9 @@ export default function AthleticsPage() {
   const [eventStatus, setEventStatus] = useState('upcoming');
 
   // Form States for Results Logging
+  const [entryMode, setEntryMode] = useState('manual'); // 'manual' | 'by_time'
   const [placements, setPlacements] = useState([]);
+  const [lanes, setLanes] = useState([]);
 
   // Handle Event Modal Open
   const openEventModal = (event = null) => {
@@ -157,39 +361,155 @@ export default function AthleticsPage() {
     }
   };
 
+  // Handle Lane Management in By Time Mode
+  const handleAddLane = () => {
+    setLanes(prev => [
+      ...prev,
+      {
+        laneNumber: prev.length + 1,
+        teamId: '',
+        rawBuffer: '',
+        status: 'OK'
+      }
+    ]);
+  };
+
+  const handleRemoveLane = (idxToRemove) => {
+    if (lanes.length <= 2) return;
+    setLanes(prev => prev.filter((_, i) => i !== idxToRemove).map((l, i) => ({ ...l, laneNumber: i + 1 })));
+  };
+
   // Handle Result Modal Open
   const openResultModal = (event) => {
     setSelectedEventForResults(event);
     
-    // Pre-populate if results already exist
+    // 1. Prepare Manual placements array
     const totalPositions = teams?.length || 6;
     const newPlacements = Array(totalPositions).fill(null).map(() => ({ teamId: '', timeSec: '' }));
+
+    // 2. Prepare By Time lanes array with participating teams
+    const defaultLanes = (teams || []).map((t, idx) => ({
+      laneNumber: idx + 1,
+      teamId: t.id.toString(),
+      rawBuffer: '',
+      status: 'OK'
+    }));
+
+    while (defaultLanes.length < Math.max(6, (teams?.length || 6))) {
+      defaultLanes.push({
+        laneNumber: defaultLanes.length + 1,
+        teamId: '',
+        rawBuffer: '',
+        status: 'OK'
+      });
+    }
+
+    let hasTimeResults = false;
+
     if (event.results && event.results.length > 0) {
       event.results.forEach(r => {
-        const index = r.placement - 1;
+        // Manual mode pre-population
+        const index = r.placement ? r.placement - 1 : -1;
         if (index >= 0 && index < totalPositions) {
           newPlacements[index] = {
             teamId: r.team_id.toString(),
             timeSec: r.time_ms ? (r.time_ms / 1000).toString() : ''
           };
         }
+        if (r.time_ms) {
+          hasTimeResults = true;
+        }
+
+        // By Time mode pre-population
+        const matchingLane = defaultLanes.find(l => l.teamId === r.team_id.toString());
+        if (matchingLane) {
+          matchingLane.rawBuffer = r.time_ms ? msToTimeBuffer(r.time_ms) : '';
+          matchingLane.status = r.status || 'OK';
+        } else {
+          const emptyLane = defaultLanes.find(l => !l.teamId);
+          if (emptyLane) {
+            emptyLane.teamId = r.team_id.toString();
+            emptyLane.rawBuffer = r.time_ms ? msToTimeBuffer(r.time_ms) : '';
+            emptyLane.status = r.status || 'OK';
+          }
+        }
       });
     }
+
     setPlacements(newPlacements);
+    setLanes(defaultLanes);
+    setEntryMode(hasTimeResults ? 'by_time' : 'manual');
     setIsResultModalOpen(true);
   };
 
-  // Handle Save Results
+  // Handle Save Results (supports both Manual and By Time modes)
   const handleSaveResults = (e) => {
     e.preventDefault();
 
-    // Verify that at least 1st place is entered
+    if (entryMode === 'by_time') {
+      const computedLanes = computeTimePlacements(lanes, settings?.points_allocation);
+
+      // Verify no duplicate teams assigned
+      const selectedTeamIds = computedLanes.map(l => l.teamId).filter(id => id !== '');
+      const uniqueTeamIds = new Set(selectedTeamIds);
+      if (selectedTeamIds.length !== uniqueTeamIds.size) {
+        alert('A team cannot be selected for multiple lanes.');
+        return;
+      }
+
+      // Filter entries with an assigned team and either a valid time or DNS/DNF/DQ status
+      const validEntries = computedLanes.filter(l => l.teamId && (l.hasTime || ['DNS', 'DNF', 'DQ'].includes(l.status)));
+      if (validEntries.length === 0) {
+        alert('Please assign teams and enter at least one participant time or result.');
+        return;
+      }
+
+      // Verify at least one competitor was timed to determine 1st place
+      if (!computedLanes.some(l => l.placement === 1 && l.teamId)) {
+        alert('At least one competitor must have a completed time to determine 1st place.');
+        return;
+      }
+
+      // Verify points allocation is configured in settings
+      const unconfiguredPlacements = [];
+      computedLanes.forEach(l => {
+        if (l.teamId && l.placement) {
+          const ptsAllocation = settings?.points_allocation;
+          if (!ptsAllocation || (ptsAllocation[l.placement] === undefined && ptsAllocation[String(l.placement)] === undefined)) {
+            unconfiguredPlacements.push(l.placement);
+          }
+        }
+      });
+
+      if (unconfiguredPlacements.length > 0) {
+        alert(`Point allocation for Position(s) ${[...new Set(unconfiguredPlacements)].join(', ')} is not configured in Settings. Please ask the administrator to configure points for all positions before saving results.`);
+        return;
+      }
+
+      const resultsPayload = validEntries.map(l => ({
+        teamId: parseInt(l.teamId, 10),
+        placement: l.placement || null,
+        points: l.points || 0,
+        timeMs: l.timeMs || null,
+        tied: !!l.tied,
+        status: l.status || 'OK'
+      }));
+
+      saveResults.mutate({ id: selectedEventForResults.id, results: resultsPayload }, {
+        onSuccess: () => {
+          setIsResultModalOpen(false);
+          showToast('Event results logged successfully!', 'success');
+        }
+      });
+      return;
+    }
+
+    // Manual Mode
     if (!placements[0] || !placements[0].teamId) {
       alert('1st place must be assigned to log results.');
       return;
     }
 
-    // Check for duplicate team selections
     const selectedTeamIds = placements.map(p => p.teamId).filter(id => id !== '');
     const uniqueTeamIds = new Set(selectedTeamIds);
     if (selectedTeamIds.length !== uniqueTeamIds.size) {
@@ -197,7 +517,6 @@ export default function AthleticsPage() {
       return;
     }
 
-    // Check if points allocation is configured for all logged placements
     const unconfiguredPlacements = [];
     placements.forEach((p, idx) => {
       if (p.teamId) {
@@ -214,14 +533,15 @@ export default function AthleticsPage() {
       return;
     }
 
-    // Format results payload
     const resultsPayload = placements
       .map((p, idx) => {
         if (!p.teamId) return null;
         return {
-          teamId: parseInt(p.teamId),
+          teamId: parseInt(p.teamId, 10),
           placement: idx + 1,
-          timeMs: p.timeSec ? Math.round(parseFloat(p.timeSec) * 1000) : null
+          timeMs: p.timeSec ? Math.round(parseFloat(p.timeSec) * 1000) : null,
+          tied: false,
+          status: 'OK'
         };
       })
       .filter(r => r !== null);
@@ -375,23 +695,24 @@ export default function AthleticsPage() {
                     </h4>
                     <div className="grid grid-cols-1 gap-2">
                       {event.results.slice(0, 3).map((r, i) => (
-                        <div key={r.id} className="flex justify-between items-center py-1 border-b border-gray-100/50 dark:border-gray-800 last:border-0">
+                        <div key={r.id || `${r.placement}-${r.team_id}`} className="flex justify-between items-center py-1 border-b border-gray-100/50 dark:border-gray-800 last:border-0">
                           <div className="flex items-center gap-2">
-                            <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${
-                              i === 0 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-400' :
-                              i === 1 ? 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-300' :
-                              'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
+                            <span className={`min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full text-[10px] font-bold ${
+                              r.placement === 1 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-400' :
+                              r.placement === 2 ? 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-300' :
+                              r.placement === 3 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400' :
+                              'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
                             }`}>
-                              {r.placement}
+                              {r.status && r.status !== 'OK' ? r.status : (r.tied ? `T-${r.placement}` : r.placement)}
                             </span>
                             <TeamPill code={r.team_code} name={r.team_name} logoUrl={r.team_logo} />
                           </div>
                           <div className="flex items-center gap-2 text-xs font-medium">
-                            {r.time_ms && (
+                            {r.time_ms ? (
                               <span className="font-mono text-gray-400">
-                                {(r.time_ms / 1000).toFixed(2)}s
+                                {formatTimeDisplay(r.time_ms)}
                               </span>
-                            )}
+                            ) : null}
                             <span className="text-gray-500">+{r.points} pts</span>
                           </div>
                         </div>
@@ -573,9 +894,12 @@ export default function AthleticsPage() {
       {/* LOG RESULTS MODAL */}
       {isResultModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 w-full max-w-md p-6 rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 w-full max-w-xl p-6 rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Log Placements</h2>
+              <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                <Award className="text-yellow-500" size={20} />
+                Log Event Results
+              </h2>
               <button onClick={() => setIsResultModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={18} />
               </button>
@@ -583,6 +907,34 @@ export default function AthleticsPage() {
             <p className="text-xs text-gray-400 mb-4 uppercase font-semibold">
               Event: {selectedEventForResults?.name} ({selectedEventForResults?.category})
             </p>
+
+            {/* Mode Switcher: Manual vs By Time */}
+            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4 border border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={() => setEntryMode('manual')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  entryMode === 'manual'
+                    ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                }`}
+              >
+                <Award size={14} />
+                <span>Manual Mode</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryMode('by_time')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  entryMode === 'by_time'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                }`}
+              >
+                <Clock size={14} />
+                <span>By Time Mode</span>
+              </button>
+            </div>
 
             {!settings?.points_allocation ? (
               <div className="space-y-4 mt-2">
@@ -601,64 +953,196 @@ export default function AthleticsPage() {
               </div>
             ) : (
               <form onSubmit={handleSaveResults} className="space-y-4">
-                <div className="space-y-3">
-                {placements.map((p, idx) => {
-                  const num = idx + 1;
-                  const placeLabel = getPlacementLabel(num, settings?.points_allocation);
-                  return (
-                    <div key={num} className="grid grid-cols-3 gap-2 items-center text-xs">
-                      <label className="col-span-1 font-bold text-gray-500 uppercase">{placeLabel}</label>
-                      <select
-                        required={num === 1}
-                        value={p.teamId}
-                        onChange={e => {
-                          const updated = [...placements];
-                          updated[idx].teamId = e.target.value;
-                          setPlacements(updated);
-                        }}
-                        className="col-span-1 p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100"
-                      >
-                        <option value="">-- Select --</option>
-                        {teams?.map(t => (
-                          <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        step="0.001"
-                        min="0"
-                        placeholder="Time (optional)"
-                        value={p.timeSec}
-                        onChange={e => {
-                          const updated = [...placements];
-                          updated[idx].timeSec = e.target.value;
-                          setPlacements(updated);
-                        }}
-                        className="col-span-1 p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 font-mono"
-                      />
+                {entryMode === 'by_time' ? (
+                  /* BY TIME MODE */
+                  <div className="space-y-3">
+                    <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/40 rounded-xl text-xs flex items-start gap-2 text-blue-800 dark:text-blue-300">
+                      <Clock size={16} className="shrink-0 mt-0.5 text-blue-500" />
+                      <div>
+                        <p className="font-bold">Stopwatch-Style Entry (mm:ss.ss)</p>
+                        <p className="text-[11px] opacity-80 mt-0.5 leading-relaxed">
+                          Digits type right-to-left automatically. Placements, skip-ranks, dead heats (e.g. T-1st), and points update live.
+                        </p>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                <button
-                  type="button"
-                  onClick={() => setIsResultModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium text-xs transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saveResults.isLoading}
-                  className="px-4 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-lg font-semibold text-xs flex items-center gap-1.5 transition-colors"
-                >
-                  <Award size={14} />
-                  Save Results
-                </button>
-              </div>
-            </form>
+                    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50/90 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800 text-gray-500 font-semibold">
+                          <tr>
+                            <th className="py-2 px-2 text-left w-12">Lane</th>
+                            <th className="py-2 px-2 text-left">Team</th>
+                            <th className="py-2 px-2 text-center w-32">Time (mm:ss.ss)</th>
+                            <th className="py-2 px-2 text-center w-20">Status</th>
+                            <th className="py-2 px-2 text-center w-24">Rank &amp; Pts</th>
+                            <th className="py-2 px-1 text-center w-7"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
+                          {computeTimePlacements(lanes, settings?.points_allocation).map((lane, idx) => {
+                            const badge = getPlacementBadge(lane.placement, lane.tied, lane.status, lane.points);
+                            return (
+                              <tr key={idx} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition-colors">
+                                <td className="py-2 px-2 font-bold text-gray-500">
+                                  <span className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-mono">
+                                    L{lane.laneNumber}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-2">
+                                  <select
+                                    value={lane.teamId}
+                                    onChange={e => {
+                                      const updated = [...lanes];
+                                      updated[idx].teamId = e.target.value;
+                                      setLanes(updated);
+                                    }}
+                                    className="w-full p-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 text-xs"
+                                  >
+                                    <option value="">-- Unassigned --</option>
+                                    {teams?.map(t => (
+                                      <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="py-2 px-2">
+                                  <StopwatchTimeInput
+                                    value={lane.rawBuffer}
+                                    disabled={lane.status !== 'OK'}
+                                    onChange={newBuffer => {
+                                      const updated = [...lanes];
+                                      updated[idx].rawBuffer = newBuffer;
+                                      setLanes(updated);
+                                    }}
+                                  />
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  <select
+                                    value={lane.status}
+                                    onChange={e => {
+                                      const updated = [...lanes];
+                                      updated[idx].status = e.target.value;
+                                      if (e.target.value !== 'OK') {
+                                        updated[idx].rawBuffer = '';
+                                      }
+                                      setLanes(updated);
+                                    }}
+                                    className={`w-full p-1.5 rounded-lg border text-xs font-semibold ${
+                                      lane.status === 'OK'
+                                        ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                                        : 'bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold'
+                                    }`}
+                                  >
+                                    <option value="OK">OK</option>
+                                    <option value="DNS">DNS</option>
+                                    <option value="DNF">DNF</option>
+                                    <option value="DQ">DQ</option>
+                                  </select>
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  <div className="flex flex-col items-center">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] border ${badge.bgClass}`}>
+                                      {badge.label}
+                                    </span>
+                                    {badge.pointsText && (
+                                      <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold mt-0.5">
+                                        {badge.pointsText}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-2 px-1 text-center">
+                                  {lanes.length > 2 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveLane(idx)}
+                                      className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                      title="Remove Lane"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-1">
+                      <button
+                        type="button"
+                        onClick={handleAddLane}
+                        className="px-2.5 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} /> Add Lane
+                      </button>
+                      <span className="text-[11px] text-gray-400">
+                        {lanes.filter(l => l.rawBuffer && l.rawBuffer.length > 0).length} of {lanes.length} lanes timed
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  /* MANUAL MODE */
+                  <div className="space-y-3">
+                    {placements.map((p, idx) => {
+                      const num = idx + 1;
+                      const placeLabel = getPlacementLabel(num, settings?.points_allocation);
+                      return (
+                        <div key={num} className="grid grid-cols-3 gap-2 items-center text-xs">
+                          <label className="col-span-1 font-bold text-gray-500 uppercase">{placeLabel}</label>
+                          <select
+                            required={num === 1}
+                            value={p.teamId}
+                            onChange={e => {
+                              const updated = [...placements];
+                              updated[idx].teamId = e.target.value;
+                              setPlacements(updated);
+                            }}
+                            className="col-span-1 p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100"
+                          >
+                            <option value="">-- Select --</option>
+                            {teams?.map(t => (
+                              <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            placeholder="Time (optional)"
+                            value={p.timeSec}
+                            onChange={e => {
+                              const updated = [...placements];
+                              updated[idx].timeSec = e.target.value;
+                              setPlacements(updated);
+                            }}
+                            className="col-span-1 p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 font-mono"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                  <button
+                    type="button"
+                    onClick={() => setIsResultModalOpen(false)}
+                    className="px-4 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saveResults.isLoading}
+                    className="px-4 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-lg font-semibold text-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <Award size={14} />
+                    Save Results
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>

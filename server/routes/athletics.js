@@ -33,7 +33,7 @@ router.get('/events', async (req, res) => {
       JOIN teams t ON ar.team_id = t.id
       JOIN athletics_events ae ON ar.event_id = ae.id
       WHERE ae.organization_id = $1
-      ORDER BY ar.placement ASC
+      ORDER BY CASE WHEN ar.placement IS NULL THEN 999 ELSE ar.placement END ASC, ar.time_ms ASC NULLS LAST
     `, [req.orgId]);
 
     const resultsByEvent = {};
@@ -135,7 +135,7 @@ router.get('/events/:id/results', async (req, res) => {
       JOIN teams t ON ar.team_id = t.id
       JOIN athletics_events ae ON ar.event_id = ae.id
       WHERE ar.event_id = $1 AND ae.organization_id = $2
-      ORDER BY ar.placement ASC
+      ORDER BY CASE WHEN ar.placement IS NULL THEN 999 ELSE ar.placement END ASC, ar.time_ms ASC NULLS LAST
     `, [eventId, req.orgId]);
 
     res.json(result.rows);
@@ -195,39 +195,41 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
 
     // Insert new results
     for (const r of results) {
-      let pts = null;
-      if (pointMap[r.placement] !== undefined) {
-        pts = Number(pointMap[r.placement]);
-      } else if (pointMap[String(r.placement)] !== undefined) {
-        pts = Number(pointMap[String(r.placement)]);
-      }
+      let pts = 0;
+      const status = r.status || 'OK';
+      const isOk = status === 'OK';
 
-      if (pts === null) {
-        throw new Error(`Points allocation for Position ${r.placement} has not been configured in Settings. Please configure all necessary positions before logging results.`);
+      if (isOk && r.placement) {
+        if (pointMap[r.placement] !== undefined) {
+          pts = Number(pointMap[r.placement]);
+        } else if (pointMap[String(r.placement)] !== undefined) {
+          pts = Number(pointMap[String(r.placement)]);
+        }
+
+        if (pts === null || isNaN(pts)) {
+          throw new Error(`Points allocation for Position ${r.placement} has not been configured in Settings. Please configure all necessary positions before logging results.`);
+        }
       }
 
       await query(`
-        INSERT INTO athletics_results (event_id, team_id, placement, points, time_ms)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [eventId, r.teamId, r.placement, pts, r.timeMs || null]);
+        INSERT INTO athletics_results (event_id, team_id, placement, points, time_ms, tied, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [eventId, r.teamId, isOk ? r.placement : null, pts, isOk ? (r.timeMs || null) : null, !!r.tied, status]);
     }
 
     // Update event status to completed
     await query('UPDATE athletics_events SET status = \'completed\' WHERE id = $1', [eventId]);
 
-    // Format time helper (e.g. 11.42s or 1:24.50)
+    // Format time helper (mm:ss.ss or ss.ss)
     const formatTime = (ms) => {
       if (ms == null) return null;
       const num = Number(ms);
       if (isNaN(num)) return null;
-      if (num < 60000) {
-        return `${(num / 1000).toFixed(2)}s`;
-      }
       const totalSeconds = Math.floor(num / 1000);
       const minutes = Math.floor(totalSeconds / 60);
       const seconds = totalSeconds % 60;
       const hundredths = Math.floor((num % 1000) / 10);
-      return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
     };
 
     // Fetch full event metadata & sport info
@@ -246,7 +248,7 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       FROM athletics_results ar
       JOIN teams t ON ar.team_id = t.id
       WHERE ar.event_id = $1
-      ORDER BY ar.placement ASC
+      ORDER BY CASE WHEN ar.placement IS NULL THEN 999 ELSE ar.placement END ASC, ar.time_ms ASC NULLS LAST
     `, [eventId]);
 
     const formattedResults = resultsDetailsRes.rows.map(r => ({
@@ -258,6 +260,8 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       teamLogo: r.team_logo,
       points: r.points,
       timeMs: r.time_ms,
+      tied: r.tied || false,
+      status: r.status || 'OK',
       timeFormatted: formatTime(r.time_ms)
     }));
 

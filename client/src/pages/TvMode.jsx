@@ -927,12 +927,12 @@ export default function TvMode() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {beamedResult.results.slice(3).map((r) => (
                         <div
-                          key={r.placement}
+                          key={r.teamId || r.placement}
                           className="flex items-center justify-between p-3 bg-gray-900/80 border border-gray-800/80 rounded-xl"
                         >
                           <div className="flex items-center gap-2.5">
-                            <span className="w-6 h-6 rounded-full bg-gray-800 text-gray-300 text-xs font-black flex items-center justify-center">
-                              {r.placement}
+                            <span className="w-8 h-6 rounded-full bg-gray-800 text-gray-300 text-xs font-black flex items-center justify-center">
+                              {r.status && r.status !== 'OK' ? r.status : (r.tied ? `T-${r.placement}` : r.placement)}
                             </span>
                             <span
                               className="w-2.5 h-2.5 rounded-full shrink-0"

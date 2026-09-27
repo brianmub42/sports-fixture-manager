@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS venues (
     id SERIAL PRIMARY KEY,
     organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
-    type VARCHAR(20) DEFAULT 'court',
+    type VARCHAR(20) DEFAULT 'court', -- court, pitch, field, track, pool, area
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(organization_id, name)
 );
@@ -91,6 +91,8 @@ CREATE TABLE IF NOT EXISTS athletics_results (
     placement INT,
     points INT,
     time_ms INT,
+    tied BOOLEAN DEFAULT FALSE,
+    status VARCHAR(10) DEFAULT 'OK',
     created_at TIMESTAMP DEFAULT NOW()
 );
 

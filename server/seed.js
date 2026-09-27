@@ -57,7 +57,8 @@ async function seed() {
     ['Track', 'track'],
     ['Field 1', 'field'],
     ['Field 2', 'field'],
-    ['Field 3', 'field']
+    ['Field 3', 'field'],
+    ['Swimming Pool', 'pool']
   ];
 
   for (const [name, type] of venues) {

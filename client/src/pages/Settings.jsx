@@ -1357,6 +1357,7 @@ export default function Settings() {
                         <option value="pitch">Pitch</option>
                         <option value="field">Field</option>
                         <option value="track">Track</option>
+                        <option value="pool">Pool</option>
                         <option value="area">Area</option>
                       </select>
                     </div>
