@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { useTeamSchedule, useTeams, useSettings } from '../hooks/useFixtures.js';
+import { useTeamSchedule, useTeams, useCreateTeam, useSettings } from '../hooks/useFixtures.js';
 import { usePlayers, useAddPlayer, useDeletePlayer } from '../hooks/usePlayers.js';
 import TeamPill from '../components/TeamPill.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { uploadApi } from '../api.js';
 import { useQueryClient } from '@tanstack/react-query';
-import { Upload, Calendar, Users, Plus, Trash2, ShieldAlert } from 'lucide-react';
+import { Upload, Calendar, Users, Plus, Trash2, ShieldAlert, X } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext.jsx';
 
 export default function Teams() {
@@ -13,10 +13,18 @@ export default function Teams() {
   const { data: settings } = useSettings();
   const { showToast } = useToast();
   const [selected, setSelected] = useState('');
-  const { isScorekeeper } = useAuth();
+  const { isScorekeeper, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+
+  // Add Team modal state
+  const [showAddTeamModal, setShowAddTeamModal] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [newTeamCode, setNewTeamCode] = useState('');
+  const [newTeamColor, setNewTeamColor] = useState('#2563eb');
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const createTeamMutation = useCreateTeam();
 
   // Add Player form state
   const [playerName, setPlayerName] = useState('');
@@ -39,14 +47,149 @@ export default function Teams() {
   const addPlayerMutation = useAddPlayer();
   const deletePlayerMutation = useDeletePlayer();
 
+  const handleCreateTeamSubmit = async (e) => {
+    e.preventDefault();
+    if (!newTeamName.trim() || !newTeamCode.trim()) return;
+
+    try {
+      setCreatingTeam(true);
+      const created = await createTeamMutation.mutateAsync({
+        name: newTeamName.trim(),
+        code: newTeamCode.trim().toUpperCase(),
+        color: newTeamColor
+      });
+      setSelected(created.code);
+      setNewTeamName('');
+      setNewTeamCode('');
+      setShowAddTeamModal(false);
+      showToast(`Team ${created.name} (${created.code}) created successfully!`, 'success');
+    } catch (err) {
+      showToast('Failed to create team: ' + (err.response?.data?.error || err.message), 'error');
+    } finally {
+      setCreatingTeam(false);
+    }
+  };
+
+  const renderAddTeamModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900 dark:text-white">Register New Team / House</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Add a participating club or school house</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAddTeamModal(false)}
+            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleCreateTeamSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
+              Team / House Name
+            </label>
+            <input
+              type="text"
+              required
+              value={newTeamName}
+              onChange={(e) => {
+                setNewTeamName(e.target.value);
+                if (!newTeamCode || newTeamCode === newTeamName.substring(0, 3).toUpperCase()) {
+                  setNewTeamCode(e.target.value.substring(0, 3).toUpperCase());
+                }
+              }}
+              placeholder="e.g. Barbarians or Red House"
+              className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm font-medium"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
+                Team Code (3-4 Chars)
+              </label>
+              <input
+                type="text"
+                required
+                maxLength={5}
+                value={newTeamCode}
+                onChange={(e) => setNewTeamCode(e.target.value.toUpperCase())}
+                placeholder="e.g. BAR"
+                className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm font-bold uppercase text-center"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
+                Badge Color
+              </label>
+              <div className="flex items-center gap-2 h-10 px-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950">
+                <input
+                  type="color"
+                  value={newTeamColor}
+                  onChange={(e) => setNewTeamColor(e.target.value)}
+                  className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent"
+                />
+                <span className="text-xs font-mono text-gray-600 dark:text-gray-400">{newTeamColor}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowAddTeamModal(false)}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={creatingTeam || !newTeamName.trim() || !newTeamCode.trim()}
+              className="k-btn k-btn-primary flex items-center gap-1.5 text-xs font-bold disabled:opacity-50"
+            >
+              <Plus className="w-4 h-4" />
+              {creatingTeam ? 'Creating...' : 'Create Team'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+
   if (teamsLoading) {
     return <div className="text-center py-8 text-gray-400">Loading teams...</div>;
   }
 
   if (!teamList || teamList.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-400">
-        No teams found. Go to the Generate page to create fixtures and register teams.
+      <div className="text-center py-16 px-4 max-w-md mx-auto space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto shadow-sm border border-blue-200 dark:border-blue-900">
+          <Users className="w-8 h-8" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white">No Teams Registered Yet</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Add your participating teams or houses here, or generate them automatically from the Generate page.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowAddTeamModal(true)}
+          className="k-btn k-btn-primary flex items-center gap-1.5 mx-auto text-xs font-bold"
+        >
+          <Plus className="w-4 h-4" /> Add First Team / House
+        </button>
+
+        {showAddTeamModal && renderAddTeamModal()}
       </div>
     );
   }
@@ -106,34 +249,47 @@ export default function Teams() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium focus:ring-2 focus:ring-blue-500"
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Active Team:</label>
+          <select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium focus:ring-2 focus:ring-blue-500"
+          >
+            {teamList.map(t => (
+              <option key={t.code} value={t.code}>{t.name} ({t.code})</option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAddTeamModal(true)}
+          className="k-btn k-btn-primary flex items-center gap-1.5 text-xs font-bold"
         >
-          {teamList.map(t => (
-            <option key={t.code} value={t.code}>{t.name} ({t.code})</option>
-          ))}
-        </select>
+          <Plus className="w-4 h-4" /> Add Team / House
+        </button>
       </div>
+
+      {showAddTeamModal && renderAddTeamModal()}
 
       {/* Team Profile */}
       <div className="k-card flex items-center justify-between gap-4 p-4">
         <div className="flex items-center gap-4">
           <div className="relative group shrink-0">
-            {currentTeam.logo_url ? (
+            {currentTeam?.logo_url ? (
               <img src={currentTeam.logo_url} alt={currentTeam.name} className="w-16 h-16 rounded-xl object-cover bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm" />
             ) : (
               <div 
                 className="w-16 h-16 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-md"
-                style={{ backgroundColor: currentTeam.color || '#2563eb' }}
+                style={{ backgroundColor: currentTeam?.color || '#2563eb' }}
               >
-                {currentTeam.code}
+                {currentTeam?.code || '—'}
               </div>
             )}
           </div>
           <div>
-            <h2 className="text-xl font-bold">{currentTeam.name}</h2>
+            <h2 className="text-xl font-bold">{currentTeam?.name || 'Select a Team'}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">Team Profile & Roster</p>
           </div>
         </div>
@@ -170,7 +326,7 @@ export default function Teams() {
             <div className="text-center py-8 text-gray-400 flex-1">Loading schedule...</div>
           ) : (
             <div className="overflow-y-auto pr-1 space-y-2 max-h-[450px] flex-1">
-              {schedule?.map(f => {
+              {schedule?.filter(Boolean).map((f) => {
                 const opponentCode = f.team_a_code === selected ? f.team_b_code : f.team_a_code;
                 const opponentName = f.team_a_code === selected ? f.team_b_name : f.team_a_name;
                 const opponentColor = f.team_a_code === selected ? f.team_b_color : f.team_a_color;
@@ -178,7 +334,7 @@ export default function Teams() {
                 const isAll = f.team_b_name === 'All Teams' || f.team_b_name === 'All Districts';
                 
                 return (
-                  <div key={f.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50/50 dark:bg-gray-800/20 border border-gray-100 dark:border-gray-800/50 text-sm hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                  <div key={f?.id || Math.random()} className="flex items-center justify-between p-3 rounded-lg bg-gray-50/50 dark:bg-gray-800/20 border border-gray-100 dark:border-gray-800/50 text-sm hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
                     <div className="flex flex-col gap-1">
                       <span className="text-[10px] text-gray-400 font-mono">{f.time || new Date(f.scheduled_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} · {f.venue_name}</span>
                       <span className="font-semibold text-gray-800 dark:text-gray-200">{f.sport_name}</span>
@@ -220,17 +376,17 @@ export default function Teams() {
               <div className="flex flex-col flex-1 space-y-4">
                 {/* Roster List */}
                 <div className="overflow-y-auto pr-1 space-y-1.5 max-h-[300px] flex-1">
-                  {roster?.map(p => (
-                    <div key={p.id} className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50/50 dark:bg-gray-800/20 border border-gray-100 dark:border-gray-800/30 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                  {roster?.filter(Boolean).map(p => (
+                    <div key={p?.id || Math.random()} className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50/50 dark:bg-gray-800/20 border border-gray-100 dark:border-gray-800/30 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
                       <div className="flex items-center gap-3">
                         <span className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-mono font-bold text-xs">
-                          {p.jersey_number ? `#${p.jersey_number}` : '—'}
+                          {p?.jersey_number ? `#${p.jersey_number}` : '—'}
                         </span>
-                        <span className="font-medium text-gray-800 dark:text-gray-200">{p.name}</span>
+                        <span className="font-medium text-gray-800 dark:text-gray-200">{p?.name}</span>
                       </div>
                       {isScorekeeper && (
                         <button
-                          onClick={() => handleDeletePlayer(p.id)}
+                          onClick={() => handleDeletePlayer(p?.id)}
                           className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
                           title="Remove Player"
                         >

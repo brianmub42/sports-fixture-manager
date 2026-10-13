@@ -24,7 +24,10 @@ import {
   Trophy, 
   X, 
   Check, 
-  Timer 
+  Timer,
+  Ruler,
+  User,
+  AlertCircle
 } from 'lucide-react';
 
 const getLocalDateTimeString = () => {
@@ -97,16 +100,19 @@ function formatTimeDisplay(ms) {
 
 // Compute live placements with dead heats / skip-rank convention:
 // tied 1st -> both "1st", next real time -> "3rd" (2nd skipped). Points follow shared place.
+// Disqualified (DSQ / DQ) or False Start (FS) nullifies placement and yields 0 points,
+// automatically cascading downstream legal competitors upward to higher ranks.
 function computeTimePlacements(lanes, pointsAllocation) {
   const processed = (lanes || []).map((lane, originalIndex) => {
-    const isSpecialStatus = ['DNS', 'DNF', 'DQ'].includes(lane.status);
-    const hasTime = !isSpecialStatus && !!lane.rawBuffer && lane.rawBuffer.length > 0;
-    const totalSeconds = hasTime ? bufferToTotalSeconds(lane.rawBuffer) : null;
+    const isSpecialStatus = ['DNS', 'DNF', 'DQ', 'DSQ', 'FS'].includes(lane.status);
+    const hasRaw = !!lane.rawBuffer && lane.rawBuffer.length > 0;
+    const totalSeconds = hasRaw ? bufferToTotalSeconds(lane.rawBuffer) : null;
+    const hasTime = !isSpecialStatus && hasRaw;
     return {
       ...lane,
       originalIndex,
       hasTime,
-      totalSeconds,
+      totalSeconds: hasTime ? totalSeconds : null,
       timeMs: totalSeconds != null ? Math.round(totalSeconds * 1000) : null,
       placement: null,
       tied: false,
@@ -147,8 +153,11 @@ function computeTimePlacements(lanes, pointsAllocation) {
 
 function getPlacementBadge(placement, tied, status, points) {
   if (status && status !== 'OK') {
+    let label = status;
+    if (status === 'FS') label = 'FS (False Start)';
+    else if (status === 'DSQ' || status === 'DQ') label = 'DSQ';
     return {
-      label: status,
+      label,
       pointsText: '0 pts',
       bgClass: 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-bold'
     };
@@ -175,6 +184,107 @@ function getPlacementBadge(placement, tied, status, points) {
   }
 
   return { label, pointsText, bgClass };
+}
+
+// Distance & Height based field events (Long Jump, High Jump, Javelin, Shot Put, Discus, etc.)
+const FIELD_EVENT_KEYWORDS = [
+  'jump', 'jmp', 'high jump', 'long jump', 'triple jump', 'pole vault', 'vault',
+  'shot put', 'shotput', 'short put', 'shortput', 'put', 'discus', 'javelin', 'javlin',
+  'hammer', 'throw', 'field'
+];
+
+export function isFieldEventName(name) {
+  if (!name) return false;
+  const lower = name.toLowerCase().trim();
+  return FIELD_EVENT_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+// Compute live placements for distance / height field events:
+// Highest distance/height wins 1st place! (e.g. 6.45m beats 5.90m)
+// Ties get dead heats (e.g. both T-1st, next is 3rd).
+function computeDistancePlacements(lanes, pointsAllocation) {
+  const processed = (lanes || []).map((lane, originalIndex) => {
+    const isSpecialStatus = ['FOUL', 'NM', 'DNS', 'DNF', 'DQ', 'DSQ', 'FS'].includes(lane.status);
+    const parsedDist = parseFloat(lane.distanceStr);
+    const hasDistance = !isSpecialStatus && !isNaN(parsedDist) && parsedDist > 0;
+    return {
+      ...lane,
+      originalIndex,
+      hasDistance,
+      distanceM: !isNaN(parsedDist) ? Math.round(parsedDist * 100) / 100 : null,
+      placement: null,
+      tied: false,
+      points: 0
+    };
+  });
+
+  const validEntries = processed.filter(l => l.hasDistance && l.distanceM != null);
+  // DESCENDING: Higher distance wins!
+  validEntries.sort((a, b) => b.distanceM - a.distanceM);
+
+  for (let i = 0; i < validEntries.length; i++) {
+    if (i > 0 && validEntries[i].distanceM === validEntries[i - 1].distanceM) {
+      validEntries[i].placement = validEntries[i - 1].placement;
+      validEntries[i].tied = true;
+      validEntries[i - 1].tied = true;
+    } else {
+      validEntries[i].placement = i + 1; // 0-indexed + 1 skip rank
+      validEntries[i].tied = false;
+    }
+  }
+
+  for (let i = 0; i < validEntries.length - 1; i++) {
+    if (validEntries[i].distanceM === validEntries[i + 1].distanceM) {
+      validEntries[i].tied = true;
+    }
+  }
+
+  validEntries.forEach(l => {
+    if (pointsAllocation && l.placement != null) {
+      const pts = pointsAllocation[l.placement] ?? pointsAllocation[String(l.placement)] ?? 0;
+      l.points = Number(pts);
+    }
+  });
+
+  const validMap = new Map(validEntries.map(t => [t.originalIndex, t]));
+  return processed.map(l => validMap.get(l.originalIndex) || l);
+}
+
+function DistanceInput({ value = '', onChange, disabled, placeholder = '0.00' }) {
+  return (
+    <div className="relative flex items-center">
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        max="999.99"
+        value={value}
+        disabled={disabled}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`w-full py-1.5 pl-3 pr-7 text-center font-mono font-bold text-xs rounded-lg border transition-all ${
+          disabled
+            ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed'
+            : value && parseFloat(value) > 0
+            ? 'bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-bold border-emerald-400 dark:border-emerald-700'
+            : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 focus:border-emerald-500'
+        }`}
+      />
+      <span className="absolute right-2 text-[11px] font-bold text-gray-400 pointer-events-none">
+        m
+      </span>
+      {value && !disabled && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="absolute right-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 text-[10px]"
+          title="Clear distance"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
 }
 
 function StopwatchTimeInput({ value = '', onChange, disabled, placeholder = '00:00.00' }) {
@@ -332,7 +442,7 @@ export default function AthleticsPage() {
       category: eventCategory,
       sport_id: parseInt(eventSportId),
       venue_id: parseInt(eventVenueId),
-      scheduled_at: eventScheduledAt ? new Date(eventScheduledAt).toISOString() : null,
+      scheduled_at: eventScheduledAt ? (eventScheduledAt.length === 16 ? `${eventScheduledAt}:00` : eventScheduledAt) : null,
       duration_minutes: parseInt(eventDuration),
       status: eventStatus
     };
@@ -363,14 +473,17 @@ export default function AthleticsPage() {
     }
   };
 
-  // Handle Lane Management in By Time Mode
+  // Handle Lane Management in By Time / By Distance Mode
   const handleAddLane = () => {
     setLanes(prev => [
       ...prev,
       {
         laneNumber: prev.length + 1,
         teamId: '',
+        athleteName: '',
+        notes: '',
         rawBuffer: '',
+        distanceStr: '',
         status: 'OK'
       }
     ]);
@@ -384,16 +497,26 @@ export default function AthleticsPage() {
   // Handle Result Modal Open
   const openResultModal = (event) => {
     setSelectedEventForResults(event);
+    const isField = isFieldEventName(event?.name);
     
     // 1. Prepare Manual placements array
     const totalPositions = teams?.length || 6;
-    const newPlacements = Array(totalPositions).fill(null).map(() => ({ teamId: '', timeSec: '' }));
+    const newPlacements = Array(totalPositions).fill(null).map(() => ({ 
+      teamId: '', 
+      athleteName: '', 
+      notes: '', 
+      timeSec: '', 
+      distanceM: '' 
+    }));
 
-    // 2. Prepare By Time lanes array with participating teams
+    // 2. Prepare By Time / By Distance lanes array with participating teams
     const defaultLanes = (teams || []).map((t, idx) => ({
       laneNumber: idx + 1,
       teamId: t.id.toString(),
+      athleteName: '',
+      notes: '',
       rawBuffer: '',
+      distanceStr: '',
       status: 'OK'
     }));
 
@@ -401,12 +524,16 @@ export default function AthleticsPage() {
       defaultLanes.push({
         laneNumber: defaultLanes.length + 1,
         teamId: '',
+        athleteName: '',
+        notes: '',
         rawBuffer: '',
+        distanceStr: '',
         status: 'OK'
       });
     }
 
     let hasTimeResults = false;
+    let hasDistanceResults = false;
 
     if (event.results && event.results.length > 0) {
       event.results.forEach(r => {
@@ -415,23 +542,35 @@ export default function AthleticsPage() {
         if (index >= 0 && index < totalPositions) {
           newPlacements[index] = {
             teamId: r.team_id.toString(),
-            timeSec: r.time_ms ? (r.time_ms / 1000).toString() : ''
+            athleteName: r.athlete_name || '',
+            notes: r.notes || '',
+            timeSec: r.time_ms ? (r.time_ms / 1000).toString() : '',
+            distanceM: r.distance_m != null ? String(r.distance_m) : ''
           };
         }
         if (r.time_ms) {
           hasTimeResults = true;
         }
+        if (r.distance_m != null) {
+          hasDistanceResults = true;
+        }
 
-        // By Time mode pre-population
+        // By Time / Distance mode pre-population
         const matchingLane = defaultLanes.find(l => l.teamId === r.team_id.toString());
         if (matchingLane) {
+          matchingLane.athleteName = r.athlete_name || '';
+          matchingLane.notes = r.notes || '';
           matchingLane.rawBuffer = r.time_ms ? msToTimeBuffer(r.time_ms) : '';
+          matchingLane.distanceStr = r.distance_m != null ? String(r.distance_m) : '';
           matchingLane.status = r.status || 'OK';
         } else {
           const emptyLane = defaultLanes.find(l => !l.teamId);
           if (emptyLane) {
             emptyLane.teamId = r.team_id.toString();
+            emptyLane.athleteName = r.athlete_name || '';
+            emptyLane.notes = r.notes || '';
             emptyLane.rawBuffer = r.time_ms ? msToTimeBuffer(r.time_ms) : '';
+            emptyLane.distanceStr = r.distance_m != null ? String(r.distance_m) : '';
             emptyLane.status = r.status || 'OK';
           }
         }
@@ -440,35 +579,40 @@ export default function AthleticsPage() {
 
     setPlacements(newPlacements);
     setLanes(defaultLanes);
-    setEntryMode(hasTimeResults ? 'by_time' : 'manual');
+    if (isField) {
+      setEntryMode('by_distance');
+    } else {
+      setEntryMode('by_time');
+    }
     setIsResultModalOpen(true);
   };
 
-  // Handle Save Results (supports both Manual and By Time modes)
+  // Handle Save Results (supports Manual, By Time, and By Distance modes)
   const handleSaveResults = (e) => {
     e.preventDefault();
+    const isField = isFieldEventName(selectedEventForResults?.name);
 
-    if (entryMode === 'by_time') {
-      const computedLanes = computeTimePlacements(lanes, settings?.points_allocation);
+    if (entryMode === 'by_distance') {
+      const computedLanes = computeDistancePlacements(lanes, settings?.points_allocation);
 
       // Verify no duplicate teams assigned
       const selectedTeamIds = computedLanes.map(l => l.teamId).filter(id => id !== '');
       const uniqueTeamIds = new Set(selectedTeamIds);
       if (selectedTeamIds.length !== uniqueTeamIds.size) {
-        alert('A team cannot be selected for multiple lanes.');
+        alert('A team cannot be selected for multiple positions.');
         return;
       }
 
-      // Filter entries with an assigned team and either a valid time or DNS/DNF/DQ status
-      const validEntries = computedLanes.filter(l => l.teamId && (l.hasTime || ['DNS', 'DNF', 'DQ'].includes(l.status)));
+      // Filter entries with an assigned team and either a valid distance or foul/NM/DNS/DNF/DQ status
+      const validEntries = computedLanes.filter(l => l.teamId && (l.hasDistance || ['FOUL', 'NM', 'DNS', 'DNF', 'DQ', 'DSQ', 'FS'].includes(l.status)));
       if (validEntries.length === 0) {
-        alert('Please assign teams and enter at least one participant time or result.');
+        alert('Please assign teams and enter at least one participant distance or mark.');
         return;
       }
 
-      // Verify at least one competitor was timed to determine 1st place
+      // Verify at least one competitor has a mark to determine 1st place
       if (!computedLanes.some(l => l.placement === 1 && l.teamId)) {
-        alert('At least one competitor must have a completed time to determine 1st place.');
+        alert('At least one competitor must have a completed distance/height measurement to determine 1st place.');
         return;
       }
 
@@ -490,9 +634,12 @@ export default function AthleticsPage() {
 
       const resultsPayload = validEntries.map(l => ({
         teamId: parseInt(l.teamId, 10),
+        athleteName: (l.athleteName || '').trim() || null,
+        notes: (l.notes || '').trim() || null,
         placement: l.placement || null,
         points: l.points || 0,
-        timeMs: l.timeMs || null,
+        timeMs: null,
+        distanceM: l.distanceM,
         tied: !!l.tied,
         status: l.status || 'OK'
       }));
@@ -500,7 +647,68 @@ export default function AthleticsPage() {
       saveResults.mutate({ id: selectedEventForResults.id, results: resultsPayload }, {
         onSuccess: () => {
           setIsResultModalOpen(false);
-          showToast('Event results logged successfully!', 'success');
+          showToast('Field event results logged successfully!', 'success');
+        }
+      });
+      return;
+    }
+
+    if (entryMode === 'by_time') {
+      const computedLanes = computeTimePlacements(lanes, settings?.points_allocation);
+
+      // Verify no duplicate teams assigned
+      const selectedTeamIds = computedLanes.map(l => l.teamId).filter(id => id !== '');
+      const uniqueTeamIds = new Set(selectedTeamIds);
+      if (selectedTeamIds.length !== uniqueTeamIds.size) {
+        alert('A team cannot be selected for multiple lanes.');
+        return;
+      }
+
+      // Filter entries with an assigned team and either a valid time or DNS/DNF/DQ/DSQ/FS status
+      const validEntries = computedLanes.filter(l => l.teamId && (l.hasTime || ['DNS', 'DNF', 'DQ', 'DSQ', 'FS'].includes(l.status)));
+      if (validEntries.length === 0) {
+        alert('Please assign teams and enter at least one participant time or result.');
+        return;
+      }
+
+      // Verify at least one competitor was timed to determine 1st place
+      if (!computedLanes.some(l => l.placement === 1 && l.teamId)) {
+        alert('At least one competitor must have a completed legal time to determine 1st place.');
+        return;
+      }
+
+      // Verify points allocation is configured in settings
+      const unconfiguredPlacements = [];
+      computedLanes.forEach(l => {
+        if (l.teamId && l.placement) {
+          const ptsAllocation = settings?.points_allocation;
+          if (!ptsAllocation || (ptsAllocation[l.placement] === undefined && ptsAllocation[String(l.placement)] === undefined)) {
+            unconfiguredPlacements.push(l.placement);
+          }
+        }
+      });
+
+      if (unconfiguredPlacements.length > 0) {
+        alert(`Point allocation for Position(s) ${[...new Set(unconfiguredPlacements)].join(', ')} is not configured in Settings. Please ask the administrator to configure points for all positions before saving results.`);
+        return;
+      }
+
+      const resultsPayload = validEntries.map(l => ({
+        teamId: parseInt(l.teamId, 10),
+        athleteName: (l.athleteName || '').trim() || null,
+        notes: (l.notes || '').trim() || null,
+        placement: l.placement || null,
+        points: l.points || 0,
+        timeMs: l.timeMs || null,
+        distanceM: null,
+        tied: !!l.tied,
+        status: l.status || 'OK'
+      }));
+
+      saveResults.mutate({ id: selectedEventForResults.id, results: resultsPayload }, {
+        onSuccess: () => {
+          setIsResultModalOpen(false);
+          showToast('Track/Swimming event results logged successfully!', 'success');
         }
       });
       return;
@@ -540,8 +748,11 @@ export default function AthleticsPage() {
         if (!p.teamId) return null;
         return {
           teamId: parseInt(p.teamId, 10),
+          athleteName: (p.athleteName || '').trim() || null,
+          notes: (p.notes || '').trim() || null,
           placement: idx + 1,
-          timeMs: p.timeSec ? Math.round(parseFloat(p.timeSec) * 1000) : null,
+          timeMs: (!isField && p.timeSec) ? Math.round(parseFloat(p.timeSec) * 1000) : null,
+          distanceM: (isField && p.distanceM) ? parseFloat(p.distanceM) : null,
           tied: false,
           status: 'OK'
         };
@@ -697,9 +908,10 @@ export default function AthleticsPage() {
                     </h4>
                     <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-1">
                       {event.results.map((r, i) => (
-                        <div key={r.id || `${r.placement}-${r.team_id}`} className="flex justify-between items-center py-1 border-b border-gray-100/50 dark:border-gray-800 last:border-0">
+                        <div key={r.id || `${r.placement}-${r.team_id}`} className="flex justify-between items-center py-1.5 border-b border-gray-100/50 dark:border-gray-800 last:border-0">
                           <div className="flex items-center gap-2">
-                            <span className={`min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full text-[10px] font-bold ${
+                            <span className={`min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-bold ${
+                              r.status && r.status !== 'OK' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800' :
                               r.placement === 1 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-400' :
                               r.placement === 2 ? 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-300' :
                               r.placement === 3 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400' :
@@ -707,15 +919,49 @@ export default function AthleticsPage() {
                             }`}>
                               {r.status && r.status !== 'OK' ? r.status : (r.tied ? `T-${r.placement}` : r.placement)}
                             </span>
-                            <TeamPill code={r.team_code} name={r.team_name} logoUrl={r.team_logo} />
+                            <div className="flex flex-col">
+                              <TeamPill code={r.team_code} name={r.team_name} logoUrl={r.team_logo} />
+                              {r.athlete_name && (
+                                <span className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5 font-medium pl-1">
+                                  <User size={10} className="text-gray-400 shrink-0" />
+                                  <span>{r.athlete_name}</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center gap-2 text-xs font-medium">
-                            {r.time_ms ? (
-                              <span className="font-mono text-gray-400">
-                                {formatTimeDisplay(r.time_ms)}
-                              </span>
-                            ) : null}
-                            <span className="text-gray-500">+{r.points} pts</span>
+                            {r.status && r.status !== 'OK' ? (
+                              <div className="flex items-center gap-1.5">
+                                {r.time_ms ? (
+                                  <span className="font-mono text-gray-400 line-through text-[11px]" title="Clocked touch time (disqualified)">
+                                    {formatTimeDisplay(r.time_ms)}
+                                  </span>
+                                ) : r.distance_m != null ? (
+                                  <span className="font-mono text-gray-400 line-through text-[11px]" title="Measured mark (disqualified)">
+                                    {Number(r.distance_m).toFixed(2)}m
+                                  </span>
+                                ) : null}
+                                {r.notes && (
+                                  <span className="text-[10px] text-rose-600 dark:text-rose-400 italic max-w-[130px] truncate" title={r.notes}>
+                                    ({r.notes})
+                                  </span>
+                                )}
+                                <span className="text-gray-400 font-semibold text-[11px]">0 pts</span>
+                              </div>
+                            ) : (
+                              <>
+                                {r.distance_m != null ? (
+                                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                    {Number(r.distance_m).toFixed(2)}m
+                                  </span>
+                                ) : r.time_ms ? (
+                                  <span className="font-mono text-gray-400">
+                                    {formatTimeDisplay(r.time_ms)}
+                                  </span>
+                                ) : null}
+                                <span className="text-gray-500">+{r.points} pts</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -912,7 +1158,7 @@ export default function AthleticsPage() {
       {/* LOG RESULTS MODAL */}
       {isResultModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 w-full max-w-xl p-6 rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 w-full max-w-4xl p-6 rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                 <Award className="text-yellow-500" size={20} />
@@ -926,33 +1172,53 @@ export default function AthleticsPage() {
               Event: {selectedEventForResults?.name} ({selectedEventForResults?.category})
             </p>
 
-            {/* Mode Switcher: Manual vs By Time */}
-            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4 border border-gray-200 dark:border-gray-700">
-              <button
-                type="button"
-                onClick={() => setEntryMode('manual')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  entryMode === 'manual'
-                    ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-                }`}
-              >
-                <Award size={14} />
-                <span>Manual Mode</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setEntryMode('by_time')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  entryMode === 'by_time'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-                }`}
-              >
-                <Clock size={14} />
-                <span>By Time Mode</span>
-              </button>
-            </div>
+            {/* Mode Switcher: Manual vs By Time vs By Distance */}
+            {(() => {
+              const isField = isFieldEventName(selectedEventForResults?.name);
+              return (
+                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4 border border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={() => setEntryMode('manual')}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      entryMode === 'manual'
+                        ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    <Award size={14} />
+                    <span>Manual Mode</span>
+                  </button>
+                  {isField ? (
+                    <button
+                      type="button"
+                      onClick={() => setEntryMode('by_distance')}
+                      className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        entryMode === 'by_distance'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                      }`}
+                    >
+                      <Ruler size={14} />
+                      <span>By Distance / Height Mode</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEntryMode('by_time')}
+                      className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        entryMode === 'by_time'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                      }`}
+                    >
+                      <Clock size={14} />
+                      <span>By Time Mode</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
 
             {!settings?.points_allocation ? (
               <div className="space-y-4 mt-2">
@@ -971,7 +1237,170 @@ export default function AthleticsPage() {
               </div>
             ) : (
               <form onSubmit={handleSaveResults} className="space-y-4">
-                {entryMode === 'by_time' ? (
+                {entryMode === 'by_distance' ? (
+                  /* BY DISTANCE / HEIGHT MODE */
+                  <div className="space-y-3">
+                    <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-900/40 rounded-xl text-xs flex items-start gap-2 text-emerald-800 dark:text-emerald-300">
+                      <Ruler size={16} className="shrink-0 mt-0.5 text-emerald-500" />
+                      <div>
+                        <p className="font-bold">Distance / Height Entry (meters e.g. 6.45m or 1.85m)</p>
+                        <p className="text-[11px] opacity-80 mt-0.5 leading-relaxed">
+                          Highest measurement wins 1st place! Placements, ties (e.g. T-1st), and points table update live. Mark fouls as FOUL or NM (No Mark).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50/90 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800 text-gray-500 font-semibold">
+                          <tr>
+                            <th className="py-2 px-2 text-left w-12">Pos</th>
+                            <th className="py-2 px-2 text-left w-48">Team</th>
+                            <th className="py-2 px-2 text-left min-w-[180px]">Athlete (Optional)</th>
+                            <th className="py-2 px-2 text-center w-32">Distance / Height (m)</th>
+                            <th className="py-2 px-2 text-center w-28">Status</th>
+                            <th className="py-2 px-2 text-center w-24">Rank &amp; Pts</th>
+                            <th className="py-2 px-1 text-center w-7"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
+                          {computeDistancePlacements(lanes, settings?.points_allocation).map((lane, idx) => {
+                            const badge = getPlacementBadge(lane.placement, lane.tied, lane.status, lane.points);
+                            return (
+                              <tr key={idx} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition-colors">
+                                <td className="py-2 px-2 font-bold text-gray-500 align-top pt-3">
+                                  <span className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-mono">
+                                    P{lane.laneNumber}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-2 align-top pt-2.5">
+                                  <select
+                                    value={lane.teamId}
+                                    onChange={e => {
+                                      const updated = [...lanes];
+                                      updated[idx].teamId = e.target.value;
+                                      setLanes(updated);
+                                    }}
+                                    className="w-full p-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 text-xs"
+                                  >
+                                    <option value="">-- Unassigned --</option>
+                                    {teams?.map(t => (
+                                      <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="py-2 px-2 align-top pt-2.5">
+                                  <div className="relative">
+                                    <User size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    <input
+                                      type="text"
+                                      placeholder="Athlete Name (Optional)"
+                                      value={lane.athleteName || ''}
+                                      onChange={e => {
+                                        const updated = [...lanes];
+                                        updated[idx].athleteName = e.target.value;
+                                        setLanes(updated);
+                                      }}
+                                      className="w-full pl-7 pr-2 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 text-xs placeholder:text-gray-400"
+                                    />
+                                  </div>
+                                  {['FOUL', 'DQ', 'DSQ'].includes(lane.status) && (
+                                    <div className="mt-1 flex flex-col gap-1">
+                                      <input
+                                        type="text"
+                                        placeholder="Foul/infraction note (optional)"
+                                        value={lane.notes || ''}
+                                        onChange={e => {
+                                          const updated = [...lanes];
+                                          updated[idx].notes = e.target.value;
+                                          setLanes(updated);
+                                        }}
+                                        className="w-full px-2 py-1 bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded text-[11px] text-rose-700 dark:text-rose-300 placeholder:text-rose-400"
+                                      />
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-2 px-2 align-top pt-2.5">
+                                  <DistanceInput
+                                    value={lane.distanceStr}
+                                    disabled={!['OK'].includes(lane.status)}
+                                    onChange={newDist => {
+                                      const updated = [...lanes];
+                                      updated[idx].distanceStr = newDist;
+                                      setLanes(updated);
+                                    }}
+                                  />
+                                </td>
+                                <td className="py-2 px-2 text-center align-top pt-2.5">
+                                  <select
+                                    value={lane.status}
+                                    onChange={e => {
+                                      const updated = [...lanes];
+                                      updated[idx].status = e.target.value;
+                                      if (e.target.value !== 'OK') {
+                                        updated[idx].distanceStr = '';
+                                      }
+                                      setLanes(updated);
+                                    }}
+                                    className={`w-full p-1.5 rounded-lg border text-xs font-semibold ${
+                                      lane.status === 'OK'
+                                        ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                                        : 'bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold'
+                                    }`}
+                                  >
+                                    <option value="OK">OK</option>
+                                    <option value="FOUL">FOUL</option>
+                                    <option value="NM">NM (No Mark)</option>
+                                    <option value="DSQ">DSQ (Disqualified)</option>
+                                    <option value="DNS">DNS</option>
+                                    <option value="DNF">DNF</option>
+                                  </select>
+                                </td>
+                                <td className="py-2 px-2 text-center align-top pt-2.5">
+                                  <div className="flex flex-col items-center">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] border ${badge.bgClass}`}>
+                                      {badge.label}
+                                    </span>
+                                    {badge.pointsText && (
+                                      <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold mt-0.5">
+                                        {badge.pointsText}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-2 px-1 text-center align-top pt-3">
+                                  {lanes.length > 2 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveLane(idx)}
+                                      className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                      title="Remove Competitor"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-1">
+                      <button
+                        type="button"
+                        onClick={handleAddLane}
+                        className="px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} /> Add Competitor
+                      </button>
+                      <span className="text-[11px] text-gray-400">
+                        {lanes.filter(l => l.distanceStr && parseFloat(l.distanceStr) > 0).length} of {lanes.length} marks recorded
+                      </span>
+                    </div>
+                  </div>
+                ) : entryMode === 'by_time' ? (
                   /* BY TIME MODE */
                   <div className="space-y-3">
                     <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/40 rounded-xl text-xs flex items-start gap-2 text-blue-800 dark:text-blue-300">
@@ -989,9 +1418,10 @@ export default function AthleticsPage() {
                         <thead className="bg-gray-50/90 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800 text-gray-500 font-semibold">
                           <tr>
                             <th className="py-2 px-2 text-left w-12">Lane</th>
-                            <th className="py-2 px-2 text-left">Team</th>
+                            <th className="py-2 px-2 text-left w-48">Team</th>
+                            <th className="py-2 px-2 text-left min-w-[200px]">Athlete / Swimmer (Optional)</th>
                             <th className="py-2 px-2 text-center w-32">Time (mm:ss.ss)</th>
-                            <th className="py-2 px-2 text-center w-20">Status</th>
+                            <th className="py-2 px-2 text-center w-32">Status</th>
                             <th className="py-2 px-2 text-center w-24">Rank &amp; Pts</th>
                             <th className="py-2 px-1 text-center w-7"></th>
                           </tr>
@@ -1001,12 +1431,12 @@ export default function AthleticsPage() {
                             const badge = getPlacementBadge(lane.placement, lane.tied, lane.status, lane.points);
                             return (
                               <tr key={idx} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition-colors">
-                                <td className="py-2 px-2 font-bold text-gray-500">
+                                <td className="py-2 px-2 font-bold text-gray-500 align-top pt-3">
                                   <span className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-mono">
                                     L{lane.laneNumber}
                                   </span>
                                 </td>
-                                <td className="py-2 px-2">
+                                <td className="py-2 px-2 align-top pt-2.5">
                                   <select
                                     value={lane.teamId}
                                     onChange={e => {
@@ -1022,10 +1452,63 @@ export default function AthleticsPage() {
                                     ))}
                                   </select>
                                 </td>
-                                <td className="py-2 px-2">
+                                <td className="py-2 px-2 align-top pt-2.5">
+                                  <div className="relative">
+                                    <User size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    <input
+                                      type="text"
+                                      placeholder="Athlete / Swimmer (Optional)"
+                                      value={lane.athleteName || ''}
+                                      onChange={e => {
+                                        const updated = [...lanes];
+                                        updated[idx].athleteName = e.target.value;
+                                        setLanes(updated);
+                                      }}
+                                      className="w-full pl-7 pr-2 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 text-xs placeholder:text-gray-400"
+                                    />
+                                  </div>
+                                  {['DSQ', 'DQ', 'FS'].includes(lane.status) && (
+                                    <div className="mt-1.5 flex flex-col gap-1">
+                                      <input
+                                        type="text"
+                                        placeholder="Infraction reason / rule (e.g. Turn Touch SW 7.6)"
+                                        value={lane.notes || ''}
+                                        onChange={e => {
+                                          const updated = [...lanes];
+                                          updated[idx].notes = e.target.value;
+                                          setLanes(updated);
+                                        }}
+                                        className="w-full px-2 py-1 bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded text-[11px] text-rose-700 dark:text-rose-300 placeholder:text-rose-400"
+                                      />
+                                      <div className="flex flex-wrap gap-1">
+                                        {[
+                                          'False Start (SW 4.4)',
+                                          'Turn Touch (SW 7.6)',
+                                          'Past 15m (SW 5.3)',
+                                          'Stroke Infraction',
+                                          'Early Takeover'
+                                        ].map(chip => (
+                                          <button
+                                            key={chip}
+                                            type="button"
+                                            onClick={() => {
+                                              const updated = [...lanes];
+                                              updated[idx].notes = chip;
+                                              setLanes(updated);
+                                            }}
+                                            className="text-[9px] px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 hover:bg-rose-200 transition-colors cursor-pointer"
+                                          >
+                                            {chip}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-2 px-2 align-top pt-2.5">
                                   <StopwatchTimeInput
                                     value={lane.rawBuffer}
-                                    disabled={lane.status !== 'OK'}
+                                    disabled={['DNS', 'DNF'].includes(lane.status)}
                                     onChange={newBuffer => {
                                       const updated = [...lanes];
                                       updated[idx].rawBuffer = newBuffer;
@@ -1033,13 +1516,17 @@ export default function AthleticsPage() {
                                     }}
                                   />
                                 </td>
-                                <td className="py-2 px-2 text-center">
+                                <td className="py-2 px-2 text-center align-top pt-2.5">
                                   <select
                                     value={lane.status}
                                     onChange={e => {
                                       const updated = [...lanes];
-                                      updated[idx].status = e.target.value;
-                                      if (e.target.value !== 'OK') {
+                                      const newStatus = e.target.value;
+                                      updated[idx].status = newStatus;
+                                      if (newStatus === 'FS' && !updated[idx].notes) {
+                                        updated[idx].notes = 'False Start (SW 4.4)';
+                                      }
+                                      if (['DNS', 'DNF'].includes(newStatus)) {
                                         updated[idx].rawBuffer = '';
                                       }
                                       setLanes(updated);
@@ -1051,12 +1538,13 @@ export default function AthleticsPage() {
                                     }`}
                                   >
                                     <option value="OK">OK</option>
-                                    <option value="DNS">DNS</option>
-                                    <option value="DNF">DNF</option>
-                                    <option value="DQ">DQ</option>
+                                    <option value="DSQ">DSQ (Disqualified)</option>
+                                    <option value="FS">FS (False Start)</option>
+                                    <option value="DNF">DNF (Did Not Finish)</option>
+                                    <option value="DNS">DNS (Did Not Start)</option>
                                   </select>
                                 </td>
-                                <td className="py-2 px-2 text-center">
+                                <td className="py-2 px-2 text-center align-top pt-2.5">
                                   <div className="flex flex-col items-center">
                                     <span className={`px-2 py-0.5 rounded-full text-[10px] border ${badge.bgClass}`}>
                                       {badge.label}
@@ -1068,7 +1556,7 @@ export default function AthleticsPage() {
                                     )}
                                   </div>
                                 </td>
-                                <td className="py-2 px-1 text-center">
+                                <td className="py-2 px-1 text-center align-top pt-3">
                                   {lanes.length > 2 && (
                                     <button
                                       type="button"
@@ -1106,9 +1594,10 @@ export default function AthleticsPage() {
                     {placements.map((p, idx) => {
                       const num = idx + 1;
                       const placeLabel = getPlacementLabel(num, settings?.points_allocation);
+                      const isField = isFieldEventName(selectedEventForResults?.name);
                       return (
-                        <div key={num} className="grid grid-cols-3 gap-2 items-center text-xs">
-                          <label className="col-span-1 font-bold text-gray-500 uppercase">{placeLabel}</label>
+                        <div key={num} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center text-xs">
+                          <label className="font-bold text-gray-500 uppercase">{placeLabel}</label>
                           <select
                             required={num === 1}
                             value={p.teamId}
@@ -1117,26 +1606,59 @@ export default function AthleticsPage() {
                               updated[idx].teamId = e.target.value;
                               setPlacements(updated);
                             }}
-                            className="col-span-1 p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100"
+                            className="p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100"
                           >
-                            <option value="">-- Select --</option>
+                            <option value="">-- Select Team --</option>
                             {teams?.map(t => (
                               <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
                             ))}
                           </select>
-                          <input
-                            type="number"
-                            step="0.001"
-                            min="0"
-                            placeholder="Time (optional)"
-                            value={p.timeSec}
-                            onChange={e => {
-                              const updated = [...placements];
-                              updated[idx].timeSec = e.target.value;
-                              setPlacements(updated);
-                            }}
-                            className="col-span-1 p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 font-mono"
-                          />
+                          <div className="relative">
+                            <User size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            <input
+                              type="text"
+                              placeholder="Athlete / Swimmer (Optional)"
+                              value={p.athleteName || ''}
+                              onChange={e => {
+                                const updated = [...placements];
+                                updated[idx].athleteName = e.target.value;
+                                setPlacements(updated);
+                              }}
+                              className="w-full pl-7 pr-2 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 text-xs placeholder:text-gray-400"
+                            />
+                          </div>
+                          {isField ? (
+                            <div className="relative flex items-center">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Distance (e.g. 6.45)"
+                                value={p.distanceM || ''}
+                                onChange={e => {
+                                  const updated = [...placements];
+                                  updated[idx].distanceM = e.target.value;
+                                  setPlacements(updated);
+                                }}
+                                className="w-full p-2 pr-6 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 font-mono text-xs"
+                              />
+                              <span className="absolute right-2 text-[10px] font-bold text-gray-400">m</span>
+                            </div>
+                          ) : (
+                            <input
+                              type="number"
+                              step="0.001"
+                              min="0"
+                              placeholder="Time sec (optional)"
+                              value={p.timeSec}
+                              onChange={e => {
+                                const updated = [...placements];
+                                updated[idx].timeSec = e.target.value;
+                                setPlacements(updated);
+                              }}
+                              className="p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 font-mono text-xs"
+                            />
+                          )}
                         </div>
                       );
                     })}

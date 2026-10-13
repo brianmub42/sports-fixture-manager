@@ -1,7 +1,10 @@
+import { isVenueCompatible } from './sportClassifier.js';
+
 /**
  * Scans a set of fixtures to identify scheduling resource overlaps:
  * 1. Double-booked venues
  * 2. Teams/Districts scheduled to play in multiple places simultaneously
+ * 3. Discipline/Venue mismatch (e.g. track event on field venue or tennis on rugby pitch)
  */
 export function detectConflicts(fixtures) {
   const warnings = [];
@@ -61,6 +64,34 @@ export function detectConflicts(fixtures) {
           matchB: m2
         });
       }
+    }
+  }
+
+  // 3. Discipline / Venue Compatibility Check
+  // Skip this check for placement events (Athletics / Swimming): their event names
+  // are sub-discipline labels like "Butterfly 25m" or "100m Sprint", not top-level
+  // sport names. The venue is already chosen correctly at schedule-generation time,
+  // so flagging them as incompatible would produce meaningless false alarms.
+  for (let i = 0; i < sorted.length; i++) {
+    const m = sorted[i];
+
+    // Skip placement/athletics events entirely
+    const isPlacementEvent = m.scoring_type === 'placement' ||
+      (m.sport_name || '').toLowerCase().includes('swimming') ||
+      (m.sport_name || '').toLowerCase().includes('athletics') ||
+      (m.sport_name || '').toLowerCase().includes('aquatic');
+    if (isPlacementEvent) continue;
+
+    const eventOrSport = m.name || m.sport_name || m.sport;
+    const venue = m.venue_name || m.venue;
+    if (eventOrSport && venue && !isVenueCompatible(venue, eventOrSport)) {
+      const venueStr = typeof venue === 'object' ? venue.name : venue;
+      warnings.push({
+        type: 'venue_mismatch',
+        message: `Venue mismatch: "${eventOrSport}" may not be suited for "${venueStr}". Please verify the venue assignment is correct.`,
+        matchA: m,
+        matchB: null
+      });
     }
   }
   

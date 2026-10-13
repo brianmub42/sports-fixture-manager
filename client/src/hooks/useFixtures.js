@@ -56,6 +56,17 @@ export function useTeams() {
   });
 }
 
+export function useCreateTeam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => teamsApi.create(data).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['teams']);
+      queryClient.invalidateQueries(['settings']);
+    },
+  });
+}
+
 export const useDistricts = useTeams;
 
 export function useSettings(options = {}) {

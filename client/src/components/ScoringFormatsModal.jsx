@@ -132,7 +132,7 @@ export const SCORING_FORMATS = [
     howItWorks: [
       'Admins specify custom points for wins (e.g. 2 or 3) and draws (e.g. 1 or 0).',
       'Direct score updates via match console or scorekeeper mobile app.',
-      'Provides maximum flexibility for non-traditional or festival sports.'
+      'Provides maximum flexibility for non-traditional or custom sports.'
     ],
     pointsFormula: 'Configured per sport in Settings (default: Win = 3 pts, Draw = 1 pt, Loss = 0 pts).',
     standingsRank: 'Cumulative match points table with goals/sets scored tracking.',

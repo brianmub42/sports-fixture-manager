@@ -48,7 +48,7 @@ function TeamResultsBreakdown({ teamCode, teamName, sportName }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-150/30 dark:divide-gray-800/40">
-              {filtered.map((f) => {
+              {filtered?.filter(Boolean).map((f) => {
                 const isTeamA = f.team_a_code === teamCode;
                 const ownScore = isTeamA ? f.score_a : f.score_b;
                 const opponentScore = isTeamA ? f.score_b : f.score_a;
@@ -73,7 +73,7 @@ function TeamResultsBreakdown({ teamCode, teamName, sportName }) {
                 }
 
                 return (
-                  <tr key={f.id} className="hover:bg-white/40 dark:hover:bg-gray-800/10">
+                  <tr key={f?.id || f?.round || Math.random()} className="hover:bg-white/40 dark:hover:bg-gray-800/10">
                     <td className="py-2 px-2 font-medium text-gray-500">{f.round}</td>
                     <td className="py-2 px-2">
                       <span className="font-semibold text-gray-900 dark:text-gray-100">{ownScore} - {opponentScore}</span> vs <span className="font-medium text-gray-655 dark:text-gray-300">{opponentName} ({opponentCode})</span>
@@ -239,9 +239,9 @@ export default function Standings({
                     className="px-3 py-1.5 rounded-md text-xs font-medium bg-white dark:bg-gray-800 border border-gray-350 dark:border-gray-700 text-gray-705 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
                   >
                     <option value="all">All Events (Combined)</option>
-                    {eventsList.map(ev => (
-                      <option key={ev.id} value={ev.id}>
-                        {ev.name} {ev.category ? `(${ev.category})` : ''}
+                    {eventsList?.filter(Boolean).map(ev => (
+                      <option key={ev?.id} value={ev?.id}>
+                        {ev?.name} {ev?.category ? `(${ev?.category})` : ''}
                       </option>
                     ))}
                   </select>
@@ -251,105 +251,190 @@ export default function Standings({
 
             <div className="overflow-x-auto">
               <div className="min-w-[650px]">
-                <div className="grid grid-cols-9 gap-2 text-xs text-gray-400 font-medium mb-2 px-2 text-center pb-2">
-                  <span>Rank</span>
-                  {isPlacement ? (
-                    <>
-                      <span className="text-left col-span-3">Team</span>
-                      <span title="Events Played">E</span>
-                      <span title="1st Place finishes">1st 🥇</span>
-                      <span title="2nd Place finishes">2nd 🥈</span>
-                      <span title="3rd Place finishes">3rd 🥉</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-left col-span-2">Team</span>
-                      <span title="Matches Played">P</span>
-                      <span title="Matches Won">W</span>
-                      <span title="Matches Lost">L</span>
-                      <span title="Points For">PF</span>
-                      <span title="Points Against">PA</span>
-                    </>
-                  )}
-                  <span>PTS</span>
-                </div>
-                <div className="space-y-1">
-                  {standings?.map((team, i) => (
-                    <div key={team.code} className="flex flex-col">
-                      <div 
-                        onClick={() => {
-                          if (eventId === 'all') {
-                            setExpandedTeam(expandedTeam === team.code ? null : team.code);
-                          }
-                        }}
-                        className={`grid grid-cols-9 gap-2 items-center py-2.5 px-2 border-b border-gray-150/40 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded text-center transition-all ${
-                          eventId === 'all' ? 'cursor-pointer select-none' : ''
-                        } ${expandedTeam === team.code && eventId === 'all' ? 'bg-purple-50/20 dark:bg-purple-950/10 border-l-2 border-purple-500' : ''}`}
-                      >
-                        {/* Rank & Trend */}
-                        <span className="flex items-center justify-center gap-1.5 font-semibold">
-                          <span className="text-gray-900 dark:text-gray-100 text-xs">{i + 1}</span>
-                          {team.trend === 'up' && (
-                            <span 
-                              className="text-green-500 text-[10px] font-bold" 
-                              title={team.rank_diff > 0 ? `Moved up by ${team.rank_diff} rank(s)` : 'Moved up'}
-                            >
-                              ▲
-                            </span>
-                          )}
-                          {team.trend === 'down' && (
-                            <span 
-                              className="text-red-500 text-[10px] font-bold" 
-                              title={team.rank_diff < 0 ? `Moved down by ${Math.abs(team.rank_diff)} rank(s)` : 'Moved down'}
-                            >
-                              ▼
-                            </span>
-                          )}
-                          {team.trend === 'same' && (
-                            <span className="text-gray-300 dark:text-gray-600 text-[10px]" title="No change in rank">
-                              —
-                            </span>
-                          )}
-                        </span>
+                {(() => {
+                  const scoringSystem = selectedSportObj?.scoring_system || (isPlacement ? 'placement' : 'standard_points');
 
-                        {isPlacement ? (
+                  return (
+                    <>
+                      {/* Dynamic Table Header */}
+                      <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 font-medium mb-2 px-2 text-center pb-2 border-b border-gray-150/60 dark:border-gray-800">
+                        <span>Rank</span>
+                        {scoringSystem === 'placement' ? (
                           <>
-                            <span className="text-left col-span-3 truncate flex items-center gap-1">
-                              <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
-                              {eventId === 'all' && (
-                                expandedTeam === team.code ? (
-                                  <ChevronUp size={14} className="text-purple-400 shrink-0" />
-                                ) : (
-                                  <ChevronDown size={14} className="text-purple-400 shrink-0" />
-                                )
-                              )}
-                            </span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{team.played}</span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{team.gold || team.won || 0}</span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{team.silver || 0}</span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{team.bronze || 0}</span>
+                            <span className="text-left col-span-4">Team</span>
+                            <span title="Events Played">E</span>
+                            <span title="1st Place finishes">1st 🥇</span>
+                            <span title="2nd Place finishes">2nd 🥈</span>
+                            <span title="3rd Place finishes">3rd 🥉</span>
+                          </>
+                        ) : scoringSystem === 'sets_games' ? (
+                          <>
+                            <span className="text-left col-span-3">Team</span>
+                            <span title="Matches Played">P</span>
+                            <span title="Matches Won">W</span>
+                            <span title="Matches Lost">L</span>
+                            <span title="Sets Won">SW</span>
+                            <span title="Sets Lost">SL</span>
+                            <span title="Sets Differential">S+/-</span>
+                          </>
+                        ) : scoringSystem === 'bonus_points' ? (
+                          <>
+                            <span className="text-left col-span-3">Team</span>
+                            <span title="Matches Played">P</span>
+                            <span title="Matches Won">W</span>
+                            <span title="Matches Drawn">D</span>
+                            <span title="Matches Lost">L</span>
+                            <span title="Tries For">Tries</span>
+                            <span title="Bonus Points">BP</span>
+                          </>
+                        ) : scoringSystem === 'cricket_runs' ? (
+                          <>
+                            <span className="text-left col-span-3">Team</span>
+                            <span title="Matches Played">P</span>
+                            <span title="Matches Won">W</span>
+                            <span title="Matches Tied">T</span>
+                            <span title="Matches Lost">L</span>
+                            <span title="Runs Scored">Runs</span>
+                            <span title="Net Run Rate">NRR</span>
                           </>
                         ) : (
                           <>
-                            <span className="text-left col-span-2 truncate flex items-center gap-1">
-                              <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
-                              {eventId === 'all' && (
-                                expandedTeam === team.code ? (
-                                  <ChevronUp size={14} className="text-purple-400 shrink-0" />
-                                ) : (
-                                  <ChevronDown size={14} className="text-purple-400 shrink-0" />
-                                )
-                              )}
-                            </span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{team.played}</span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{team.won}</span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{team.lost}</span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{team.pf}</span>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{team.pa}</span>
+                            <span className="text-left col-span-3">Team</span>
+                            <span title="Matches Played">P</span>
+                            <span title="Matches Won">W</span>
+                            <span title="Matches Drawn">D</span>
+                            <span title="Matches Lost">L</span>
+                            <span title="Points For">PF</span>
+                            <span title="Points Against">PA</span>
                           </>
                         )}
-                        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{team.points}</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200">PTS</span>
                       </div>
+
+                      {/* Standings Rows */}
+                      <div className="space-y-1">
+                        {standings?.map((team, i) => (
+                          <div key={team.code} className="flex flex-col">
+                            <div 
+                              onClick={() => {
+                                if (eventId === 'all') {
+                                  setExpandedTeam(expandedTeam === team.code ? null : team.code);
+                                }
+                              }}
+                              className={`grid grid-cols-10 gap-2 items-center py-2.5 px-2 border-b border-gray-150/40 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded text-center transition-all ${
+                                eventId === 'all' ? 'cursor-pointer select-none' : ''
+                              } ${expandedTeam === team.code && eventId === 'all' ? 'bg-purple-50/20 dark:bg-purple-950/10 border-l-2 border-purple-500' : ''}`}
+                            >
+                              {/* Rank & Trend */}
+                              <span className="flex items-center justify-center gap-1.5 font-semibold">
+                                <span className="text-gray-900 dark:text-gray-100 text-xs">{i + 1}</span>
+                                {team.trend === 'up' && (
+                                  <span className="text-green-500 text-[10px] font-bold" title={team.rank_diff > 0 ? `Moved up by ${team.rank_diff} rank(s)` : 'Moved up'}>▲</span>
+                                )}
+                                {team.trend === 'down' && (
+                                  <span className="text-red-500 text-[10px] font-bold" title={team.rank_diff < 0 ? `Moved down by ${Math.abs(team.rank_diff)} rank(s)` : 'Moved down'}>▼</span>
+                                )}
+                                {team.trend === 'same' && (
+                                  <span className="text-gray-300 dark:text-gray-600 text-[10px]" title="No change in rank">—</span>
+                                )}
+                              </span>
+
+                              {scoringSystem === 'placement' ? (
+                                <>
+                                  <span className="text-left col-span-4 truncate flex items-center gap-1">
+                                    <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
+                                    {eventId === 'all' && (
+                                      expandedTeam === team.code ? (
+                                        <ChevronUp size={14} className="text-purple-400 shrink-0" />
+                                      ) : (
+                                        <ChevronDown size={14} className="text-purple-400 shrink-0" />
+                                      )
+                                    )}
+                                  </span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.played}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.gold || team.won || 0}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.silver || 0}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.bronze || 0}</span>
+                                </>
+                              ) : scoringSystem === 'sets_games' ? (
+                                <>
+                                  <span className="text-left col-span-3 truncate flex items-center gap-1">
+                                    <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
+                                    {eventId === 'all' && (
+                                      expandedTeam === team.code ? (
+                                        <ChevronUp size={14} className="text-purple-400 shrink-0" />
+                                      ) : (
+                                        <ChevronDown size={14} className="text-purple-400 shrink-0" />
+                                      )
+                                    )}
+                                  </span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.played}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.won}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.lost}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.sets_won || 0}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.sets_lost || 0}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.sets_diff > 0 ? `+${team.sets_diff}` : team.sets_diff || 0}</span>
+                                </>
+                              ) : scoringSystem === 'bonus_points' ? (
+                                <>
+                                  <span className="text-left col-span-3 truncate flex items-center gap-1">
+                                    <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
+                                    {eventId === 'all' && (
+                                      expandedTeam === team.code ? (
+                                        <ChevronUp size={14} className="text-purple-400 shrink-0" />
+                                      ) : (
+                                        <ChevronDown size={14} className="text-purple-400 shrink-0" />
+                                      )
+                                    )}
+                                  </span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.played}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.won}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.drawn}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.lost}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.tries_for || 0}</span>
+                                  <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">+{team.bonus_points || 0}</span>
+                                </>
+                              ) : scoringSystem === 'cricket_runs' ? (
+                                <>
+                                  <span className="text-left col-span-3 truncate flex items-center gap-1">
+                                    <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
+                                    {eventId === 'all' && (
+                                      expandedTeam === team.code ? (
+                                        <ChevronUp size={14} className="text-purple-400 shrink-0" />
+                                      ) : (
+                                        <ChevronDown size={14} className="text-purple-400 shrink-0" />
+                                      )
+                                    )}
+                                  </span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.played}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.won}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.tied}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.lost}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.runs_for || 0}</span>
+                                  <span className="text-sm font-mono text-xs text-blue-600 dark:text-blue-400">{team.nrr_formatted || team.nrr || '0.000'}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-left col-span-3 truncate flex items-center gap-1">
+                                    <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
+                                    {eventId === 'all' && (
+                                      expandedTeam === team.code ? (
+                                        <ChevronUp size={14} className="text-purple-400 shrink-0" />
+                                      ) : (
+                                        <ChevronDown size={14} className="text-purple-400 shrink-0" />
+                                      )
+                                    )}
+                                  </span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.played}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.won}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.drawn}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.lost}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.pf}</span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">{team.pa}</span>
+                                </>
+                              )}
+                              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{team.points}</span>
+                            </div>
 
                       {/* Dropdown breakdown */}
                       {eventId === 'all' && expandedTeam === team.code && (
@@ -396,6 +481,9 @@ export default function Standings({
                     </div>
                   ))}
                 </div>
+              </>
+            );
+          })()}
               </div>
             </div>
           </div>

@@ -1,7 +1,15 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config(); // fallback
+
+// Preserve TIMESTAMP without time zone as local ISO string (prevent node-pg from converting to UTC Date)
+pkg.types.setTypeParser(1114, (str) => (str ? str.replace(' ', 'T') : null));
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

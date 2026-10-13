@@ -35,6 +35,9 @@ export function AuthProvider({ children }) {
     const res = await authApi.login({ email, password });
     setToken(res.data.token);
     setUser(res.data.user);
+    if (res.data.organization?.slug) {
+      localStorage.setItem('organization_slug', res.data.organization.slug);
+    }
     return res.data;
   };
 
@@ -42,6 +45,9 @@ export function AuthProvider({ children }) {
     const res = await authApi.register({ name, email, password });
     setToken(res.data.token);
     setUser(res.data.user);
+    if (res.data.organization?.slug) {
+      localStorage.setItem('organization_slug', res.data.organization.slug);
+    }
     return res.data;
   };
 

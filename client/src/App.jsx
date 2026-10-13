@@ -43,7 +43,8 @@ function App() {
   const isPublicBypassRoute =
     window.location.pathname.startsWith('/watch') ||
     window.location.pathname.startsWith('/reset-password') ||
-    window.location.pathname.startsWith('/app');
+    window.location.pathname.startsWith('/app') ||
+    window.location.pathname.startsWith('/login');
 
   if (!activeOrg && !isPublicBypassRoute) {
     return <SelectOrganization />;
@@ -66,12 +67,12 @@ function App() {
               <Route path="/generate" element={<GeneratePage />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/media" element={<MediaManager />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/brackets" element={<Brackets />} />
               <Route path="/athletics" element={<AthleticsPage />} />
               <Route path="/superadmin" element={<SuperadminDashboard />} />
             </Route>
+            <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/tv" element={<TvMode />} />
             <Route path="/watch/display" element={<TvMode />} />
             <Route path="/watch/:eventSlug/display" element={<TvMode />} />

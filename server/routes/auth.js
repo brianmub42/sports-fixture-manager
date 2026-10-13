@@ -66,16 +66,11 @@ router.post('/login', async (req, res) => {
     }
     email = email.trim().toLowerCase();
 
-    // Look up user globally first (Superadmins can log in from any workspace)
+    // Look up user globally first (Superadmins and officials across workspaces)
     const userRes = await query('SELECT * FROM users WHERE email = $1', [email]);
     const user = userRes.rows[0];
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    // If not superadmin, ensure they belong to the current organization context
-    if (user.role !== 'superadmin' && user.organization_id !== req.orgId) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -84,8 +79,18 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    // Look up user's organization details
+    let userOrg = null;
+    if (user.organization_id) {
+      const orgRes = await query('SELECT id, name, slug, event_title FROM organizations WHERE id = $1', [user.organization_id]);
+      userOrg = orgRes.rows[0] || null;
+    }
+
+    const orgId = user.organization_id || req.orgId;
+    const orgSlug = userOrg ? userOrg.slug : req.orgSlug;
+
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, organization_id: req.orgId, organization_slug: req.orgSlug },
+      { id: user.id, email: user.email, role: user.role, organization_id: orgId, organization_slug: orgSlug },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -95,8 +100,11 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        organization_id: orgId,
+        organization_slug: orgSlug
       },
+      organization: userOrg,
       token
     });
   } catch (err) {

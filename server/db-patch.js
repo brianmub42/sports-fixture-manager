@@ -76,6 +76,30 @@ async function runPatch() {
       )
     `);
 
+    // 6. Add multi-sport & advanced scoring system columns
+    console.log('Adding multi-sport scoring columns if not exists...');
+    await query(`
+      ALTER TABLE sports 
+      ADD COLUMN IF NOT EXISTS scoring_system VARCHAR(30) DEFAULT 'standard_points',
+      ADD COLUMN IF NOT EXISTS scoring_rules JSONB DEFAULT '{}'::jsonb
+    `);
+
+    await query(`
+      ALTER TABLE fixtures 
+      ADD COLUMN IF NOT EXISTS score_details JSONB DEFAULT NULL
+    `);
+
+    await query(`
+      ALTER TABLE venues 
+      ADD COLUMN IF NOT EXISTS supported_disciplines TEXT[] DEFAULT ARRAY[]::TEXT[]
+    `);
+
+    await query(`
+      ALTER TABLE athletics_results 
+      ADD COLUMN IF NOT EXISTS athlete_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS notes TEXT
+    `);
+
     console.log('Database schema patch applied successfully!');
   } catch (err) {
     console.error('Error applying database patch:', err);

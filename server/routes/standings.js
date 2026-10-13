@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
+import { calculateStandings } from '../lib/scoringEngine.js';
 
 const router = Router();
 
@@ -210,7 +211,67 @@ router.get('/', async (req, res) => {
       return res.json(standings);
     }
 
-    // scoring_type = 'points'
+    // Advanced Scoring Systems: sets_games (Tennis), bonus_points (Rugby), cricket_runs (Cricket)
+    if (sportRow.scoring_system && sportRow.scoring_system !== 'standard_points') {
+      const teamsRes = await query('SELECT id, code, name, color, logo_url FROM teams WHERE organization_id = $1', [req.orgId]);
+      const fixturesRes = await query(`
+        SELECT id, team_a_id, team_b_id, score_a, score_b, score_details, status, winner_id, updated_at 
+        FROM fixtures 
+        WHERE sport_id = $1 AND organization_id = $2 AND status IN ('completed', 'draw')
+      `, [sportRow.id, req.orgId]);
+
+      const currentStandings = calculateStandings({
+        teams: teamsRes.rows,
+        fixtures: fixturesRes.rows,
+        sport: sportRow
+      });
+
+      // Previous standings calculation for trend
+      const latestFixtureRes = await query(`
+        SELECT f.id FROM fixtures f
+        WHERE f.sport_id = $1 AND f.organization_id = $2 AND f.status IN ('completed', 'draw')
+        ORDER BY f.updated_at DESC, f.id DESC LIMIT 1
+      `, [sportRow.id, req.orgId]);
+
+      let prevStandings = currentStandings;
+      if (latestFixtureRes.rows.length > 0) {
+        const latestId = latestFixtureRes.rows[0].id;
+        prevStandings = calculateStandings({
+          teams: teamsRes.rows,
+          fixtures: fixturesRes.rows.filter(f => f.id !== latestId),
+          sport: sportRow
+        });
+      }
+
+      const prevRankMap = {};
+      prevStandings.forEach((row, idx) => {
+        prevRankMap[row.code] = idx + 1;
+      });
+
+      const standings = currentStandings.map((row, idx) => {
+        const currentRank = idx + 1;
+        const prevRank = prevRankMap[row.code] || currentRank;
+        const rankDiff = prevRank - currentRank;
+        let trend = 'same';
+        if (rankDiff > 0) trend = 'up';
+        if (rankDiff < 0) trend = 'down';
+
+        return {
+          ...row,
+          trend,
+          rank_diff: rankDiff
+        };
+      });
+
+      try {
+        await req.redisClient.set(cacheKey, JSON.stringify(standings), { EX: 3 });
+      } catch (err) {
+        console.error('Redis cache set error:', err);
+      }
+      return res.json(standings);
+    }
+
+    // scoring_type = 'points' (standard_points: Soccer, Basketball, etc.)
     // 1. Current Points Standings
     const currentRes = await query(`
       SELECT 

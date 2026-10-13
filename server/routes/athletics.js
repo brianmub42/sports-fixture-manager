@@ -33,7 +33,7 @@ router.get('/events', async (req, res) => {
       JOIN teams t ON ar.team_id = t.id
       JOIN athletics_events ae ON ar.event_id = ae.id
       WHERE ae.organization_id = $1
-      ORDER BY CASE WHEN ar.placement IS NULL THEN 999 ELSE ar.placement END ASC, ar.time_ms ASC NULLS LAST
+      ORDER BY CASE WHEN ar.placement IS NULL THEN 999 ELSE ar.placement END ASC, ar.distance_m DESC NULLS LAST, ar.time_ms ASC NULLS LAST
     `, [req.orgId]);
 
     const resultsByEvent = {};
@@ -135,7 +135,7 @@ router.get('/events/:id/results', async (req, res) => {
       JOIN teams t ON ar.team_id = t.id
       JOIN athletics_events ae ON ar.event_id = ae.id
       WHERE ar.event_id = $1 AND ae.organization_id = $2
-      ORDER BY CASE WHEN ar.placement IS NULL THEN 999 ELSE ar.placement END ASC, ar.time_ms ASC NULLS LAST
+      ORDER BY CASE WHEN ar.placement IS NULL THEN 999 ELSE ar.placement END ASC, ar.distance_m DESC NULLS LAST, ar.time_ms ASC NULLS LAST
     `, [eventId, req.orgId]);
 
     res.json(result.rows);
@@ -212,9 +212,20 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       }
 
       await query(`
-        INSERT INTO athletics_results (event_id, team_id, placement, points, time_ms, tied, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [eventId, r.teamId, isOk ? r.placement : null, pts, isOk ? (r.timeMs || null) : null, !!r.tied, status]);
+        INSERT INTO athletics_results (event_id, team_id, placement, points, time_ms, distance_m, tied, status, athlete_name, notes)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [
+        eventId, 
+        r.teamId, 
+        isOk ? r.placement : null, 
+        pts, 
+        r.timeMs || null, 
+        (r.distanceM != null ? r.distanceM : (r.distance_m != null ? r.distance_m : null)), 
+        !!r.tied, 
+        status,
+        (r.athleteName || r.athlete_name || '').trim() || null,
+        (r.notes || r.infractionReason || '').trim() || null
+      ]);
     }
 
     // Update event status to completed
@@ -230,6 +241,14 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       const seconds = totalSeconds % 60;
       const hundredths = Math.floor((num % 1000) / 10);
       return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+    };
+
+    // Format distance helper (e.g. 6.45m or 1.85m)
+    const formatDistance = (dist) => {
+      if (dist == null) return null;
+      const num = Number(dist);
+      if (isNaN(num)) return null;
+      return `${num.toFixed(2)}m`;
     };
 
     // Fetch full event metadata & sport info
@@ -248,7 +267,7 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       FROM athletics_results ar
       JOIN teams t ON ar.team_id = t.id
       WHERE ar.event_id = $1
-      ORDER BY CASE WHEN ar.placement IS NULL THEN 999 ELSE ar.placement END ASC, ar.time_ms ASC NULLS LAST
+      ORDER BY CASE WHEN ar.placement IS NULL THEN 999 ELSE ar.placement END ASC, ar.distance_m DESC NULLS LAST, ar.time_ms ASC NULLS LAST
     `, [eventId]);
 
     const formattedResults = resultsDetailsRes.rows.map(r => ({
@@ -260,9 +279,11 @@ router.post('/events/:id/results', authMiddleware, requireScorekeeperOrAdmin, as
       teamLogo: r.team_logo,
       points: r.points,
       timeMs: r.time_ms,
+      distanceM: r.distance_m != null ? Number(r.distance_m) : null,
       tied: r.tied || false,
       status: r.status || 'OK',
-      timeFormatted: formatTime(r.time_ms)
+      timeFormatted: formatTime(r.time_ms),
+      distanceFormatted: formatDistance(r.distance_m)
     }));
 
     const latestResultPayload = {

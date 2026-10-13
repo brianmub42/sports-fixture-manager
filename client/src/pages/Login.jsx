@@ -5,10 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../hooks/useFixtures.js';
 import { authApi } from '../api.js';
 import { Lock, Mail, User, ShieldAlert, ArrowLeft, Loader2, Eye, EyeOff, KeyRound, CheckCircle2, RefreshCw } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle.jsx';
 
 export default function Login() {
   const { login, register } = useAuth();
-  const { activeOrg } = useOrganization();
+  const { activeOrg, setActiveOrgSlug, organizations } = useOrganization();
   const navigate = useNavigate();
   const { data: settings } = useSettings();
  
@@ -51,9 +52,15 @@ export default function Login() {
 
     try {
       if (isRegister) {
-        await register(name, email, password);
+        const res = await register(name, email, password);
+        if (res?.organization?.slug && setActiveOrgSlug) {
+          setActiveOrgSlug(res.organization.slug);
+        }
       } else {
-        await login(email, password);
+        const res = await login(email, password);
+        if (res?.organization?.slug && setActiveOrgSlug) {
+          setActiveOrgSlug(res.organization.slug);
+        }
       }
       navigate('/');
     } catch (err) {
@@ -127,16 +134,20 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-white via-slate-50 to-gray-100 dark:from-gray-950 dark:via-slate-900 dark:to-gray-950">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-white via-slate-50 to-gray-100 dark:from-gray-950 dark:via-slate-900 dark:to-gray-950">
       <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-900/60 backdrop-blur-md p-8 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl relative">
         
-        {/* Back navigation */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-        </button>
+        {/* Header navigation & ThemeToggle */}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" /> {activeOrg ? 'Back to Dashboard' : 'Back to Home'}
+          </button>
+          <ThemeToggle />
+        </div>
 
         {/* Title */}
         <div className="text-center">
@@ -144,11 +155,17 @@ export default function Login() {
             <img src="/assets/fixture-grid-logo.png" alt="FixtureGrid Logo" className="h-10 w-auto object-contain" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-            {isRegister ? 'Register Official' : 'Official Access'}
+            {isRegister ? 'Register Official' : 'Official Sign In'}
           </h2>
-          <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-            Workspace: <span className="font-semibold text-blue-500">{activeOrg?.name}</span>
-          </p>
+          {activeOrg ? (
+            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+              Workspace: <span className="font-semibold text-blue-500">{activeOrg.name}</span>
+            </p>
+          ) : (
+            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+              Sign in to your tournament workspace
+            </p>
+          )}
         </div>
 
         {/* Form */}

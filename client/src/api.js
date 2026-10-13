@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -76,7 +76,8 @@ export const uploadApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
-  downloadTemplate: () => api.get('/upload/template', { responseType: 'blob' }),
+  downloadTemplate: (type = 'fixtures') => api.get('/upload/template', { params: { type }, responseType: 'blob' }),
+  downloadPlacementTemplate: () => api.get('/upload/template/placement', { responseType: 'blob' }),
   uploadPop: (file) => {
     const formData = new FormData();
     formData.append('pop', file);
@@ -104,10 +105,13 @@ export const generateApi = {
   preview: (data) => api.post('/generate', { ...data, saveToDb: false }),
   generateAndSave: (data) => api.post('/generate', { ...data, saveToDb: true }),
   saveCustom: (data) => api.post('/generate', { ...data, saveCustom: true }),
+  previewMultiSport: (data) => api.post('/generate/multi-sport', { ...data, saveToDb: false }),
+  generateAndSaveMultiSport: (data) => api.post('/generate/multi-sport', { ...data, saveToDb: true }),
 };
 
 export const teamsApi = {
   getAll: () => api.get('/teams'),
+  create: (data) => api.post('/teams', data),
   getPlayers: (id) => api.get(`/teams/${id}/players`),
   addPlayer: (id, data) => api.post(`/teams/${id}/players`, data),
   deletePlayer: (id, playerId) => api.delete(`/teams/${id}/players/${playerId}`),

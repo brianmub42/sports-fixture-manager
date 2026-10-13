@@ -48,6 +48,11 @@ export function OrganizationProvider({ children }) {
     window.location.reload();
   };
 
+  const setActiveOrgSlug = (slug) => {
+    localStorage.setItem('organization_slug', slug);
+    setCurrentOrgSlug(slug);
+  };
+
   const createOrg = async (name, eventTitle, creatorEmail) => {
     const newOrg = await createOrgMutation.mutateAsync({ name, event_title: eventTitle, creator_email: creatorEmail });
     localStorage.removeItem('token'); // Clear old tenant token
@@ -63,6 +68,7 @@ export function OrganizationProvider({ children }) {
       currentOrgSlug,
       isLoading,
       selectOrg,
+      setActiveOrgSlug,
       clearOrg,
       createOrg,
       refetch

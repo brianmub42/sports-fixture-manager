@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS sports (
     organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
     scoring_type VARCHAR(20) DEFAULT 'points',
+    scoring_system VARCHAR(30) DEFAULT 'standard_points', -- standard_points, sets_games, bonus_points, cricket_runs, placement
+    scoring_rules JSONB DEFAULT '{}'::jsonb,
     win_points INT DEFAULT 3,
     draw_points INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT NOW(),
@@ -44,7 +46,8 @@ CREATE TABLE IF NOT EXISTS venues (
     id SERIAL PRIMARY KEY,
     organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
-    type VARCHAR(20) DEFAULT 'court', -- court, pitch, field, track, pool, area
+    type VARCHAR(20) DEFAULT 'court', -- court, pitch, field, track, pool, area, oval
+    supported_disciplines TEXT[] DEFAULT ARRAY[]::TEXT[],
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(organization_id, name)
 );
@@ -61,6 +64,7 @@ CREATE TABLE IF NOT EXISTS fixtures (
     duration_minutes INT DEFAULT 10,
     score_a INT,
     score_b INT,
+    score_details JSONB DEFAULT NULL,
     status VARCHAR(20) DEFAULT 'upcoming',
     winner_id INT REFERENCES teams(id) ON DELETE CASCADE,
     notes TEXT,
@@ -91,6 +95,7 @@ CREATE TABLE IF NOT EXISTS athletics_results (
     placement INT,
     points INT,
     time_ms INT,
+    distance_m NUMERIC(8,2),
     tied BOOLEAN DEFAULT FALSE,
     status VARCHAR(10) DEFAULT 'OK',
     created_at TIMESTAMP DEFAULT NOW()

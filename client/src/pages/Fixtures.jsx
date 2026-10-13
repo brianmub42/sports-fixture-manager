@@ -5,7 +5,7 @@ import { Calendar, Download, ChevronDown, ChevronUp, Save, Users } from 'lucide-
 import SportTag from '../components/SportTag.jsx';
 import TeamPill from '../components/TeamPill.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { exportFixturesToPDF } from '../utils/pdfExport.js';
+import { exportFixturesToPDF, exportFixturesToCSV } from '../utils/pdfExport.js';
 import { useToast } from '../contexts/ToastContext.jsx';
 
 export default function Fixtures({
@@ -52,6 +52,20 @@ export default function Fixtures({
 
   const showLineupsFeature = settings?.enable_player_registration;
 
+  const formatFixtureTime = (f) => {
+    if (f.time) return f.time;
+    if (!f.scheduled_at) return '';
+    const str = String(f.scheduled_at);
+    if (str.includes('Z')) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+    }
+    return str.slice(11, 16);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -63,14 +77,29 @@ export default function Fixtures({
           <p className="text-gray-500 dark:text-gray-400">Complete tournament schedule</p>
         </div>
         
-        <button 
-          onClick={() => exportFixturesToPDF(fixtures, settings)}
-          disabled={!fixtures?.length}
-          className="k-btn bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center gap-2"
-        >
-          <Download size={16} />
-          <span className="hidden sm:inline">Download PDF</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            type="button"
+            onClick={() => exportFixturesToPDF(fixtures, settings)}
+            disabled={!fixtures?.length}
+            className="k-btn bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50 text-xs font-semibold"
+            title="Download formatted PDF schedule"
+          >
+            <Download size={14} className="text-blue-500" />
+            <span>Download PDF</span>
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => exportFixturesToCSV(fixtures, settings)}
+            disabled={!fixtures?.length}
+            className="k-btn bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50 text-xs font-semibold"
+            title="Export fixtures to CSV / Excel spreadsheet"
+          >
+            <Download size={14} className="text-emerald-500" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
@@ -114,7 +143,7 @@ export default function Fixtures({
                     onClick={() => showLineupsFeature && hasTeams && toggleExpand(f.id)}
                     className={`border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-850/50 transition-colors ${showLineupsFeature && hasTeams ? 'cursor-pointer' : ''}`}
                   >
-                    <td className="py-3 px-4 text-gray-600 dark:text-gray-400 font-mono text-xs">{f.time || f.scheduled_at?.slice(11, 16)}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-400 font-mono text-xs">{formatFixtureTime(f)}</td>
                     <td className="py-3 px-4"><SportTag sport={f.sport_name} /></td>
                     <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{f.venue_name}</td>
                     <td className="py-3 px-4">
@@ -209,7 +238,7 @@ export default function Fixtures({
                   )}
                 </div>
                 <div className="flex justify-between text-[10px] text-gray-400">
-                  <span>{f.time || f.scheduled_at?.slice(11, 16)}</span>
+                  <span>{formatFixtureTime(f)}</span>
                   <span>{f.venue_name}</span>
                 </div>
               </div>

@@ -245,7 +245,9 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-500/10 text-orange-600 dark:text-orange-400 animate-in fade-in zoom-in-95 duration-150">Draw</span>
           )}
         </div>
-        <span className="text-xs text-gray-400 font-mono">{fixture.time || fixture.scheduled_at?.slice(11, 16)} · {fixture.venue_name}</span>
+        <span className="text-xs text-gray-400 font-mono">
+          {(fixture.time || (fixture.scheduled_at?.includes('Z') ? new Date(fixture.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : fixture.scheduled_at?.slice(11, 16))) || ''} · {fixture.venue_name}
+        </span>
       </div>
 
       {saveStatus && (
