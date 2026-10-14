@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { superadminApi } from '../api.js';
-import { ShieldCheck, Search, Check, RefreshCw, Ban, ExternalLink } from 'lucide-react';
+import { ShieldCheck, Search, Check, RefreshCw, Ban, ExternalLink, Trash2, EyeOff, RotateCcw } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext.jsx';
 
 export default function SuperadminDashboard() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // all, pending, active, suspended
+  const [statusFilter, setStatusFilter] = useState('all'); // all, pending, active, suspended, deactivated
   const [customDays, setCustomDays] = useState({});
   const [customDates, setCustomDates] = useState({});
 
@@ -28,7 +28,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['superadmin_tenants'] });
       showToast('Tenant subscription approved successfully!', 'success');
     },
-    onError: (err) => alert('Failed to approve subscription: ' + err.message)
+    onError: (err) => alert('Failed to approve subscription: ' + (err.response?.data?.error || err.message))
   });
 
   // Mutation to suspend tenant
@@ -38,7 +38,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['superadmin_tenants'] });
       showToast('Tenant subscription suspended!', 'success');
     },
-    onError: (err) => alert('Failed to suspend subscription: ' + err.message)
+    onError: (err) => alert('Failed to suspend subscription: ' + (err.response?.data?.error || err.message))
   });
 
   // Mutation to extend tenant by custom date
@@ -48,7 +48,37 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['superadmin_tenants'] });
       showToast('Tenant license extended successfully!', 'success');
     },
-    onError: (err) => alert('Failed to extend license: ' + err.message)
+    onError: (err) => alert('Failed to extend license: ' + (err.response?.data?.error || err.message))
+  });
+
+  // Mutation to deactivate tenant (hides from list)
+  const deactivateMutation = useMutation({
+    mutationFn: (id) => superadminApi.deactivateTenant(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superadmin_tenants'] });
+      showToast('Workspace deactivated and hidden from list!', 'success');
+    },
+    onError: (err) => alert('Failed to deactivate workspace: ' + (err.response?.data?.error || err.message))
+  });
+
+  // Mutation to reactivate tenant
+  const activateMutation = useMutation({
+    mutationFn: (id) => superadminApi.activateTenant(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superadmin_tenants'] });
+      showToast('Workspace reactivated successfully!', 'success');
+    },
+    onError: (err) => alert('Failed to reactivate workspace: ' + (err.response?.data?.error || err.message))
+  });
+
+  // Mutation to delete tenant permanently
+  const deleteMutation = useMutation({
+    mutationFn: (id) => superadminApi.deleteTenant(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superadmin_tenants'] });
+      showToast('Workspace permanently deleted!', 'success');
+    },
+    onError: (err) => alert('Failed to delete workspace: ' + (err.response?.data?.error || err.message))
   });
 
   if (isLoading) {
@@ -79,7 +109,8 @@ export default function SuperadminDashboard() {
       statusFilter === 'all' || 
       (statusFilter === 'pending' && tenant.subscription_status === 'pending_verification') ||
       (statusFilter === 'active' && (tenant.subscription_status === 'active' || tenant.subscription_status === 'grace_period')) ||
-      (statusFilter === 'suspended' && tenant.subscription_status === 'suspended');
+      (statusFilter === 'suspended' && tenant.subscription_status === 'suspended') ||
+      (statusFilter === 'deactivated' && tenant.subscription_status === 'deactivated');
 
     return matchesSearch && matchesStatus;
   });
@@ -89,6 +120,7 @@ export default function SuperadminDashboard() {
   const pendingCount = tenants?.filter(t => t.subscription_status === 'pending_verification').length || 0;
   const activeCount = tenants?.filter(t => t.subscription_status === 'active' || t.subscription_status === 'grace_period').length || 0;
   const suspendedCount = tenants?.filter(t => t.subscription_status === 'suspended').length || 0;
+  const deactivatedCount = tenants?.filter(t => t.subscription_status === 'deactivated').length || 0;
 
   const formatRemainingTime = (minutes) => {
     if (minutes <= 0) return 'Expired';
@@ -115,22 +147,26 @@ export default function SuperadminDashboard() {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="k-card p-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="k-card p-3.5">
           <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Workspaces</p>
           <p className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-200">{totalCount}</p>
         </div>
-        <div className="k-card p-4 border-l-4 border-l-blue-500">
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Pending POP Review</p>
+        <div className="k-card p-3.5 border-l-4 border-l-blue-500">
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Pending Review</p>
           <p className="text-2xl font-bold mt-1 text-blue-500">{pendingCount}</p>
         </div>
-        <div className="k-card p-4 border-l-4 border-l-green-500">
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Active Subscriptions</p>
+        <div className="k-card p-3.5 border-l-4 border-l-green-500">
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Active</p>
           <p className="text-2xl font-bold mt-1 text-green-500">{activeCount}</p>
         </div>
-        <div className="k-card p-4 border-l-4 border-l-rose-500">
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Suspended Accounts</p>
+        <div className="k-card p-3.5 border-l-4 border-l-rose-500">
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Suspended</p>
           <p className="text-2xl font-bold mt-1 text-rose-500">{suspendedCount}</p>
+        </div>
+        <div className="k-card p-3.5 border-l-4 border-l-gray-400 dark:border-l-gray-600">
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Deactivated</p>
+          <p className="text-2xl font-bold mt-1 text-gray-500">{deactivatedCount}</p>
         </div>
       </div>
 
@@ -153,6 +189,7 @@ export default function SuperadminDashboard() {
             { key: 'pending', label: 'Pending Review', count: pendingCount },
             { key: 'active', label: 'Active', count: activeCount },
             { key: 'suspended', label: 'Suspended', count: suspendedCount },
+            { key: 'deactivated', label: 'Deactivated (Hidden)', count: deactivatedCount },
           ].map(tab => (
             <button
               key={tab.key}
@@ -228,6 +265,10 @@ export default function SuperadminDashboard() {
                         ) : tenant.subscription_status === 'pending_verification' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 animate-pulse">
                             Pending POP
+                          </span>
+                        ) : tenant.subscription_status === 'deactivated' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                            Deactivated
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
@@ -323,6 +364,54 @@ export default function SuperadminDashboard() {
                           >
                             <Ban size={12} />
                             Suspend Access
+                          </button>
+
+                          {/* Deactivate / Reactivate Button */}
+                          {tenant.subscription_status === 'deactivated' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Reactivate workspace "${tenant.name}"? It will reappear on the public workspace list.`)) {
+                                  activateMutation.mutate(tenant.id);
+                                }
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-1 px-2 rounded flex items-center justify-center gap-1 cursor-pointer border-none transition-colors"
+                              title="Reactivate workspace"
+                            >
+                              <RotateCcw size={12} />
+                              Reactivate
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={tenant.id === 1}
+                              onClick={() => {
+                                if (confirm(`Deactivate workspace "${tenant.name}"?\n\nIt will be hidden and will NOT appear on the workspace list.`)) {
+                                  deactivateMutation.mutate(tenant.id);
+                                }
+                              }}
+                              className="bg-slate-600 hover:bg-slate-700 text-white text-[11px] font-bold py-1 px-2 rounded flex items-center justify-center gap-1 disabled:opacity-40 cursor-pointer border-none transition-colors"
+                              title="Deactivate and hide workspace from list"
+                            >
+                              <EyeOff size={12} />
+                              Deactivate
+                            </button>
+                          )}
+
+                          {/* Permanent Delete Button */}
+                          <button
+                            type="button"
+                            disabled={tenant.id === 1}
+                            onClick={() => {
+                              if (confirm(`⚠️ PERMANENT DELETE WARNING\n\nAre you sure you want to permanently delete workspace "${tenant.name}"?\n\nThis will remove all matches, teams, fixtures, and data for this workspace.\n\nThis action CANNOT be undone.`)) {
+                                deleteMutation.mutate(tenant.id);
+                              }
+                            }}
+                            className="bg-red-700 hover:bg-red-800 text-white text-[11px] font-bold py-1 px-2 rounded flex items-center justify-center gap-1 disabled:opacity-40 cursor-pointer border-none transition-colors"
+                            title="Permanently delete workspace and all data"
+                          >
+                            <Trash2 size={12} />
+                            Delete
                           </button>
                         </div>
                       </td>

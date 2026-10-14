@@ -178,6 +178,9 @@ export const superadminApi = {
   approveTenant: (id, days) => api.post(`/superadmin/tenants/${id}/approve`, { days }),
   suspendTenant: (id) => api.post(`/superadmin/tenants/${id}/suspend`),
   extendTenant: (id, expiresAt) => api.post(`/superadmin/tenants/${id}/extend`, { expiresAt }),
+  deactivateTenant: (id) => api.post(`/superadmin/tenants/${id}/deactivate`),
+  activateTenant: (id) => api.post(`/superadmin/tenants/${id}/activate`),
+  deleteTenant: (id) => api.delete(`/superadmin/tenants/${id}`),
 };
 
 export const mediaApi = {

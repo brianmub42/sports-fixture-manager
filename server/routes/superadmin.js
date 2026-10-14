@@ -122,6 +122,63 @@ router.post('/billing/run-reminder-check', async (req, res) => {
     const results = await checkBillingReminders();
     res.json({ success: true, triggeredReminders: results });
   } catch (err) {
+// POST /api/superadmin/tenants/:id/deactivate
+// Deactivates a workspace so it does not appear on public/workspace list
+router.post('/tenants/:id/deactivate', async (req, res) => {
+  try {
+    const orgId = req.params.id;
+    if (parseInt(orgId) === 1) {
+      return res.status(400).json({ error: 'Cannot deactivate the primary system organization' });
+    }
+
+    await query(
+      "UPDATE organizations SET subscription_status = 'deactivated' WHERE id = $1",
+      [orgId]
+    );
+
+    res.json({ success: true, message: 'Workspace deactivated and hidden from list' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/superadmin/tenants/:id/activate
+// Reactivates a deactivated workspace
+router.post('/tenants/:id/activate', async (req, res) => {
+  try {
+    const orgId = req.params.id;
+
+    await query(
+      "UPDATE organizations SET subscription_status = 'active' WHERE id = $1",
+      [orgId]
+    );
+
+    res.json({ success: true, message: 'Workspace reactivated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/superadmin/tenants/:id
+// Permanently deletes a workspace and all its data
+router.delete('/tenants/:id', async (req, res) => {
+  try {
+    const orgId = req.params.id;
+    if (parseInt(orgId) === 1) {
+      return res.status(400).json({ error: 'Cannot delete the primary system organization' });
+    }
+
+    const orgRes = await query('SELECT name, slug FROM organizations WHERE id = $1', [orgId]);
+    if (orgRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Workspace not found' });
+    }
+
+    const orgName = orgRes.rows[0].name;
+
+    await query('DELETE FROM organizations WHERE id = $1', [orgId]);
+
+    res.json({ success: true, message: `Workspace "${orgName}" deleted permanently` });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

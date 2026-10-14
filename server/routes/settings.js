@@ -285,6 +285,28 @@ router.post('/billing/simulate-renewal', authMiddleware, async (req, res) => {
     );
     res.json({ success: true, message: 'Workspace renewal simulated' });
   } catch (err) {
+// POST /api/settings/deactivate-workspace
+router.post('/deactivate-workspace', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    if (req.orgId === 1) {
+      return res.status(400).json({ error: 'Cannot deactivate the primary system organization' });
+    }
+    await query("UPDATE organizations SET subscription_status = 'deactivated' WHERE id = $1", [req.orgId]);
+    res.json({ success: true, message: 'Workspace deactivated and hidden from list' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/settings/delete-workspace
+router.delete('/delete-workspace', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    if (req.orgId === 1) {
+      return res.status(400).json({ error: 'Cannot delete the primary system organization' });
+    }
+    await query('DELETE FROM organizations WHERE id = $1', [req.orgId]);
+    res.json({ success: true, message: 'Workspace deleted permanently' });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

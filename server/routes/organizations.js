@@ -6,7 +6,9 @@ const router = Router();
 // GET /api/organizations
 router.get('/', async (req, res) => {
   try {
-    const result = await query('SELECT id, name, slug, event_title, created_at FROM organizations ORDER BY name ASC');
+    const result = await query(
+      "SELECT id, name, slug, event_title, created_at FROM organizations WHERE subscription_status IS NULL OR subscription_status != 'deactivated' ORDER BY name ASC"
+    );
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
