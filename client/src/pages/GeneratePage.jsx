@@ -625,7 +625,524 @@ function EventAgeGroupManager({ events, eventConfigs, onChange }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENT QUEUE BUILDER — Option A implementation
+// Lets users pick one event → configure → add to queue → repeat, then
+// Preview & Generate everything in one shot.
+// ─────────────────────────────────────────────────────────────────────────────
+function EventQueueBuilder({ queue, onQueueChange, sportName }) {
+  const isSwimsport = sportName?.toLowerCase().includes('swim') || sportName?.toLowerCase().includes('pool');
+  const suggestionGroups = isSwimsport
+    ? [...SWIMMING_EVENTS_GROUPS, ...OLYMPIC_EVENTS_GROUPS]
+    : [...OLYMPIC_EVENTS_GROUPS, ...SWIMMING_EVENTS_GROUPS];
 
+  const [draftName, setDraftName] = useState('');
+  const [expandedIdx, setExpandedIdx] = useState(null);
+  const [customGenderInput, setCustomGenderInput] = useState({});
+  const [customAgeInput, setCustomAgeInput] = useState({});
+  const [customCatInput, setCustomCatInput] = useState({});
+
+  // ---- helpers ----
+  const getItem = (idx) => queue[idx] || {};
+
+  const updateItem = (idx, patch) => {
+    const next = queue.map((item, i) => i === idx ? { ...item, ...patch } : item);
+    onQueueChange(next);
+  };
+
+  const getActiveCategories = (idx) => {
+    const item = getItem(idx);
+    if (item.categories !== undefined) return item.categories;
+    const g = item.genders || [];
+    const a = item.ageGroups || [];
+    if (g.length > 0 && a.length > 0) return g.flatMap(gn => a.map(an => `${gn} ${an}`));
+    return [];
+  };
+
+  const allPermutations = (idx) => {
+    const item = getItem(idx);
+    const g = item.genders || [];
+    const a = item.ageGroups || [];
+    return (g.length > 0 && a.length > 0) ? g.flatMap(gn => a.map(an => `${gn} ${an}`)) : [];
+  };
+
+  // ---- gender toggles ----
+  const toggleGender = (idx, gender) => {
+    const item = getItem(idx);
+    const cur = item.genders || [];
+    const ages = item.ageGroups || [];
+    const activeCats = getActiveCategories(idx);
+    const exists = cur.includes(gender);
+    let nextG, nextC;
+    if (exists) {
+      nextG = cur.filter(g => g !== gender);
+      nextC = activeCats.filter(c => !c.startsWith(`${gender} `));
+    } else {
+      nextG = [...cur, gender];
+      const newPerms = ages.map(a => `${gender} ${a}`).filter(c => !activeCats.includes(c));
+      nextC = [...activeCats, ...newPerms];
+    }
+    updateItem(idx, { genders: nextG, categories: nextC });
+  };
+
+  const setGenderPreset = (idx, preset) => {
+    const item = getItem(idx);
+    const ages = item.ageGroups || [];
+    let nextG = [];
+    if (preset === 'mixed-only') nextG = ['Mixed'];
+    else if (preset === 'boys-girls') nextG = ['Boys', 'Girls'];
+    else if (preset === 'all') nextG = ['Boys', 'Girls', 'Mixed'];
+    const nextC = nextG.flatMap(g => ages.map(a => `${g} ${a}`));
+    updateItem(idx, { genders: nextG, categories: nextC });
+  };
+
+  const addCustomGender = (idx) => {
+    const val = (customGenderInput[idx] || '').trim();
+    if (!val) return;
+    const item = getItem(idx);
+    if (!(item.genders || []).includes(val)) toggleGender(idx, val);
+    setCustomGenderInput(p => ({ ...p, [idx]: '' }));
+  };
+
+  // ---- age group toggles ----
+  const toggleAge = (idx, age) => {
+    const item = getItem(idx);
+    const curAges = item.ageGroups || [];
+    const genders = item.genders || [];
+    const activeCats = getActiveCategories(idx);
+    const exists = curAges.includes(age);
+    let nextA, nextC;
+    if (exists) {
+      nextA = curAges.filter(a => a !== age);
+      nextC = activeCats.filter(c => !c.endsWith(` ${age}`));
+    } else {
+      nextA = [...curAges, age];
+      const newPerms = genders.map(g => `${g} ${age}`).filter(c => !activeCats.includes(c));
+      nextC = [...activeCats, ...newPerms];
+    }
+    updateItem(idx, { ageGroups: nextA, categories: nextC });
+  };
+
+  const setAgePreset = (idx, preset) => {
+    const item = getItem(idx);
+    const genders = item.genders || [];
+    let nextA = [];
+    if (preset === 'u9-u10') nextA = ['Under 9 (U9)', 'Under 10 (U10)'];
+    else if (preset === 'juniors') nextA = ['Under 9 (U9)', 'Under 10 (U10)', 'Under 11 (U11)', 'Under 12 (U12)'];
+    else if (preset === 'seniors') nextA = ['Under 13 (U13)', 'Under 14 (U14)', 'Under 15 (U15)', 'Under 16 (U16)', 'Under 17 (U17)'];
+    else if (preset === 'all') nextA = [...STANDARD_AGE_GROUPS];
+    const nextC = genders.flatMap(g => nextA.map(a => `${g} ${a}`));
+    updateItem(idx, { ageGroups: nextA, categories: nextC });
+  };
+
+  const addCustomAge = (idx) => {
+    const val = (customAgeInput[idx] || '').trim();
+    if (!val) return;
+    const item = getItem(idx);
+    if (!(item.ageGroups || []).includes(val)) toggleAge(idx, val);
+    setCustomAgeInput(p => ({ ...p, [idx]: '' }));
+  };
+
+  // ---- category toggles ----
+  const toggleCategory = (idx, cat) => {
+    const activeCats = getActiveCategories(idx);
+    const next = activeCats.includes(cat) ? activeCats.filter(c => c !== cat) : [...activeCats, cat];
+    updateItem(idx, { categories: next });
+  };
+
+  const addCustomCategory = (idx) => {
+    const val = (customCatInput[idx] || '').trim();
+    if (!val) return;
+    const activeCats = getActiveCategories(idx);
+    if (!activeCats.includes(val)) updateItem(idx, { categories: [...activeCats, val] });
+    setCustomCatInput(p => ({ ...p, [idx]: '' }));
+  };
+
+  // ---- add event to queue ----
+  const addEvent = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const already = queue.findIndex(q => q.name.toLowerCase() === trimmed.toLowerCase());
+    if (already !== -1) {
+      setExpandedIdx(already);
+      setDraftName('');
+      return;
+    }
+    const newIdx = queue.length;
+    onQueueChange([...queue, { name: trimmed, genders: [], ageGroups: [], categories: [] }]);
+    setExpandedIdx(newIdx);
+    setDraftName('');
+  };
+
+  const removeEvent = (idx) => {
+    const next = queue.filter((_, i) => i !== idx);
+    onQueueChange(next);
+    if (expandedIdx === idx) setExpandedIdx(null);
+    else if (expandedIdx > idx) setExpandedIdx(prev => prev - 1);
+  };
+
+  const configuredCount = queue.filter((item, idx) => getActiveCategories(idx).length > 0).length;
+
+  return (
+    <div className="col-span-1 md:col-span-2 space-y-3">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            📋 Event Queue
+            {queue.length > 0 && (
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                configuredCount === queue.length
+                  ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-950/60 dark:text-green-300 dark:border-green-800'
+                  : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+              }`}>
+                {configuredCount}/{queue.length} Configured
+              </span>
+            )}
+          </h4>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+            Add events one at a time, configure genders &amp; age groups for each, then generate everything at once.
+          </p>
+        </div>
+        {queue.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onQueueChange([])}
+            className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 font-semibold cursor-pointer whitespace-nowrap"
+          >
+            Clear All
+          </button>
+        )}
+      </div>
+
+      {/* Add Event Input */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Trophy size={14} className="absolute left-3 top-2.5 text-gray-400" />
+          <input
+            type="text"
+            value={draftName}
+            onChange={e => setDraftName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEvent(draftName); } }}
+            placeholder={isSwimsport ? 'Type event e.g. Freestyle 50m, Butterfly 100m...' : 'Type event e.g. 100m, High Jump, Shot Put...'}
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => addEvent(draftName)}
+          className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-colors cursor-pointer shrink-0 shadow-sm"
+        >
+          + Add Event
+        </button>
+      </div>
+
+      {/* Quick-Select Suggestions */}
+      <div className="border border-gray-150 dark:border-gray-800 rounded-lg p-3 bg-gray-50/20 dark:bg-gray-900/10 space-y-2.5">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Quick Select Events</span>
+        <div className="space-y-2">
+          {suggestionGroups.map((group, gIdx) => (
+            <div key={gIdx} className="space-y-1">
+              <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 block">{group.group}</span>
+              <div className="flex flex-wrap gap-1">
+                {(group.events || []).map((sug, sIdx) => {
+                  const alreadyQueued = queue.some(q => q.name.toLowerCase() === sug.toLowerCase());
+                  return (
+                    <button
+                      key={sIdx}
+                      type="button"
+                      onClick={() => addEvent(sug)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors cursor-pointer ${
+                        alreadyQueued
+                          ? 'bg-purple-100 dark:bg-purple-900/50 border-purple-300 dark:border-purple-700 text-purple-800 dark:text-purple-200'
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300'
+                      }`}
+                    >
+                      {alreadyQueued ? `✓ ${sug}` : `+ ${sug}`}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Queue Items */}
+      {queue.length === 0 ? (
+        <div className="p-6 rounded-xl border border-dashed border-purple-200 dark:border-purple-800/60 bg-purple-50/10 dark:bg-purple-950/10 text-center">
+          <Trophy className="w-7 h-7 mx-auto text-purple-400 mb-2 opacity-60" />
+          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">No events queued yet</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            Type an event name above or click a suggestion. Each event gets its own gender &amp; age group configuration.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {queue.map((item, idx) => {
+            const activeCats = getActiveCategories(idx);
+            const perms = allPermutations(idx);
+            const isExpanded = expandedIdx === idx;
+            const isConfigured = activeCats.length > 0;
+            const isMedleyOrRelay = /medley(\s+relay)?/i.test(item.name) || /mixed(\s+relay)?/i.test(item.name);
+            const displayedGenders = Array.from(new Set([...STANDARD_GENDERS, ...(item.genders || [])]));
+            const displayedAges = Array.from(new Set([...STANDARD_AGE_GROUPS, ...(item.ageGroups || [])]));
+
+            return (
+              <div
+                key={`${item.name}-${idx}`}
+                className={`rounded-xl border transition-all duration-200 ${
+                  isConfigured
+                    ? 'border-purple-200 dark:border-purple-800/50 bg-purple-50/10 dark:bg-purple-950/10'
+                    : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900'
+                }`}
+              >
+                {/* Row header */}
+                <div className="flex items-center gap-2 px-3.5 py-2.5">
+                  {/* Status dot */}
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${isConfigured ? 'bg-green-500' : 'bg-amber-400'}`} />
+
+                  {/* Event name + heat count */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                    className="flex-1 text-left flex items-center gap-2 group cursor-pointer"
+                  >
+                    <span className="text-xs font-bold text-gray-900 dark:text-gray-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                      {item.name}
+                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                      isConfigured
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300'
+                        : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                    }`}>
+                      {activeCats.length} {activeCats.length === 1 ? 'Heat' : 'Heats'}
+                    </span>
+                    {!isConfigured && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">⚠ Not configured</span>
+                    )}
+                  </button>
+
+                  {/* Configured heats preview (collapsed) */}
+                  {isConfigured && !isExpanded && (
+                    <div className="hidden sm:flex flex-wrap gap-1 max-w-[280px] overflow-hidden">
+                      {activeCats.slice(0, 3).map(cat => (
+                        <span key={cat} className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-medium">{cat}</span>
+                      ))}
+                      {activeCats.length > 3 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 font-medium">+{activeCats.length - 3} more</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Expand / Delete buttons */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                      className="text-[11px] px-2 py-0.5 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 font-semibold cursor-pointer transition-colors"
+                    >
+                      {isExpanded ? '▲ Close' : '✏ Configure'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeEvent(idx)}
+                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-950/40 text-gray-400 hover:text-red-500 cursor-pointer transition-colors text-sm font-bold"
+                      title={`Remove ${item.name} from queue`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expanded configuration panel */}
+                {isExpanded && (
+                  <div className="px-3.5 pb-3.5 border-t border-gray-100 dark:border-gray-800 space-y-3 pt-3">
+
+                    {/* Genders row */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-gray-600 dark:text-gray-300">👥 Genders:</span>
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <span className="text-gray-400">Quick:</span>
+                          {isMedleyOrRelay ? (
+                            <button type="button" onClick={() => setGenderPreset(idx, 'mixed-only')} className="px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-semibold cursor-pointer">Mixed Only</button>
+                          ) : (
+                            <>
+                              <button type="button" onClick={() => setGenderPreset(idx, 'boys-girls')} className="px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 font-semibold cursor-pointer">Boys &amp; Girls</button>
+                              <button type="button" onClick={() => setGenderPreset(idx, 'all')} className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 font-semibold cursor-pointer">All</button>
+                            </>
+                          )}
+                          <button type="button" onClick={() => updateItem(idx, { genders: [], categories: [] })} className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 text-gray-400 font-semibold cursor-pointer">Clear</button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {displayedGenders.map(g => {
+                          const isSel = (item.genders || []).includes(g);
+                          const isMixed = g.toLowerCase() === 'mixed';
+                          const isBoy = g.toLowerCase() === 'boys' || g.toLowerCase() === 'men';
+                          const isGirl = g.toLowerCase() === 'girls' || g.toLowerCase() === 'women';
+                          const activeStyle = isMixed
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
+                            : isBoy ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-200 border-blue-300 dark:border-blue-700'
+                            : isGirl ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200 border-rose-300 dark:border-rose-700'
+                            : 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-200 border-purple-300 dark:border-purple-700';
+                          return (
+                            <button key={g} type="button" onClick={() => toggleGender(idx, g)}
+                              className={`text-[11px] px-2.5 py-0.5 rounded-md transition-all font-semibold border cursor-pointer ${
+                                isSel ? `${activeStyle} shadow-2xs` : 'bg-gray-50 text-gray-500 dark:bg-gray-800/40 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400'
+                              }`}
+                            >
+                              {isSel ? `✓ ${g}` : `+ ${g}`}
+                            </button>
+                          );
+                        })}
+                        <div className="flex items-center gap-1">
+                          <input type="text" value={customGenderInput[idx] || ''}
+                            onChange={e => setCustomGenderInput(p => ({ ...p, [idx]: e.target.value }))}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomGender(idx); } }}
+                            placeholder="+ Custom..."
+                            className="w-20 px-1.5 py-0.5 text-[11px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          />
+                          {customGenderInput[idx] && (
+                            <button type="button" onClick={() => addCustomGender(idx)} className="px-1.5 py-0.5 rounded bg-purple-600 text-white text-[10px] font-bold cursor-pointer">Add</button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Age Groups row */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-gray-600 dark:text-gray-300">🎂 Age Groups:</span>
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <span className="text-gray-400">Quick:</span>
+                          <button type="button" onClick={() => setAgePreset(idx, 'u9-u10')} className="px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-semibold cursor-pointer">U9 &amp; U10</button>
+                          <button type="button" onClick={() => setAgePreset(idx, 'juniors')} className="px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-semibold cursor-pointer">U9–U12</button>
+                          <button type="button" onClick={() => setAgePreset(idx, 'seniors')} className="px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-semibold cursor-pointer">U13–U17</button>
+                          <button type="button" onClick={() => setAgePreset(idx, 'all')} className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 font-semibold cursor-pointer">All</button>
+                          <button type="button" onClick={() => updateItem(idx, { ageGroups: [], categories: [] })} className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 text-gray-400 font-semibold cursor-pointer">Clear</button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {displayedAges.map(ag => {
+                          const isSel = (item.ageGroups || []).includes(ag);
+                          return (
+                            <button key={ag} type="button" onClick={() => toggleAge(idx, ag)}
+                              className={`text-[11px] px-2 py-0.5 rounded-md transition-all font-medium border cursor-pointer ${
+                                isSel
+                                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200 border-purple-300 dark:border-purple-700 font-semibold shadow-2xs'
+                                  : 'bg-gray-50 text-gray-500 dark:bg-gray-800/40 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400'
+                              }`}
+                            >
+                              {isSel ? `✓ ${ag}` : `+ ${ag}`}
+                            </button>
+                          );
+                        })}
+                        <div className="flex items-center gap-1">
+                          <input type="text" value={customAgeInput[idx] || ''}
+                            onChange={e => setCustomAgeInput(p => ({ ...p, [idx]: e.target.value }))}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomAge(idx); } }}
+                            placeholder="+ Custom..."
+                            className="w-20 px-1.5 py-0.5 text-[11px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          />
+                          {customAgeInput[idx] && (
+                            <button type="button" onClick={() => addCustomAge(idx)} className="px-1.5 py-0.5 rounded bg-purple-600 text-white text-[10px] font-bold cursor-pointer">Add</button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Active Heats matrix */}
+                    <div className="pt-2 border-t border-gray-100 dark:border-gray-800/50 space-y-1.5 bg-gray-50/50 dark:bg-gray-950/20 p-2.5 rounded-lg">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-gray-700 dark:text-gray-300">🏊 Active Heats ({activeCats.length}):</span>
+                        <div className="flex items-center gap-1 text-[10px]">
+                          {perms.length > 0 && (
+                            <button type="button" onClick={() => updateItem(idx, { categories: perms })} className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 text-gray-600 dark:text-gray-300 font-semibold cursor-pointer">All ({perms.length})</button>
+                          )}
+                          {activeCats.length > 0 && (
+                            <button type="button" onClick={() => updateItem(idx, { categories: [] })} className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 text-gray-400 font-semibold cursor-pointer">Clear Heats</button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {activeCats.length === 0 ? (
+                          <span className="text-[11px] text-gray-400 italic">Select Genders and Age Groups above to auto-generate heats, or add custom heats below.</span>
+                        ) : (
+                          activeCats.map(cat => {
+                            const isMixedC = cat.toLowerCase().includes('mixed');
+                            const isBoyC = cat.toLowerCase().includes('boys') || cat.toLowerCase().includes('men');
+                            const isGirlC = cat.toLowerCase().includes('girls') || cat.toLowerCase().includes('women');
+                            const chipStyle = isMixedC
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700'
+                              : isBoyC ? 'bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-700'
+                              : isGirlC ? 'bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700'
+                              : 'bg-purple-50 text-purple-800 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-700';
+                            return (
+                              <button key={cat} type="button" onClick={() => toggleCategory(idx, cat)}
+                                className={`text-[10px] px-2 py-0.5 rounded-md border transition-all cursor-pointer flex items-center gap-1 font-semibold ${chipStyle}`}
+                                title={`Click to remove: ${cat}`}
+                              >
+                                {cat} <span className="text-gray-400 hover:text-red-500 font-bold ml-0.5">×</span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                      {/* Custom heat adder */}
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <input type="text" value={customCatInput[idx] || ''}
+                          onChange={e => setCustomCatInput(p => ({ ...p, [idx]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomCategory(idx); } }}
+                          placeholder="Add custom heat (e.g. Mixed U9, Staff Relay)..."
+                          className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        />
+                        <button type="button" onClick={() => addCustomCategory(idx)} className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-purple-600 hover:bg-purple-700 text-white transition-colors cursor-pointer">+ Add Heat</button>
+                      </div>
+                    </div>
+
+                    {/* Done CTA */}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className={`text-[11px] font-semibold ${
+                        isConfigured ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
+                      }`}>
+                        {isConfigured
+                          ? `✓ ${activeCats.length} heat${activeCats.length !== 1 ? 's' : ''} configured`
+                          : '⚠ Configure at least one heat to include this event in generation'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedIdx(null)}
+                        className="text-xs px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold cursor-pointer transition-colors"
+                      >
+                        Done ✓
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Queue summary status strip */}
+      {queue.length > 0 && (
+        <div className={`p-3 rounded-xl border text-xs font-medium ${
+          configuredCount === queue.length
+            ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/40 text-green-800 dark:text-green-300'
+            : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-300'
+        }`}>
+          {configuredCount === queue.length
+            ? `✅ All ${queue.length} event${queue.length !== 1 ? 's' : ''} fully configured — ready to Preview & Generate!`
+            : `⚠ ${queue.length - configuredCount} event${queue.length - configuredCount !== 1 ? 's' : ''} still need gender/age group configuration before generating.`
+          }
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TeamsSelector({ value, onChange, registeredTeams }) {
   const [search, setSearch] = useState('');
@@ -1304,6 +1821,31 @@ export default function GeneratePage() {
   });
   const [eventConfigs, setEventConfigs] = useState({});
 
+  // ── Event Queue (Option A) ──
+  // Array of { name, genders, ageGroups, categories } — one entry per event
+  const [eventQueue, setEventQueue] = useState([]);
+
+  // Keep eventQueue and legacy eventConfigs in sync so existing logic keeps working
+  const syncEventQueueToConfigs = (queue) => {
+    const configs = {};
+    queue.forEach(item => {
+      configs[item.name] = {
+        genders: item.genders || [],
+        ageGroups: item.ageGroups || [],
+        categories: item.categories || []
+      };
+    });
+    setEventConfigs(configs);
+  };
+
+  const handleEventQueueChange = (newQueue) => {
+    setEventQueue(newQueue);
+    syncEventQueueToConfigs(newQueue);
+    setPreview(null);
+    setSaved(false);
+    setError(null);
+  };
+
   // Multi-Sport Day master teams state
   const [multiTeams, setMultiTeams] = useState('');
   const [customizingSport, setCustomizingSport] = useState(null);
@@ -1502,19 +2044,45 @@ export default function GeneratePage() {
     }
 
     if (isPlacementSport) {
-      const events = parseEvents();
+      // Use eventQueue (Option A) as the source of truth when it has items;
+      // fall back to the legacy form.events + eventConfigs for Dual-Stream mode
+      const usesQueue = schedulerMode === 'single' && eventQueue.length > 0;
 
-      if (events.length === 0) {
-        throw new Error('Please select or add at least one event.');
+      let events, resolvedEventConfigs;
+      if (usesQueue) {
+        // Validate queue has at least one configured event
+        const configuredItems = eventQueue.filter(item => (item.categories || []).length > 0);
+        if (eventQueue.length === 0) {
+          throw new Error('Please add at least one event to the queue.');
+        }
+        if (configuredItems.length === 0) {
+          throw new Error('Please configure genders and age groups (or add heats) for at least one queued event.');
+        }
+        events = eventQueue.map(item => item.name);
+        resolvedEventConfigs = {};
+        eventQueue.forEach(item => {
+          resolvedEventConfigs[item.name] = {
+            genders: item.genders || [],
+            ageGroups: item.ageGroups || [],
+            categories: item.categories || []
+          };
+        });
+      } else {
+        // Legacy path (dual_athletics mode or fallback)
+        events = parseEvents();
+        resolvedEventConfigs = eventConfigs;
+        if (events.length === 0) {
+          throw new Error('Please select or add at least one event.');
+        }
       }
 
-      // Check whether heats or parameters are configured across events
+      // Aggregate genders & age groups across all events for the summary fields
       let totalCategoriesCount = 0;
       const allGendersSet = new Set();
       const allAgeGroupsSet = new Set();
 
       events.forEach(ev => {
-        const cfg = eventConfigs[ev];
+        const cfg = resolvedEventConfigs[ev];
         if (cfg?.categories && Array.isArray(cfg.categories) && cfg.categories.length > 0) {
           totalCategoriesCount += cfg.categories.length;
         } else if (cfg?.genders?.length > 0 && cfg?.ageGroups?.length > 0) {
@@ -1542,7 +2110,7 @@ export default function GeneratePage() {
         events,
         genders: effectiveGenders,
         ageGroups: effectiveAgeGroups,
-        eventConfigs,
+        eventConfigs: resolvedEventConfigs,
         sport: effectiveSport,
         startDate: form.startDate,
         durationMinutes: parseInt(form.duration),
@@ -1550,7 +2118,7 @@ export default function GeneratePage() {
         format: form.format,
         venues,
         concurrent,
-        teams: parseTeams() // fallback to keep schema parsing or generic checks happy
+        teams: parseTeams()
       };
     }
 
@@ -1751,12 +2319,20 @@ export default function GeneratePage() {
   };
 
   const resetFormForNextSport = () => {
+    // HOTFIX: Do NOT reset events/eventQueue/eventConfigs — those belong to the
+    // previous sport's fixtures that have already been saved. Only reset the
+    // sport selection, preview state and status flags so the user can configure
+    // a fresh sport without losing previously-saved data.
     setForm(prev => ({
       ...prev,
       sport: '',
-      events: '100m, 200m, High Jump, Long Jump',
       format: 'single',
+      // Keep: teams, venues, startDate, duration, breakTime, concurrent
+      // Keep: events (legacy field) — do not overwrite with hardcoded defaults
     }));
+    // Clear the event queue so user starts fresh for the new sport
+    setEventQueue([]);
+    setEventConfigs({});
     setPreview(null);
     setSaved(false);
     setError(null);
@@ -2569,9 +3145,9 @@ export default function GeneratePage() {
             )}
           </div>
 
-          {/* Events (only for placement sports) */}
+          {/* Event Queue Builder — Option A (placement sports only, Single Sport mode) */}
           {isPlacementSport && (
-            <div 
+            <div
               id="step-format-events"
               className={`col-span-1 md:col-span-2 p-3 rounded-xl transition-all duration-300 ${
                 guideActive && guideStep === 3
@@ -2579,36 +3155,12 @@ export default function GeneratePage() {
                   : ''
               }`}
             >
-              <BulkInputManager
-                label="Events"
-                value={form.events}
-                onChange={(val) => handleChange('events', val)}
-                placeholder="Type or click events to add (e.g. 100m, Butterfly 25m)..."
-                suggestionGroups={form.sport?.toLowerCase().includes('swim') || form.sport?.toLowerCase().includes('pool') ? [...SWIMMING_EVENTS_GROUPS, ...OLYMPIC_EVENTS_GROUPS] : [...OLYMPIC_EVENTS_GROUPS, ...SWIMMING_EVENTS_GROUPS]}
-                icon={Trophy}
+              <EventQueueBuilder
+                queue={eventQueue}
+                onQueueChange={handleEventQueueChange}
+                sportName={form.sport}
               />
             </div>
-          )}
-
-          {/* Event-specific Heats, Genders & Age Groups Manager (only for placement sports) */}
-          {isPlacementSport && (
-            parseEvents().length === 0 ? (
-              <div className="col-span-1 md:col-span-2 p-5 rounded-xl border border-dashed border-purple-200 dark:border-purple-800/60 bg-purple-50/10 dark:bg-purple-950/10 text-center">
-                <Trophy className="w-7 h-7 mx-auto text-purple-400 mb-1.5 opacity-70" />
-                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Select or type your events above to begin
-                </p>
-                <p className="text-[11px] text-gray-400 mt-0.5 max-w-md mx-auto">
-                  Once events are added, you can configure genders (Boys, Girls, Mixed) and age groups individually for each event below.
-                </p>
-              </div>
-            ) : (
-              <EventAgeGroupManager
-                events={parseEvents()}
-                eventConfigs={eventConfigs}
-                onChange={setEventConfigs}
-              />
-            )
           )}
 
           {/* Start Date */}
