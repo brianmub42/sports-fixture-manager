@@ -7,8 +7,8 @@ import ThemeToggle from './ThemeToggle.jsx';
 import { useSettings } from '../hooks/useFixtures.js';
 import { useLiveUpdates } from '../hooks/useLiveUpdates.js';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
-import { useAuth } from '../contexts/AuthContext.jsx';
-import { LogOut, Key, UserCheck, Settings as SettingsIcon } from 'lucide-react';
+import { LogOut, Key, UserCheck, Settings as SettingsIcon, QrCode } from 'lucide-react';
+import SpectatorQrModal from './SpectatorQrModal.jsx';
 
 export default function Layout() {
   const { data: settings } = useSettings();
@@ -16,6 +16,7 @@ export default function Layout() {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [showQrModal, setShowQrModal] = React.useState(false);
 
   // Enable global real-time updates for all pages within the layout
   useLiveUpdates();
@@ -87,6 +88,15 @@ export default function Layout() {
               Official Access
             </button>
           )}
+
+          <button 
+            onClick={() => setShowQrModal(true)}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors cursor-pointer shadow-sm"
+            title="Spectator Web App QR Code & Shareable Poster"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Spectator QR</span>
+          </button>
 
           <button 
             onClick={clearOrg} 
@@ -189,6 +199,7 @@ export default function Layout() {
       </main>
       <SponsorsRibbon />
       <HelpWizard />
+      <SpectatorQrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
     </div>
   );
 }

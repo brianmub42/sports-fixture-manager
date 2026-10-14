@@ -4,8 +4,9 @@ import { useLogStandings } from '../hooks/useStandings.js';
 import { Link } from 'react-router-dom';
 import SportTag from '../components/SportTag.jsx';
 import TeamPill from '../components/TeamPill.jsx';
-import { Maximize2, Play, Pause, ChevronLeft, ChevronRight, X, Sparkles, Share2 } from 'lucide-react';
+import { Maximize2, Play, Pause, ChevronLeft, ChevronRight, X, Sparkles, Share2, QrCode } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
+import SpectatorQrModal from '../components/SpectatorQrModal.jsx';
 
 function getCurrentPhaseInfo(fixtures) {
   if (!fixtures || fixtures.length === 0) {
@@ -139,6 +140,7 @@ const slides = [
 export default function Dashboard() {
   const { activeOrg } = useOrganization();
   const [copiedWatchLink, setCopiedWatchLink] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const { data: fixtures, isLoading } = useFixtures();
   const { data: log } = useLogStandings();
   const { data: settings } = useSettings();
@@ -432,7 +434,15 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold">{orgName} Dashboard</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Live tournament overview and statistics</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowQrModal(true)}
+            className="k-btn bg-indigo-600 hover:bg-indigo-700 text-white border-transparent flex items-center gap-1.5 shadow-sm text-xs font-semibold py-2 px-3.5 cursor-pointer transition-all duration-150"
+            title="Display Spectator QR Code, Download PNG & Print Signage Poster"
+          >
+            <QrCode size={14} />
+            <span>Spectator QR Code</span>
+          </button>
           <button
             onClick={handleCopyWatchLink}
             className="k-btn bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 flex items-center gap-1.5 shadow-sm text-xs font-semibold py-2 px-3.5 cursor-pointer transition-all duration-150"
@@ -454,6 +464,9 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Spectator QR & Share Modal */}
+      <SpectatorQrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
 
       {/* Setup Call-To-Action Banner */}
       {settings && !settings.has_users && (
