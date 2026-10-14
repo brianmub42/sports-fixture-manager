@@ -172,7 +172,7 @@ function getPlacementBadge(placement, tied, status, points) {
   const suffix = placement === 1 ? 'st' : placement === 2 ? 'nd' : placement === 3 ? 'rd' : 'th';
   const prefix = tied ? 'T-' : '';
   const label = `${prefix}${placement}${suffix}`;
-  const pointsText = points != null ? `+${points} pts` : '';
+  const pointsText = points != null ? (Number(points) === 0 ? '0 pts' : `+${points} pts`) : '';
 
   let bgClass = 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700 font-semibold';
   if (placement === 1) {

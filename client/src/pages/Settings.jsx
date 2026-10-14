@@ -1073,11 +1073,12 @@ export default function Settings() {
                           min={0}
                           value={p.points}
                           onChange={(e) => {
-                            const val = parseInt(e.target.value) || 0;
+                            const raw = e.target.value;
+                            const val = raw === '' ? '' : (isNaN(parseInt(raw, 10)) ? 0 : Math.max(0, parseInt(raw, 10)));
                             setPointsAllocation(prev => prev.map((item, i) => i === idx ? { ...item, points: val } : item));
                           }}
-                          className="w-20 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-center font-semibold animate-pulse"
-                          placeholder="Points"
+                          className="w-20 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-center font-semibold"
+                          placeholder="0"
                         />
                         <button
                           type="button"
@@ -1111,29 +1112,37 @@ export default function Settings() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium mb-1 text-gray-555">Points * (e.g. 10, 7, 5)</label>
+                    <label className="block text-xs font-medium mb-1 text-gray-555">Points * (e.g. 10, 7, 5, 0)</label>
                     <input
                       type="number"
                       min={0}
                       value={newPoint.points}
-                      onChange={(e) => setNewPoint(s => ({ ...s, points: parseInt(e.target.value) || '' }))}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setNewPoint(s => ({
+                          ...s,
+                          points: raw === '' ? '' : (isNaN(parseInt(raw, 10)) ? '' : Math.max(0, parseInt(raw, 10)))
+                        }));
+                      }}
                       className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-semibold"
-                      placeholder="10"
+                      placeholder="0"
                     />
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    if (!newPoint.position || newPoint.points === '') return;
+                    if (!newPoint.position || newPoint.points === '' || isNaN(newPoint.points)) return;
+                    const parsedPoints = Number(newPoint.points);
+                    if (parsedPoints < 0) return;
                     if (pointsAllocation.some(p => p.position === newPoint.position)) {
                       alert(`Position ${newPoint.position} is already configured.`);
                       return;
                     }
-                    setPointsAllocation(prev => [...prev, { position: newPoint.position, points: newPoint.points }].sort((a, b) => a.position - b.position));
+                    setPointsAllocation(prev => [...prev, { position: newPoint.position, points: parsedPoints }].sort((a, b) => a.position - b.position));
                     setNewPoint({ position: '', points: '' });
                   }}
-                  disabled={!newPoint.position || newPoint.points === ''}
+                  disabled={!newPoint.position || newPoint.points === '' || isNaN(newPoint.points) || Number(newPoint.points) < 0}
                   className="k-btn flex items-center gap-2 disabled:opacity-40 cursor-pointer"
                 >
                   <Plus size={14} />
@@ -1151,7 +1160,7 @@ export default function Settings() {
                     try {
                       const obj = {};
                       pointsAllocation.forEach(p => {
-                        obj[p.position] = p.points;
+                        obj[p.position] = p.points === '' ? 0 : Number(p.points);
                       });
                       isInitializedRef.current = false;
                       await updateSettings.mutateAsync({ points_allocation: pointsAllocation.length > 0 ? obj : null });
