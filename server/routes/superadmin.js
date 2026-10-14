@@ -122,6 +122,10 @@ router.post('/billing/run-reminder-check', async (req, res) => {
     const results = await checkBillingReminders();
     res.json({ success: true, triggeredReminders: results });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/superadmin/tenants/:id/deactivate
 // Deactivates a workspace so it does not appear on public/workspace list
 router.post('/tenants/:id/deactivate', async (req, res) => {

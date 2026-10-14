@@ -285,6 +285,10 @@ router.post('/billing/simulate-renewal', authMiddleware, async (req, res) => {
     );
     res.json({ success: true, message: 'Workspace renewal simulated' });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/settings/deactivate-workspace
 router.post('/deactivate-workspace', authMiddleware, requireAdmin, async (req, res) => {
   try {
