@@ -1,4 +1,5 @@
 import { query } from '../db.js';
+import jwt from 'jsonwebtoken';
 
 export async function billingMiddleware(req, res, next) {
   try {
@@ -9,7 +10,34 @@ export async function billingMiddleware(req, res, next) {
       return next();
     }
 
-    // 2. If no workspace is resolved yet, skip verification
+    // 2. Exempt authentication, superadmin, and POP upload endpoints from billing lock
+    const url = req.originalUrl || req.url || '';
+    if (
+      url.includes('/api/auth') ||
+      url.includes('/api/superadmin') ||
+      url.includes('/api/upload/pop') ||
+      url.includes('/api/organizations')
+    ) {
+      return next();
+    }
+
+    // 3. Superadmins bypass all billing checks across all workspaces
+    if (req.user && req.user.role === 'superadmin') {
+      return next();
+    }
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.decode(token);
+        if (decoded && decoded.role === 'superadmin') {
+          return next();
+        }
+      } catch {}
+    }
+
+    // 4. If no workspace is resolved yet, skip verification
     if (!req.orgId) {
       return next();
     }
