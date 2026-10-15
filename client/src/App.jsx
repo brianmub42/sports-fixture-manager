@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { SocketProvider } from './contexts/SocketContext.jsx';
 import { TimerProvider } from './contexts/TimerContext.jsx';
 import { ToastProvider } from './contexts/ToastContext.jsx';
@@ -40,11 +40,12 @@ import MobileViewerEvent from './mobile-app/pages/viewer/MobileViewerEvent.jsx';
 
 function App() {
   const { activeOrg } = useOrganization();
+  const location = useLocation();
   const isPublicBypassRoute =
-    window.location.pathname.startsWith('/watch') ||
-    window.location.pathname.startsWith('/reset-password') ||
-    window.location.pathname.startsWith('/app') ||
-    window.location.pathname.startsWith('/login');
+    location.pathname.startsWith('/watch') ||
+    location.pathname.startsWith('/reset-password') ||
+    location.pathname.startsWith('/app') ||
+    location.pathname.startsWith('/login');
 
   if (!activeOrg && !isPublicBypassRoute) {
     return <SelectOrganization />;

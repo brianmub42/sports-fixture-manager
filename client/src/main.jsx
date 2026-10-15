@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { OrganizationProvider } from './contexts/OrganizationContext.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
 import { ThemeProvider } from './contexts/ThemeContext.jsx'
+import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 import App from './App.jsx'
 import './index.css'
 
@@ -18,16 +19,18 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ThemeProvider>
-          <OrganizationProvider>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
-          </OrganizationProvider>
-        </ThemeProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <ThemeProvider>
+            <OrganizationProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </OrganizationProvider>
+          </ThemeProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 )

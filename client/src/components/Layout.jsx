@@ -7,6 +7,7 @@ import ThemeToggle from './ThemeToggle.jsx';
 import { useSettings } from '../hooks/useFixtures.js';
 import { useLiveUpdates } from '../hooks/useLiveUpdates.js';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import { LogOut, Key, UserCheck, Settings as SettingsIcon, QrCode } from 'lucide-react';
 import SpectatorQrModal from './SpectatorQrModal.jsx';
 
@@ -82,10 +83,11 @@ export default function Layout() {
           ) : (
             <button 
               onClick={() => navigate('/login')} 
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer shadow-sm"
+              title="Official Sign In"
             >
               <Key className="w-3.5 h-3.5" />
-              Official Access
+              Sign In
             </button>
           )}
 
