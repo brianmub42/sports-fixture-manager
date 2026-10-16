@@ -111,11 +111,12 @@ export default function ReportsPage() {
 
   const handleDownloadDelegation = () => {
     if (!selectedTeamCode) return;
-    const team = teams?.find(t => t.code === selectedTeamCode);
+    const team = teams?.find(t => t.code === selectedTeamCode || String(t.id) === String(selectedTeamCode));
     if (!team) return;
     exportTeamDelegationPDF({
       team,
       fixtures: fixtures || [],
+      athleticsEvents: athleticsEvents || [],
       logData,
       settings
     });
@@ -430,7 +431,7 @@ export default function ReportsPage() {
             >
               <option value="">-- Choose School / Team --</option>
               {teams?.map(t => (
-                <option key={t.code} value={t.code}>{t.name} ({t.code})</option>
+                <option key={t.id || t.code} value={t.code || t.id}>{t.name} ({t.code || t.name})</option>
               ))}
             </select>
 

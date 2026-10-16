@@ -13,12 +13,17 @@ router.get('/', async (req, res) => {
       [req.orgId]
     );
 
-    // Auto-fill scoring_system if null for legacy rows
+    // Auto-fill scoring_system & scoring_type if null/legacy
     const rows = result.rows.map(row => {
+      const detected = classifySport(row.name, row);
       if (!row.scoring_system) {
-        const detected = classifySport(row.name, row);
         row.scoring_system = detected.scoring_system;
         row.scoring_rules = row.scoring_rules || detected.scoring_rules;
+      }
+      if (!row.scoring_type || row.scoring_type === 'points') {
+        if (detected.scoring_type === 'placement') {
+          row.scoring_type = 'placement';
+        }
       }
       return row;
     });

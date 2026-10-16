@@ -45,7 +45,7 @@ export default function Layout() {
 
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 sm:py-4 pb-16">
-      <header className="flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-2 sm:gap-4">
+      <header className="relative z-50 flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-2 sm:gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="shrink-0 h-10 sm:h-12 px-3 rounded-xl bg-white shadow-sm border border-gray-200 dark:border-gray-850 flex items-center justify-center">
             <img src="/assets/fixture-grid-logo.png" alt="FixtureGrid Logo" className="h-7 sm:h-9 w-auto object-contain" />

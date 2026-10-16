@@ -323,7 +323,6 @@ export default function LogStandings() {
           <table className="w-full text-sm text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-150 dark:border-gray-800 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                <th className="py-2.5 px-3 w-12 text-center">#</th>
                 <th className="py-2.5 px-3 min-w-[180px]">Team</th>
                 {sports.map(s => (
                   <th key={s.id} className="py-2.5 px-3 text-center min-w-[120px] font-semibold text-gray-700 dark:text-gray-300">
@@ -331,6 +330,7 @@ export default function LogStandings() {
                   </th>
                 ))}
                 <th className="py-2.5 px-3 text-center font-bold text-gray-900 dark:text-white w-20">Total</th>
+                <th className="py-2.5 px-3 w-16 text-center font-bold text-gray-700 dark:text-gray-300">Rank</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium">
@@ -339,7 +339,6 @@ export default function LogStandings() {
                 const barColor = i === 0 ? 'bg-green-500' : i === 1 ? 'bg-blue-500' : i === 2 ? 'bg-emerald-500' : 'bg-gray-400';
                 return (
                   <tr key={d.code} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                    <td className="py-3 px-3 text-center font-semibold text-gray-500">{i + 1}</td>
                     <td className="py-3 px-3">
                       <TeamPill code={d.code} name={d.name} logoUrl={d.logo_url} />
                       <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mt-1.5 max-w-[140px]">
@@ -356,6 +355,16 @@ export default function LogStandings() {
                     })}
                     <td className="py-3 px-3 text-center font-bold text-gray-900 dark:text-white text-base font-mono">
                       {d.total}
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                        i === 0 ? 'bg-yellow-400 text-yellow-900 shadow-xs' :
+                        i === 1 ? 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-100' :
+                        i === 2 ? 'bg-amber-500 text-white' :
+                        'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                      }`}>
+                        {i + 1}
+                      </span>
                     </td>
                   </tr>
                 );

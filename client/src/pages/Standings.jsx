@@ -210,13 +210,13 @@ function PlacementMedalTable({ standings, eventsList, eventId, onEventChange }) 
 
       {/* Medal table header */}
       <div className="grid grid-cols-10 gap-2 text-[10px] text-gray-400 font-medium uppercase tracking-wider px-3 py-2 border-b border-gray-200 dark:border-gray-800">
-        <span className="col-span-1 text-center">#</span>
-        <span className="col-span-4 text-left">Team / School</span>
+        <span className="col-span-4 text-left">Team / House</span>
         <span className="col-span-1 text-center" title="Events entered">Evts</span>
-        <span className="col-span-1 text-center">🥇</span>
-        <span className="col-span-1 text-center">🥈</span>
-        <span className="col-span-1 text-center">🥉</span>
+        <span className="col-span-1 text-center" title="Gold Medals (1st Place)">🥇 Gold</span>
+        <span className="col-span-1 text-center" title="Silver Medals (2nd Place)">🥈 Silver</span>
+        <span className="col-span-1 text-center" title="Bronze Medals (3rd Place)">🥉 Bronze</span>
         <span className="col-span-1 text-center font-bold text-gray-600 dark:text-gray-300">PTS</span>
+        <span className="col-span-1 text-center font-bold text-gray-700 dark:text-gray-200">Rank</span>
       </div>
 
       {sorted.length === 0 && (
@@ -230,10 +230,10 @@ function PlacementMedalTable({ standings, eventsList, eventId, onEventChange }) 
           const rank = i + 1;
           const isExpanded = expandedTeam === team.code && eventId === 'all';
           const medalHighlight =
-            rank === 1 ? 'border-l-4 border-yellow-400 bg-yellow-50/30 dark:bg-yellow-950/10' :
-            rank === 2 ? 'border-l-4 border-gray-400 bg-gray-50/50 dark:bg-gray-900/20' :
-            rank === 3 ? 'border-l-4 border-amber-500 bg-amber-50/20 dark:bg-amber-950/10' :
-            'border-l-4 border-transparent';
+            rank === 1 ? 'border-r-4 border-yellow-400 bg-yellow-50/30 dark:bg-yellow-950/10' :
+            rank === 2 ? 'border-r-4 border-gray-400 bg-gray-50/50 dark:bg-gray-900/20' :
+            rank === 3 ? 'border-r-4 border-amber-500 bg-amber-50/20 dark:bg-amber-950/10' :
+            'border-r-4 border-transparent';
 
           return (
             <div key={team.code}>
@@ -243,14 +243,6 @@ function PlacementMedalTable({ standings, eventsList, eventId, onEventChange }) 
                   eventId === 'all' ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40' : ''
                 } ${medalHighlight} ${isExpanded ? 'rounded-b-none' : ''}`}
               >
-                <span className="col-span-1 text-center">
-                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold ${
-                    rank === 1 ? 'bg-yellow-400 text-yellow-900' :
-                    rank === 2 ? 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-100' :
-                    rank === 3 ? 'bg-amber-500 text-white' :
-                    'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                  }`}>{rank}</span>
-                </span>
                 <span className="col-span-4 flex items-center gap-2 min-w-0">
                   <TeamPill code={team.code} name={team.name} logoUrl={team.logo_url} />
                   {eventId === 'all' && (
@@ -261,15 +253,23 @@ function PlacementMedalTable({ standings, eventsList, eventId, onEventChange }) 
                 </span>
                 <span className="col-span-1 text-center text-sm text-gray-500 dark:text-gray-400">{team.played}</span>
                 <span className={`col-span-1 text-center text-sm font-semibold ${
-                  team.gold > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-300 dark:text-gray-700'
+                  team.gold > 0 ? 'text-yellow-600 dark:text-yellow-400 font-bold' : 'text-gray-300 dark:text-gray-700'
                 }`}>{team.gold ?? 0}</span>
                 <span className={`col-span-1 text-center text-sm font-semibold ${
-                  team.silver > 0 ? 'text-gray-500 dark:text-gray-300' : 'text-gray-300 dark:text-gray-700'
+                  team.silver > 0 ? 'text-gray-500 dark:text-gray-300 font-bold' : 'text-gray-300 dark:text-gray-700'
                 }`}>{team.silver ?? 0}</span>
                 <span className={`col-span-1 text-center text-sm font-semibold ${
-                  team.bronze > 0 ? 'text-amber-600 dark:text-amber-500' : 'text-gray-300 dark:text-gray-700'
+                  team.bronze > 0 ? 'text-amber-600 dark:text-amber-500 font-bold' : 'text-gray-300 dark:text-gray-700'
                 }`}>{team.bronze ?? 0}</span>
-                <span className="col-span-1 text-center text-sm font-bold text-purple-700 dark:text-purple-400">{team.points}</span>
+                <span className="col-span-1 text-center text-sm font-bold text-purple-700 dark:text-purple-400 font-mono">{team.points}</span>
+                <span className="col-span-1 text-center">
+                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold ${
+                    rank === 1 ? 'bg-yellow-400 text-yellow-900 shadow-xs' :
+                    rank === 2 ? 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-100' :
+                    rank === 3 ? 'bg-amber-500 text-white' :
+                    'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                  }`}>{rank}</span>
+                </span>
               </div>
 
               {/* Expandable event breakdown */}
@@ -341,8 +341,9 @@ export default function Standings({
   const isLoading = isCustom ? propIsLoading : (loadingStandings || loadingSports);
 
   const sports = sportsData?.map(s => s.name) || [];
-  const selectedSportObj = sportsData?.find(s => s.name === sport);
-  const isPlacement = selectedSportObj?.scoring_type === 'placement';
+  const isPlacement = selectedSportObj?.scoring_type === 'placement' ||
+                      selectedSportObj?.scoring_system === 'placement' ||
+                      ['swimming', 'aquatics', 'athletics', 'track', 'field', 'cross country', 'gala', 'diving', 'rowing', 'cycling'].some(k => selectedSportObj?.name?.toLowerCase().includes(k));
 
   useEffect(() => {
     if (sports.length > 0 && !sport) {
@@ -526,8 +527,7 @@ export default function Standings({
                   return (
                     <>
                       {/* Dynamic Table Header */}
-                      <div className="grid grid-cols-10 gap-2 text-xs text-gray-400 font-medium mb-2 px-2 text-center pb-2 border-b border-gray-150/60 dark:border-gray-800">
-                        <span>Rank</span>
+                      <div className="grid grid-cols-11 gap-2 text-xs text-gray-400 font-medium mb-2 px-2 text-center pb-2 border-b border-gray-150/60 dark:border-gray-800">
                         {scoringSystem === 'sets_games' ? (
                           <>
                             <span className="text-left col-span-3">Team</span>
@@ -570,6 +570,7 @@ export default function Standings({
                           </>
                         )}
                         <span className="font-bold text-gray-700 dark:text-gray-200">PTS</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200 text-center">Rank</span>
                       </div>
 
                       {/* Standings Rows */}
@@ -582,24 +583,10 @@ export default function Standings({
                                   setExpandedTeam(expandedTeam === team.code ? null : team.code);
                                 }
                               }}
-                              className={`grid grid-cols-10 gap-2 items-center py-2.5 px-2 border-b border-gray-150/40 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded text-center transition-all ${
+                              className={`grid grid-cols-11 gap-2 items-center py-2.5 px-2 border-b border-gray-150/40 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded text-center transition-all ${
                                 eventId === 'all' ? 'cursor-pointer select-none' : ''
                               } ${expandedTeam === team.code && eventId === 'all' ? 'bg-purple-50/20 dark:bg-purple-950/10 border-l-2 border-purple-500' : ''}`}
                             >
-                              {/* Rank & Trend */}
-                              <span className="flex items-center justify-center gap-1.5 font-semibold">
-                                <span className="text-gray-900 dark:text-gray-100 text-xs">{i + 1}</span>
-                                {team.trend === 'up' && (
-                                  <span className="text-green-500 text-[10px] font-bold" title={team.rank_diff > 0 ? `Moved up by ${team.rank_diff} rank(s)` : 'Moved up'}>▲</span>
-                                )}
-                                {team.trend === 'down' && (
-                                  <span className="text-red-500 text-[10px] font-bold" title={team.rank_diff < 0 ? `Moved down by ${Math.abs(team.rank_diff)} rank(s)` : 'Moved down'}>▼</span>
-                                )}
-                                {team.trend === 'same' && (
-                                  <span className="text-gray-300 dark:text-gray-600 text-[10px]" title="No change in rank">—</span>
-                                )}
-                              </span>
-
                               {scoringSystem === 'sets_games' ? (
                                 <>
                                   <span className="text-left col-span-3 truncate flex items-center gap-1">
@@ -678,6 +665,27 @@ export default function Standings({
                                 </>
                               )}
                               <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{team.points}</span>
+
+                              {/* Rank & Trend on Far Right */}
+                              <span className="flex items-center justify-center gap-1.5 font-semibold text-center">
+                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                                  i === 0 ? 'bg-yellow-400 text-yellow-900 shadow-xs' :
+                                  i === 1 ? 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-100' :
+                                  i === 2 ? 'bg-amber-500 text-white' :
+                                  'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
+                                }`}>
+                                  {i + 1}
+                                </span>
+                                {team.trend === 'up' && (
+                                  <span className="text-green-500 text-[10px] font-bold" title={team.rank_diff > 0 ? `Moved up by ${team.rank_diff} rank(s)` : 'Moved up'}>▲</span>
+                                )}
+                                {team.trend === 'down' && (
+                                  <span className="text-red-500 text-[10px] font-bold" title={team.rank_diff < 0 ? `Moved down by ${Math.abs(team.rank_diff)} rank(s)` : 'Moved down'}>▼</span>
+                                )}
+                                {team.trend === 'same' && (
+                                  <span className="text-gray-300 dark:text-gray-600 text-[10px]" title="No change in rank">—</span>
+                                )}
+                              </span>
                             </div>
 
                       {/* Dropdown breakdown */}

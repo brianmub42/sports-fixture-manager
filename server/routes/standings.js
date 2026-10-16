@@ -408,11 +408,13 @@ router.get('/log', async (req, res) => {
       }
     }
 
+    const defaultPointMap = { 1: 10, 2: 8, 3: 6, 4: 5, 5: 4, 6: 3, 7: 2, 8: 1 };
     const getPointsForPlacement = (placement, map) => {
-      if (!map) return 0;
-      if (map[placement] !== undefined) return Number(map[placement]);
-      if (map[String(placement)] !== undefined) return Number(map[String(placement)]);
-      return 0; // Default to 0 points if not configured
+      const activeMap = map || defaultPointMap;
+      if (!activeMap) return 0;
+      if (activeMap[placement] !== undefined) return Number(activeMap[placement]);
+      if (activeMap[String(placement)] !== undefined) return Number(activeMap[String(placement)]);
+      return 0;
     };
 
     for (const sport of sports) {
@@ -425,7 +427,7 @@ router.get('/log', async (req, res) => {
         hasResults = countRes.rows[0].count > 0;
       } else {
         const countRes = await query(
-          "SELECT COUNT(*)::int as count FROM athletics_events WHERE sport_id = $1 AND status = 'completed' AND organization_id = $2",
+          "SELECT COUNT(*)::int as count FROM athletics_results ar JOIN athletics_events ae ON ar.event_id = ae.id WHERE ae.sport_id = $1 AND ae.organization_id = $2 AND (ar.placement IS NOT NULL OR ar.points > 0)",
           [sport.id, req.orgId]
         );
         hasResults = countRes.rows[0].count > 0;
@@ -439,7 +441,7 @@ router.get('/log', async (req, res) => {
       if (sport.scoring_type !== 'placement') {
         standingsRes = await query(`
           SELECT t.code,
-            COALESCE(SUM(CASE WHEN f.winner_id = t.id THEN s.win_points WHEN f.status = 'draw' THEN s.draw_points ELSE 0 END), 0) as pts
+            COALESCE(SUM(CASE WHEN f.winner_id = t.id THEN s.win_points WHEN f.status = 'draw' THEN s.draw_points ELSE 0 END), 0)::int as pts
           FROM teams t
           LEFT JOIN fixtures f ON t.id IN (f.team_a_id, f.team_b_id) AND f.sport_id = $1 AND f.status IN ('completed', 'draw') AND f.organization_id = $2
           LEFT JOIN sports s ON f.sport_id = s.id
@@ -448,15 +450,23 @@ router.get('/log', async (req, res) => {
           ORDER BY pts DESC, t.code ASC
         `, [sport.id, req.orgId]);
       } else {
-        // Placement-based sport (e.g. Athletics, Novelty)
+        // Placement-based sport (e.g. Swimming Gala, Athletics, Cross Country)
         standingsRes = await query(`
-          SELECT t.code, COALESCE(SUM(ar.points), 0) as pts
+          SELECT t.code, 
+            COALESCE(SUM(ar.points), 0)::int as pts,
+            COALESCE(SUM(CASE WHEN ar.placement = 1 THEN 1 ELSE 0 END), 0)::int as gold,
+            COALESCE(SUM(CASE WHEN ar.placement = 2 THEN 1 ELSE 0 END), 0)::int as silver,
+            COALESCE(SUM(CASE WHEN ar.placement = 3 THEN 1 ELSE 0 END), 0)::int as bronze
           FROM teams t
-          LEFT JOIN athletics_results ar ON t.id = ar.team_id
-          LEFT JOIN athletics_events ae ON ar.event_id = ae.id AND ae.sport_id = $1 AND ae.organization_id = $2
+          LEFT JOIN (
+            SELECT ar.team_id, ar.points, ar.placement
+            FROM athletics_results ar
+            JOIN athletics_events ae ON ar.event_id = ae.id
+            WHERE ae.sport_id = $1 AND ae.organization_id = $2
+          ) ar ON t.id = ar.team_id
           WHERE t.organization_id = $2
           GROUP BY t.id, t.code
-          ORDER BY pts DESC, t.code ASC
+          ORDER BY pts DESC, gold DESC, silver DESC, bronze DESC, t.code ASC
         `, [sport.id, req.orgId]);
       }
 
@@ -469,16 +479,29 @@ router.get('/log', async (req, res) => {
 
       standingsRes.rows.forEach((row, idx) => {
         const rank = idx + 1;
-        const pts = getPointsForPlacement(rank, pointMap);
+        // In placement sports (Swimming, Athletics, Aquatics) or single-sport meets:
+        // award the actual cumulative points accumulated across all heats/events
+        const pts = (sport.scoring_type === 'placement' || sports.length === 1)
+          ? Number(row.pts)
+          : (pointMap ? getPointsForPlacement(rank, pointMap) : (getPointsForPlacement(rank, defaultPointMap) || Number(row.pts)));
+
         if (teamPoints[row.code]) {
           teamPoints[row.code].sport_points[sport.id] = pts;
           teamPoints[row.code][sport.name] = pts;
           if (legacyKey) teamPoints[row.code][legacyKey] = pts;
           teamPoints[row.code].total += pts;
-          if (rank === 1) teamPoints[row.code].gold++;
-          if (rank === 2) teamPoints[row.code].silver++;
-          if (rank === 3) teamPoints[row.code].bronze++;
-          if (rank <= 3) teamPoints[row.code].medals++;
+
+          if (sport.scoring_type === 'placement') {
+            teamPoints[row.code].gold += Number(row.gold) || 0;
+            teamPoints[row.code].silver += Number(row.silver) || 0;
+            teamPoints[row.code].bronze += Number(row.bronze) || 0;
+            teamPoints[row.code].medals += (Number(row.gold) || 0) + (Number(row.silver) || 0) + (Number(row.bronze) || 0);
+          } else {
+            if (rank === 1) teamPoints[row.code].gold++;
+            if (rank === 2) teamPoints[row.code].silver++;
+            if (rank === 3) teamPoints[row.code].bronze++;
+            if (rank <= 3) teamPoints[row.code].medals++;
+          }
         }
       });
     }

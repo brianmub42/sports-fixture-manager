@@ -96,7 +96,7 @@ export default function Navigation() {
   };
 
   return (
-    <nav className="mb-6 relative z-50 flex justify-center">
+    <nav className="mb-6 relative z-30 flex justify-center">
       <div className="flex items-center gap-1.5 sm:gap-2.5 p-1.5 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border border-gray-200/80 dark:border-gray-800/80 rounded-2xl shadow-lg shadow-gray-200/5 dark:shadow-black/40 overflow-x-auto sm:overflow-x-visible no-scrollbar max-w-full sm:max-w-max mx-auto">
         {categories.map((cat, idx) => {
           if (cat.superadminOnly && !isSuperadmin) return null;

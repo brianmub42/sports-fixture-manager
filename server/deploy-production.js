@@ -55,6 +55,18 @@ conn.on('ready', () => {
         local: path.join(projectRoot, 'server', 'routes', 'scores.js'),
         remote: '/var/www/sports-fixture-manager/server/routes/scores.js'
       },
+      {
+        local: path.join(projectRoot, 'server', 'routes', 'standings.js'),
+        remote: '/var/www/sports-fixture-manager/server/routes/standings.js'
+      },
+      {
+        local: path.join(projectRoot, 'server', 'routes', 'public.js'),
+        remote: '/var/www/sports-fixture-manager/server/routes/public.js'
+      },
+      {
+        local: path.join(projectRoot, 'server', 'routes', 'sports.js'),
+        remote: '/var/www/sports-fixture-manager/server/routes/sports.js'
+      },
 
       // Client core & components
       {
@@ -104,6 +116,10 @@ conn.on('ready', () => {
       {
         local: path.join(projectRoot, 'client', 'src', 'pages', 'Standings.jsx'),
         remote: '/var/www/sports-fixture-manager/client/src/pages/Standings.jsx'
+      },
+      {
+        local: path.join(projectRoot, 'client', 'src', 'pages', 'LogStandings.jsx'),
+        remote: '/var/www/sports-fixture-manager/client/src/pages/LogStandings.jsx'
       },
       {
         local: path.join(projectRoot, 'client', 'src', 'pages', 'ReportsPage.jsx'),
