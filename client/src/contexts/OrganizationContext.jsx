@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useOrganizations, useCreateOrganization } from '../hooks/useFixtures.js';
+import { useQuery } from '@tanstack/react-query';
+import { organizationsApi, authApi } from '../api.js';
 
 const OrganizationContext = createContext(null);
 
@@ -23,6 +25,24 @@ export function OrganizationProvider({ children }) {
 
   const { data: organizations, isLoading, refetch } = useOrganizations();
   const createOrgMutation = useCreateOrganization();
+
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+
+  // Query all tournaments belonging to this account / official
+  const { data: myTournaments, refetch: refetchMyTournaments } = useQuery({
+    queryKey: ['my-tournaments', token, currentOrgSlug],
+    queryFn: async () => {
+      const authToken = localStorage.getItem('token');
+      if (!authToken) return [];
+      try {
+        const res = await organizationsApi.getMyTournaments();
+        return res.data || [];
+      } catch (err) {
+        return [];
+      }
+    },
+    enabled: !!token
+  });
 
   const activeOrg = organizations?.find(o => o.slug === currentOrgSlug) || null;
 
@@ -53,17 +73,55 @@ export function OrganizationProvider({ children }) {
     setCurrentOrgSlug(slug);
   };
 
+  // Switch tournament without losing authentication
+  const switchTournament = async (slug) => {
+    try {
+      const res = await authApi.switchTournament(slug);
+      if (res.data?.token) {
+        localStorage.setItem('token', res.data.token);
+      }
+      localStorage.setItem('organization_slug', slug);
+      setCurrentOrgSlug(slug);
+      window.location.reload();
+    } catch (err) {
+      console.warn('Switch tournament without token fallback:', err);
+      selectOrg(slug);
+    }
+  };
+
+  // Create next tournament under current account
+  const createNextTournament = async (tournamentData) => {
+    const res = await organizationsApi.createTournament(tournamentData);
+    if (res.data?.token) {
+      localStorage.setItem('token', res.data.token);
+    }
+    if (res.data?.organization?.slug) {
+      localStorage.setItem('organization_slug', res.data.organization.slug);
+      setCurrentOrgSlug(res.data.organization.slug);
+    }
+    window.location.reload();
+    return res.data;
+  };
+
   const createOrg = async (name, eventTitle, creatorEmail) => {
     const newOrg = await createOrgMutation.mutateAsync({ name, event_title: eventTitle, creator_email: creatorEmail });
-    localStorage.removeItem('token'); // Clear old tenant token
-    localStorage.setItem('organization_slug', newOrg.slug); // Synchronously save to prevent race condition
+    localStorage.setItem('organization_slug', newOrg.slug);
     setCurrentOrgSlug(newOrg.slug);
-    window.location.href = '/login?register=true'; // Redirect to register as the admin of the new workspace
+
+    if (newOrg.has_existing_account) {
+      // Existing user: direct to login
+      window.location.href = '/login?existing=true';
+    } else {
+      // New user: register as admin
+      localStorage.removeItem('token');
+      window.location.href = '/login?register=true';
+    }
   };
 
   return (
     <OrganizationContext.Provider value={{
       organizations,
+      myTournaments: myTournaments || [],
       activeOrg,
       currentOrgSlug,
       isLoading,
@@ -71,6 +129,9 @@ export function OrganizationProvider({ children }) {
       setActiveOrgSlug,
       clearOrg,
       createOrg,
+      switchTournament,
+      createNextTournament,
+      refetchMyTournaments,
       refetch
     }}>
       {children}

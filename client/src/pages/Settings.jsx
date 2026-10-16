@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSettings, useUpdateSettings, useResetDatabase, useVenues, useCreateVenue, useDeleteVenue, useSports, useCreateSport, useDeleteSport } from '../hooks/useFixtures.js';
-import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff, CreditCard, Megaphone, HelpCircle, BookOpen } from 'lucide-react';
+import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff, CreditCard, Megaphone, HelpCircle, BookOpen, Trophy } from 'lucide-react';
 import ScoringFormatsModal from '../components/ScoringFormatsModal.jsx';
+import CreateTournamentModal from '../components/CreateTournamentModal.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { settingsApi, authApi, uploadApi } from '../api.js';
@@ -55,6 +56,7 @@ export default function Settings() {
   const [confirmText, setConfirmText] = useState('');
   const [resetSuccess, setResetSuccess] = useState(null);
   const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [showCreateTournamentModal, setShowCreateTournamentModal] = useState(false);
 
   const [sponsors, setSponsors] = useState([]);
   const [sponsorSaving, setSponsorSaving] = useState(false);
@@ -864,6 +866,37 @@ export default function Settings() {
                   )}
                 </div>
               </form>
+
+              {/* Multi-Tournament Next Championship Setup Card */}
+              <div className="k-card bg-gradient-to-br from-blue-50/70 to-indigo-50/50 dark:from-blue-950/25 dark:to-indigo-950/20 border-blue-200/90 dark:border-blue-900/40 shadow-sm">
+                <div className="flex items-start justify-between gap-4 flex-wrap sm:flex-nowrap">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="p-1.5 rounded-lg bg-blue-600/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400">
+                        <Trophy className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">Create Next Tournament Workspace</h3>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed">
+                      Hosting the next tournament or derby for <strong>{form.org_name || 'your school'}</strong>? Create a dedicated workspace within this account with instant cloning of participating teams, sports rules, and venues.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateTournamentModal(true)}
+                    className="shrink-0 flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create Next Tournament</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Create Tournament Modal */}
+              <CreateTournamentModal
+                isOpen={showCreateTournamentModal}
+                onClose={() => setShowCreateTournamentModal(false)}
+              />
 
               {/* Sponsors & Partners Ribbon */}
               <div className="k-card">

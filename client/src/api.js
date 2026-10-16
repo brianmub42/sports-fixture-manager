@@ -52,6 +52,7 @@ export const fixturesApi = {
 
 export const scoresApi = {
   update: (id, data) => api.patch(`/scores/${id}`, data),
+  getLogs: () => api.get('/scores/logs'),
 };
 
 export const standingsApi = {
@@ -157,12 +158,15 @@ export const sportsApi = {
 
 export const organizationsApi = {
   getAll: () => api.get('/organizations'),
+  getMyTournaments: () => api.get('/organizations/my-tournaments'),
   create: (data) => api.post('/organizations', data),
+  createTournament: (data) => api.post('/organizations/create-tournament', data),
 };
 
 export const authApi = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
+  switchTournament: (slug) => api.post('/auth/switch-tournament', { slug }),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
   verifyResetCode: (data) => api.post('/auth/verify-reset-code', data),
   resetPassword: (data) => api.post('/auth/reset-password', data),

@@ -10,6 +10,7 @@ import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { LogOut, Key, UserCheck, Settings as SettingsIcon, QrCode } from 'lucide-react';
 import SpectatorQrModal from './SpectatorQrModal.jsx';
+import TournamentSwitcher from './TournamentSwitcher.jsx';
 
 export default function Layout() {
   const { data: settings } = useSettings();
@@ -50,9 +51,12 @@ export default function Layout() {
             <img src="/assets/fixture-grid-logo.png" alt="FixtureGrid Logo" className="h-7 sm:h-9 w-auto object-contain" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white truncate">{orgName}</h1>
-            <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-300 truncate">
-              {eventTitle} · {teamsCount} {teamsCount === 1 ? 'Team' : 'Teams'} · {sportsCount} {sportsCount === 1 ? 'Sport' : 'Sports'}
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white truncate">{orgName}</h1>
+              <TournamentSwitcher eventTitle={eventTitle} orgName={orgName} />
+            </div>
+            <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-300 truncate mt-0.5">
+              {teamsCount} {teamsCount === 1 ? 'Team' : 'Teams'} · {sportsCount} {sportsCount === 1 ? 'Sport' : 'Sports'}
             </p>
           </div>
         </div>

@@ -27,6 +27,7 @@ router.get('/', async (req, res) => {
     if (isAllSports || (!isPlacementSport && sport)) {
       let fixturesSql = `
         SELECT f.id, f.organization_id, f.sport_id, f.venue_id, f.scheduled_at, f.duration_minutes, f.status,
+          f.round, f.team_a_id, f.team_b_id,
           a.name as team_a_name, a.code as team_a_code, a.color as team_a_color, a.logo_url as team_a_logo,
           b.name as team_b_name, b.code as team_b_code, b.color as team_b_color, b.logo_url as team_b_logo,
           f.score_a, f.score_b, f.winner_id, f.notes, f.created_at, f.updated_at,
@@ -57,6 +58,9 @@ router.get('/', async (req, res) => {
           ae.scheduled_at,
           ae.duration_minutes,
           ae.status,
+          ae.category as round,
+          NULL::int as team_a_id,
+          NULL::int as team_b_id,
           ae.name || ' (' || ae.category || ')' as team_a_name,
           NULL as team_a_code,
           NULL as team_a_color,

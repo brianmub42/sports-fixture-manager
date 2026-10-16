@@ -19,9 +19,12 @@ router.post('/register', async (req, res) => {
     email = email.trim().toLowerCase();
 
     // Check if user already exists globally
-    const checkUser = await query('SELECT id FROM users WHERE email = $1', [email]);
+    const checkUser = await query('SELECT id, name FROM users WHERE email = $1', [email]);
     if (checkUser.rows.length > 0) {
-      return res.status(400).json({ error: 'User with this email is already registered' });
+      return res.status(400).json({ 
+        error: 'You already have an account with this email. Please sign in with your password to access or manage this tournament workspace.',
+        code: 'USER_ALREADY_EXISTS'
+      });
     }
 
     // Check if any users exist in the organization
@@ -43,6 +46,12 @@ router.post('/register', async (req, res) => {
     );
 
     const user = result.rows[0];
+
+    // Explicitly link user to organization in organization_users
+    await query(
+      'INSERT INTO organization_users (organization_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (organization_id, user_id) DO NOTHING',
+      [req.orgId, user.id, finalRole]
+    );
 
     // Generate JWT token
     const token = jwt.sign(
@@ -66,7 +75,7 @@ router.post('/login', async (req, res) => {
     }
     email = email.trim().toLowerCase();
 
-    // Look up user globally first (Superadmins and officials across workspaces)
+    // Look up user globally first
     const userRes = await query('SELECT * FROM users WHERE email = $1', [email]);
     const user = userRes.rows[0];
 
@@ -79,18 +88,47 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Look up user's organization details
-    let userOrg = null;
-    if (user.organization_id) {
-      const orgRes = await query('SELECT id, name, slug, event_title FROM organizations WHERE id = $1', [user.organization_id]);
-      userOrg = orgRes.rows[0] || null;
+    // Look up all accessible organizations for this user account
+    const accessibleOrgsRes = await query(`
+      SELECT DISTINCT o.id, o.name, o.slug, o.event_title, 
+        COALESCE(ou.role, CASE WHEN LOWER(TRIM(o.creator_email)) = $1 THEN 'admin' ELSE 'viewer' END) as role
+      FROM organizations o
+      LEFT JOIN organization_users ou ON ou.organization_id = o.id AND ou.user_id = $2
+      WHERE LOWER(TRIM(o.creator_email)) = $1 OR ou.user_id = $2 OR o.id = $3
+      ORDER BY o.id DESC
+    `, [email, user.id, user.organization_id || 0]);
+
+    const accessibleOrgs = accessibleOrgsRes.rows;
+
+    // Determine target organization to scope token to
+    let targetOrg = null;
+    let effectiveRole = user.role;
+
+    // Check if client requested a specific organization currently active
+    if (req.orgId) {
+      targetOrg = accessibleOrgs.find(o => o.id === req.orgId);
+    }
+    // Otherwise fallback to user.organization_id or the first accessible tournament
+    if (!targetOrg) {
+      if (user.organization_id) {
+        targetOrg = accessibleOrgs.find(o => o.id === user.organization_id);
+      }
+      if (!targetOrg && accessibleOrgs.length > 0) {
+        targetOrg = accessibleOrgs[0];
+      }
     }
 
-    const orgId = user.organization_id || req.orgId;
-    const orgSlug = userOrg ? userOrg.slug : req.orgSlug;
+    if (user.role === 'superadmin') {
+      effectiveRole = 'superadmin';
+    } else if (targetOrg?.role) {
+      effectiveRole = targetOrg.role;
+    }
+
+    const orgId = targetOrg ? targetOrg.id : (user.organization_id || req.orgId);
+    const orgSlug = targetOrg ? targetOrg.slug : req.orgSlug;
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, organization_id: orgId, organization_slug: orgSlug },
+      { id: user.id, email: user.email, role: effectiveRole, organization_id: orgId, organization_slug: orgSlug },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -100,12 +138,76 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role: effectiveRole,
         organization_id: orgId,
         organization_slug: orgSlug
       },
-      organization: userOrg,
+      organization: targetOrg || null,
+      tournaments: accessibleOrgs,
       token
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/switch-tournament (Protected: Switch active tournament without full re-login)
+router.post('/switch-tournament', authMiddleware, async (req, res) => {
+  try {
+    const { slug } = req.body;
+    if (!slug) {
+      return res.status(400).json({ error: 'Organization slug is required' });
+    }
+
+    const orgRes = await query(
+      'SELECT id, name, slug, event_title, creator_email FROM organizations WHERE slug = $1',
+      [slug]
+    );
+    if (orgRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament workspace not found' });
+    }
+    const targetOrg = orgRes.rows[0];
+
+    // Check user permission for target workspace
+    let userRole = 'viewer';
+    if (req.user.role === 'superadmin') {
+      userRole = 'superadmin';
+    } else if (targetOrg.creator_email && targetOrg.creator_email.trim().toLowerCase() === req.user.email.trim().toLowerCase()) {
+      userRole = 'admin';
+    } else {
+      const membership = await query(
+        'SELECT role FROM organization_users WHERE organization_id = $1 AND user_id = $2',
+        [targetOrg.id, req.user.id]
+      );
+      if (membership.rows.length === 0 && req.user.organization_id !== targetOrg.id) {
+        return res.status(403).json({ error: 'You do not have permission to access this tournament workspace' });
+      }
+      userRole = membership.rows[0]?.role || req.user.role || 'viewer';
+    }
+
+    const token = jwt.sign(
+      {
+        id: req.user.id,
+        email: req.user.email,
+        role: userRole,
+        organization_id: targetOrg.id,
+        organization_slug: targetOrg.slug
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      organization: targetOrg,
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        role: userRole,
+        organization_id: targetOrg.id,
+        organization_slug: targetOrg.slug
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -308,4 +308,31 @@ router.post('/:id/correct', authMiddleware, requireScorekeeperOrAdmin, async (re
   }
 });
 
+// GET /api/scores/logs (Protected: Scorekeeper audit trail)
+router.get('/logs', authMiddleware, async (req, res) => {
+  try {
+    const logsRes = await query(`
+      SELECT sl.id, sl.fixture_id, sl.old_score_a, sl.old_score_b, sl.new_score_a, sl.new_score_b, sl.changed_at,
+             COALESCE(u.name, 'System') as changed_by_name, 
+             COALESCE(u.email, 'system@kalife.local') as changed_by_email,
+             s.name as sport_name, v.name as venue_name, f.round,
+             ta.name as team_a_name, tb.name as team_b_name
+      FROM score_logs sl
+      JOIN fixtures f ON sl.fixture_id = f.id
+      JOIN sports s ON f.sport_id = s.id
+      LEFT JOIN venues v ON f.venue_id = v.id
+      JOIN teams ta ON f.team_a_id = ta.id
+      JOIN teams tb ON f.team_b_id = tb.id
+      LEFT JOIN users u ON sl.user_id = u.id
+      WHERE f.organization_id = $1
+      ORDER BY sl.changed_at DESC
+      LIMIT 500
+    `, [req.orgId]);
+    res.json(logsRes.rows);
+  } catch (err) {
+    console.error('Error fetching score logs:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

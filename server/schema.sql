@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS athletics_results (
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+    organization_id INT REFERENCES organizations(id) ON DELETE SET NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(100),
@@ -222,4 +222,16 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 
 CREATE INDEX IF NOT EXISTS idx_push_subs_org_team ON push_subscriptions(organization_id, followed_type, followed_id);
 CREATE INDEX IF NOT EXISTS idx_push_subs_device ON push_subscriptions(organization_id, device_id);
+
+CREATE TABLE IF NOT EXISTS organization_users (
+    id SERIAL PRIMARY KEY,
+    organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) DEFAULT 'admin',
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(organization_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_org_users_user ON organization_users(user_id);
+CREATE INDEX IF NOT EXISTS idx_org_users_org ON organization_users(organization_id);
 

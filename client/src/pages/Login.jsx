@@ -15,7 +15,15 @@ export default function Login() {
  
   const [isRegister, setIsRegister] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('register') === 'true';
+    return params.get('register') === 'true' && params.get('existing') !== 'true';
+  });
+
+  const [infoMessage, setInfoMessage] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('existing') === 'true') {
+      return 'This tournament workspace has been added to your existing account. Please sign in with your password to manage it.';
+    }
+    return '';
   });
 
   // Auth form states
@@ -64,7 +72,12 @@ export default function Login() {
       }
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Authentication failed. Please check your credentials.');
+      if (err.response?.data?.code === 'USER_ALREADY_EXISTS') {
+        setIsRegister(false);
+        setError('You already have an account with this email. Please enter your password to sign in and manage this tournament.');
+      } else {
+        setError(err.response?.data?.error || 'Authentication failed. Please check your credentials.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -170,6 +183,13 @@ export default function Login() {
 
         {/* Form */}
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+          {infoMessage && (
+            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-blue-500" />
+              <span>{infoMessage}</span>
+            </div>
+          )}
+
           {error && (
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 shrink-0" />

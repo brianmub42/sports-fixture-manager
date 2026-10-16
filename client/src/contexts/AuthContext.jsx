@@ -57,6 +57,19 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token');
   };
 
+  const updateSession = (newToken, newUser, newOrgSlug) => {
+    if (newToken) {
+      setToken(newToken);
+      localStorage.setItem('token', newToken);
+    }
+    if (newUser) {
+      setUser(newUser);
+    }
+    if (newOrgSlug) {
+      localStorage.setItem('organization_slug', newOrgSlug);
+    }
+  };
+
   const isSuperadmin = user?.role === 'superadmin';
   const isAdmin = user?.role === 'admin' || isSuperadmin;
   const isScorekeeper = user?.role === 'admin' || user?.role === 'scorekeeper' || isSuperadmin;
@@ -75,7 +88,8 @@ export function AuthProvider({ children }) {
       isAuthenticated,
       login,
       register,
-      logout
+      logout,
+      updateSession
     }}>
       {!isLoading && children}
     </AuthContext.Provider>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { ChevronDown, FolderKanban, Play, BarChart3, Settings, Trophy, Calendar, Activity, List, MapPin, Upload, Wand2, Network, Tv, LineChart, Award, ShieldCheck, Megaphone } from 'lucide-react';
+import { ChevronDown, FolderKanban, Play, BarChart3, Settings, Trophy, Calendar, Activity, List, MapPin, Upload, Wand2, Network, Tv, LineChart, Award, ShieldCheck, Megaphone, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 const categories = [
@@ -38,6 +38,7 @@ const categories = [
     links: [
       { to: '/standings', label: 'Standings', icon: BarChart3 },
       { to: '/log', label: 'Log', icon: List },
+      { to: '/reports', label: 'Tournament Reports', icon: FileText },
     ]
   },
   {

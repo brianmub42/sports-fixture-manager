@@ -7,4 +7,5 @@ uploads/
 theme-previewer.html
 icons-preview.html
 .vscode/
+*.tar.gz
 

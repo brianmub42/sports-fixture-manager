@@ -23,6 +23,7 @@ import AthleticsPage from './pages/AthleticsPage.jsx';
 import SuperadminDashboard from './pages/SuperadminDashboard.jsx';
 import PublicWatchPage from './pages/PublicWatchPage.jsx';
 import MediaManager from './pages/MediaManager.jsx';
+import ReportsPage from './pages/ReportsPage.jsx';
 
 // Mobile Web App imports (mirroring Expo React Native Mobile App)
 import { MobileThemeProvider } from './mobile-app/contexts/MobileThemeContext.jsx';
@@ -70,6 +71,7 @@ function App() {
               <Route path="/media" element={<MediaManager />} />
               <Route path="/brackets" element={<Brackets />} />
               <Route path="/athletics" element={<AthleticsPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
               <Route path="/superadmin" element={<SuperadminDashboard />} />
             </Route>
             <Route path="/login" element={<Login />} />

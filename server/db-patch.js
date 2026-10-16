@@ -100,6 +100,47 @@ async function runPatch() {
       ADD COLUMN IF NOT EXISTS notes TEXT
     `);
 
+    // 7. Multi-Tournament Account Support: organization_users table
+    console.log('Creating organization_users table for multi-tournament account management...');
+    await query(`
+      CREATE TABLE IF NOT EXISTS organization_users (
+          id SERIAL PRIMARY KEY,
+          organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+          user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          role VARCHAR(20) DEFAULT 'admin',
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(organization_id, user_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_org_users_user ON organization_users(user_id);
+      CREATE INDEX IF NOT EXISTS idx_org_users_org ON organization_users(organization_id);
+
+      -- Backfill organization_users from users table
+      INSERT INTO organization_users (organization_id, user_id, role)
+      SELECT organization_id, id, role 
+      FROM users 
+      WHERE organization_id IS NOT NULL
+      ON CONFLICT (organization_id, user_id) DO NOTHING;
+
+      -- Backfill organization_users from organizations.creator_email
+      INSERT INTO organization_users (organization_id, user_id, role)
+      SELECT o.id, u.id, 'admin' 
+      FROM organizations o
+      JOIN users u ON LOWER(TRIM(o.creator_email)) = LOWER(TRIM(u.email))
+      ON CONFLICT (organization_id, user_id) DO NOTHING;
+    `);
+
+    // Safely update users.organization_id foreign key constraint to ON DELETE SET NULL if not already set
+    try {
+      await query(`
+        ALTER TABLE users DROP CONSTRAINT IF EXISTS users_organization_id_fkey;
+        ALTER TABLE users ADD CONSTRAINT users_organization_id_fkey 
+          FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL;
+      `);
+    } catch (fkErr) {
+      console.warn('Note: users foreign key update notice:', fkErr.message);
+    }
+
     console.log('Database schema patch applied successfully!');
   } catch (err) {
     console.error('Error applying database patch:', err);
