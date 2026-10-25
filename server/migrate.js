@@ -90,6 +90,77 @@ async function migrate() {
 
       ALTER TABLE athletics_results ADD COLUMN IF NOT EXISTS tied BOOLEAN DEFAULT FALSE;
       ALTER TABLE athletics_results ADD COLUMN IF NOT EXISTS status VARCHAR(10) DEFAULT 'OK';
+
+      -- Organization columns
+      ALTER TABLE organizations 
+      ADD COLUMN IF NOT EXISTS pop_file_url VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS pop_uploaded_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS billing_school_name VARCHAR(150),
+      ADD COLUMN IF NOT EXISTS billing_address TEXT,
+      ADD COLUMN IF NOT EXISTS billing_contact_person VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS billing_contact_number VARCHAR(30);
+
+      -- Fixtures columns
+      ALTER TABLE fixtures 
+      ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(150),
+      ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS last_request_id VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS score_details JSONB DEFAULT NULL;
+
+      -- Sports columns
+      ALTER TABLE sports 
+      ADD COLUMN IF NOT EXISTS scoring_system VARCHAR(30) DEFAULT 'standard_points',
+      ADD COLUMN IF NOT EXISTS scoring_rules JSONB DEFAULT '{}'::jsonb;
+
+      -- Venues columns
+      ALTER TABLE venues 
+      ADD COLUMN IF NOT EXISTS supported_disciplines TEXT[] DEFAULT ARRAY[]::TEXT[];
+
+      -- Athletics results columns
+      ALTER TABLE athletics_results 
+      ADD COLUMN IF NOT EXISTS athlete_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS notes TEXT;
+
+      -- Billing reminders table
+      CREATE TABLE IF NOT EXISTS billing_reminders_sent (
+          organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+          reminder_type VARCHAR(10) NOT NULL,
+          sent_at TIMESTAMP DEFAULT NOW(),
+          PRIMARY KEY (organization_id, reminder_type)
+      );
+
+      -- Organization users table
+      CREATE TABLE IF NOT EXISTS organization_users (
+          id SERIAL PRIMARY KEY,
+          organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+          user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          role VARCHAR(20) DEFAULT 'admin',
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(organization_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_org_users_user ON organization_users(user_id);
+      CREATE INDEX IF NOT EXISTS idx_org_users_org ON organization_users(organization_id);
+
+      -- Spectator FanZone & Media Feed posts
+      CREATE TABLE IF NOT EXISTS spectator_feed_posts (
+          id SERIAL PRIMARY KEY,
+          organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+          fixture_id INT REFERENCES fixtures(id) ON DELETE SET NULL,
+          sport_id INT REFERENCES sports(id) ON DELETE SET NULL,
+          author_name VARCHAR(100) DEFAULT 'Official Media Desk',
+          caption TEXT,
+          media_type VARCHAR(20) NOT NULL DEFAULT 'image',
+          media_url TEXT NOT NULL,
+          thumbnail_url TEXT,
+          duration_seconds INT DEFAULT 0,
+          is_story_highlight BOOLEAN DEFAULT FALSE,
+          story_title VARCHAR(50),
+          reactions JSONB DEFAULT '{"fire": 0, "clap": 0, "cheer": 0, "trophy": 0}'::jsonb,
+          shares_count INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_feed_org_created ON spectator_feed_posts(organization_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_feed_org_story ON spectator_feed_posts(organization_id, is_story_highlight);
     `);
     console.log('Migration successful');
   } catch (err) {
