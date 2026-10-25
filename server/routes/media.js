@@ -350,6 +350,8 @@ router.post('/force-complete-fixture/:id', authMiddleware, requireMediaOrAdmin, 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
 // ==========================================
 // 4. SPECTATOR FANZONE FEED MANAGEMENT
 // ==========================================
