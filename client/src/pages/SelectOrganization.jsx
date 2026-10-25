@@ -103,6 +103,13 @@ export default function SelectOrganization() {
           <nav className="flex items-center gap-3">
             <ThemeToggle />
             <button 
+              onClick={() => navigate('/watch/demo-tournament')}
+              className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-1.5 hover:bg-rose-500/20 transition-all cursor-pointer"
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              Live FanZone
+            </button>
+            <button 
               onClick={() => navigate('/login')}
               className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             >
@@ -133,7 +140,14 @@ export default function SelectOrganization() {
           Manage your complete competition flow with auto-generated fixtures, visual brackets, real-time live scores, dynamic standings, and comprehensive analytics.
         </p>
 
-        <div className="flex flex-col sm:flex-row justify-center items-center gap-4 max-w-md mx-auto mb-16">
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-4 max-w-xl mx-auto mb-16">
+          <button 
+            onClick={() => navigate('/watch/demo-tournament')}
+            className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 font-extrabold text-sm text-white shadow-xl shadow-rose-600/25 hover:shadow-rose-600/40 transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            Watch Live Spectator FanZone <ArrowRight className="w-4 h-4" />
+          </button>
           <button 
             onClick={scrollToWorkspaces}
             className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-extrabold text-sm text-white shadow-xl shadow-indigo-600/25 hover:shadow-indigo-600/40 transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"

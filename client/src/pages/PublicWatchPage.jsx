@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSocket } from '../contexts/SocketContext.jsx';
 import { publicApi } from '../api.js';
-import Standings from './Standings.jsx';
-import Fixtures from './Fixtures.jsx';
+import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import TeamPill from '../components/TeamPill.jsx';
 import {
   Trophy, Calendar, Sparkles, Share2, Zap,
@@ -33,7 +32,9 @@ const RankBadge = ({ rank }) => {
 };
 
 export default function PublicWatchPage() {
-  const { eventSlug } = useParams();
+  const { eventSlug: rawSlug } = useParams();
+  const { activeOrg } = useOrganization();
+  const eventSlug = rawSlug || activeOrg?.slug || 'demo-tournament';
   const navigate = useNavigate();
   const socket = useSocket();
   const queryClient = useQueryClient();
@@ -290,10 +291,14 @@ export default function PublicWatchPage() {
           <Trophy size={32} />
         </div>
         <h2 className="text-xl font-bold mb-2">Event Not Found</h2>
-        <p className="text-slate-400 text-sm max-w-sm mb-6">The tournament link "{eventSlug}" did not match any active workspace.</p>
-        <button onClick={() => navigate('/')} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer">
-          Go to Home
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button onClick={() => navigate('/watch/demo-tournament')} className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer shadow-lg shadow-rose-600/30">
+            Open Demo Tournament FanZone
+          </button>
+          <button onClick={() => navigate('/')} className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer">
+            Go to Home
+          </button>
+        </div>
       </div>
     );
   }

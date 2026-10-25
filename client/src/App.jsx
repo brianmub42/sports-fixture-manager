@@ -44,6 +44,8 @@ function App() {
   const location = useLocation();
   const isPublicBypassRoute =
     location.pathname.startsWith('/watch') ||
+    location.pathname.startsWith('/events') ||
+    location.pathname.startsWith('/fanzone') ||
     location.pathname.startsWith('/reset-password') ||
     location.pathname.startsWith('/app') ||
     location.pathname.startsWith('/login');
@@ -79,7 +81,14 @@ function App() {
             <Route path="/tv" element={<TvMode />} />
             <Route path="/watch/display" element={<TvMode />} />
             <Route path="/watch/:eventSlug/display" element={<TvMode />} />
+            <Route path="/watch" element={<PublicWatchPage />} />
             <Route path="/watch/:eventSlug" element={<PublicWatchPage />} />
+            <Route path="/events/:eventSlug/watch" element={<PublicWatchPage />} />
+            <Route path="/events/:eventSlug/display" element={<TvMode />} />
+            <Route path="/events/:eventSlug/fanzone" element={<PublicWatchPage />} />
+            <Route path="/events/:eventSlug" element={<PublicWatchPage />} />
+            <Route path="/fanzone" element={<PublicWatchPage />} />
+            <Route path="/fanzone/:eventSlug" element={<PublicWatchPage />} />
 
             {/* Mobile Web App (mirroring Expo React Native Mobile App interface & offline sync) */}
             <Route
