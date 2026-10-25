@@ -279,6 +279,17 @@ router.post('/advert-banner', authMiddleware, requireMediaOrAdmin, upload.single
   }
 });
 
+// POST /api/upload/feed-media (Admin or Media Manager)
+router.post('/feed-media', authMiddleware, requireMediaOrAdmin, upload.single('media'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No media file uploaded' });
+    const mediaUrl = `/uploads/${req.file.filename}`;
+    res.json({ success: true, mediaUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 function sendPlacementTemplate(res) {
   const template = [

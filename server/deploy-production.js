@@ -130,6 +130,22 @@ conn.on('ready', () => {
       {
         local: path.join(projectRoot, 'client', 'src', 'utils', 'tournamentReports.js'),
         remote: '/var/www/sports-fixture-manager/client/src/utils/tournamentReports.js'
+      },
+
+      // Public viewer page
+      {
+        local: path.join(projectRoot, 'client', 'src', 'pages', 'PublicWatchPage.jsx'),
+        remote: '/var/www/sports-fixture-manager/client/src/pages/PublicWatchPage.jsx'
+      },
+
+      // Mobile app viewer
+      {
+        local: path.join(projectRoot, 'client', 'src', 'mobile-app', 'pages', 'viewer', 'MobileViewerEvent.jsx'),
+        remote: '/var/www/sports-fixture-manager/client/src/mobile-app/pages/viewer/MobileViewerEvent.jsx'
+      },
+      {
+        local: path.join(projectRoot, 'client', 'src', 'mobile-app', 'components', 'MobileAppShell.jsx'),
+        remote: '/var/www/sports-fixture-manager/client/src/mobile-app/components/MobileAppShell.jsx'
       }
     ];
 

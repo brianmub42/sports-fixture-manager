@@ -9,6 +9,10 @@ import {
   FlatList,
   SafeAreaView,
   RefreshControl,
+  Image,
+  Modal,
+  Share,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import io, { Socket } from 'socket.io-client';
@@ -30,7 +34,7 @@ export default function PublicEventScoreboard() {
     unfollowEntity,
   } = useMobilePush(eventSlug || '');
 
-  const [activeTab, setActiveTab] = useState<'latest' | 'log' | 'sports' | 'fixtures'>('log');
+  const [activeTab, setActiveTab] = useState<'feed' | 'latest' | 'log' | 'sports' | 'fixtures'>('feed');
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,6 +43,10 @@ export default function PublicEventScoreboard() {
   const [sportsStandings, setSportsStandings] = useState<Record<string, any>>({});
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [latestResult, setLatestResult] = useState<any>(null);
+  const [feedPosts, setFeedPosts] = useState<any[]>([]);
+  const [stories, setStories] = useState<any[]>([]);
+  const [activeStory, setActiveStory] = useState<any>(null);
+  const [localReactions, setLocalReactions] = useState<Record<string, boolean>>({});
 
   const fetchPublicData = async () => {
     try {
@@ -64,11 +72,51 @@ export default function PublicEventScoreboard() {
       } catch (e) {
         console.log('[Latest Result Error]:', e);
       }
+
+      // 5. Fetch spectator FanZone feed & stories
+      try {
+        const feedRes = await axios.get(`${API_URL}/public/events/${eventSlug}/feed`);
+        setFeedPosts(feedRes.data?.feed || []);
+        setStories(feedRes.data?.stories || []);
+      } catch (e) {
+        console.log('[Feed API Error]:', e);
+      }
     } catch (err) {
       console.error('[Spectator API Error]:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleReact = async (postId: number, reaction: string) => {
+    const key = `${postId}-${reaction}`;
+    if (localReactions[key]) return;
+    setLocalReactions(prev => ({ ...prev, [key]: true }));
+
+    try {
+      await axios.post(`${API_URL}/public/events/${eventSlug}/feed/${postId}/react`, { reaction });
+      setFeedPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          const r = { ...(p.reactions || { fire: 0, clap: 0, cheer: 0, trophy: 0 }) };
+          r[reaction] = (r[reaction] || 0) + 1;
+          return { ...p, reactions: r };
+        }
+        return p;
+      }));
+    } catch (e) {
+      console.warn('React error:', e);
+    }
+  };
+
+  const handleSharePost = async (post: any) => {
+    try {
+      await Share.share({
+        message: `🏆 Check out "${post.caption || 'Tournament Live Moment'}" on FixtureGrid!`,
+      });
+      await axios.post(`${API_URL}/public/events/${eventSlug}/feed/${post.id}/share`).catch(() => {});
+    } catch (e) {
+      console.warn('Share error:', e);
     }
   };
 
@@ -95,6 +143,16 @@ export default function PublicEventScoreboard() {
     socket.on('score-updated', (data) => {
       console.log('[Socket] Score update received, invalidating cache...');
       fetchPublicData();
+    });
+
+    socket.on('spectator-feed-updated', () => {
+      console.log('[Socket] Spectator feed updated');
+      fetchPublicData();
+    });
+
+    socket.on('spectator-reaction-updated', ({ postId, reactions }: any) => {
+      setFeedPosts(prev => prev.map(p => p.id === postId ? { ...p, reactions } : p));
+      setStories(prev => prev.map(s => s.id === postId ? { ...s, reactions } : s));
     });
 
     socket.on('eventResultsPublished', (payload) => {
@@ -207,6 +265,37 @@ export default function PublicEventScoreboard() {
         )}
       </View>
 
+      {/* 2. LIVE STORIES / HIGHLIGHT REEL STRIP */}
+      {stories.length > 0 && (
+        <View style={[styles.storiesContainer, { backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: isDark ? '#1e293b' : '#e2e8f0' }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesScroll}>
+            {stories.map((story) => (
+              <TouchableOpacity
+                key={story.id}
+                onPress={() => setActiveStory(story)}
+                style={styles.storyBubble}
+              >
+                <View style={styles.storyRing}>
+                  {story.media_url ? (
+                    <Image source={{ uri: story.thumbnail_url || story.media_url }} style={styles.storyAvatar} />
+                  ) : (
+                    <View style={[styles.storyAvatar, { backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center' }]}>
+                      <Text style={{ fontSize: 16 }}>⭐</Text>
+                    </View>
+                  )}
+                  <View style={styles.storyBadge}>
+                    <Text style={{ fontSize: 8 }}>{story.media_type === 'video' ? '▶' : '📷'}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.storyLabel, { color: colors.text }]} numberOfLines={1}>
+                  {story.story_title || story.caption?.slice(0, 12) || 'Highlight'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Prominent Post-Event Results Spotlight Banner (Persistent above feed) */}
       {latestResult && (
         <View style={[styles.spotlightBanner, { backgroundColor: isDark ? '#1e1b4b' : '#fffbeb', borderColor: '#f59e0b' }]}>
@@ -269,6 +358,30 @@ export default function PublicEventScoreboard() {
 
       {/* Tabs */}
       <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'feed' && styles.activeTab]}
+          onPress={() => setActiveTab('feed')}
+        >
+          <Text style={[styles.tabText, activeTab === 'feed' && styles.activeTabText]}>🔥 FanZone</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'log' && styles.activeTab]}
+          onPress={() => setActiveTab('log')}
+        >
+          <Text style={[styles.tabText, activeTab === 'log' && styles.activeTabText]}>Standings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'sports' && styles.activeTab]}
+          onPress={() => setActiveTab('sports')}
+        >
+          <Text style={[styles.tabText, activeTab === 'sports' && styles.activeTabText]}>Sports</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'fixtures' && styles.activeTab]}
+          onPress={() => setActiveTab('fixtures')}
+        >
+          <Text style={[styles.tabText, activeTab === 'fixtures' && styles.activeTabText]}>Matches</Text>
+        </TouchableOpacity>
         {latestResult && (
           <TouchableOpacity
             style={[styles.tab, activeTab === 'latest' && styles.activeTabLatest]}
@@ -277,24 +390,6 @@ export default function PublicEventScoreboard() {
             <Text style={[styles.tabText, activeTab === 'latest' && styles.activeTabTextLatest]}>⚡ Result</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'log' && styles.activeTab]}
-          onPress={() => setActiveTab('log')}
-        >
-          <Text style={[styles.tabText, activeTab === 'log' && styles.activeTabText]}>Championship</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'sports' && styles.activeTab]}
-          onPress={() => setActiveTab('sports')}
-        >
-          <Text style={[styles.tabText, activeTab === 'sports' && styles.activeTabText]}>Sports Table</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'fixtures' && styles.activeTab]}
-          onPress={() => setActiveTab('fixtures')}
-        >
-          <Text style={[styles.tabText, activeTab === 'fixtures' && styles.activeTabText]}>Schedules</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -304,6 +399,125 @@ export default function PublicEventScoreboard() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#10b981" />
         }
       >
+        {activeTab === 'feed' && (
+          <View style={styles.feedContainer}>
+            {feedPosts.length === 0 ? (
+              <View style={[styles.card, { alignItems: 'center', paddingVertical: 40 }]}>
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>📷</Text>
+                <Text style={[styles.cardHeader, { textAlign: 'center', borderBottomWidth: 0 }]}>FanZone Feed is Live</Text>
+                <Text style={[styles.noDataText, { textAlign: 'center' }]}>
+                  Media managers and scorekeepers will publish match action photos and video highlights here.
+                </Text>
+              </View>
+            ) : (
+              feedPosts.map((post) => {
+                const reactions = post.reactions || { fire: 0, clap: 0, cheer: 0, trophy: 0 };
+                const hasReactedFire = localReactions[`${post.id}-fire`];
+                const hasReactedClap = localReactions[`${post.id}-clap`];
+                const hasReactedTrophy = localReactions[`${post.id}-trophy`];
+
+                return (
+                  <View
+                    key={post.id}
+                    style={[
+                      styles.feedCard,
+                      { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0' }
+                    ]}
+                  >
+                    {/* Header */}
+                    <View style={styles.feedCardHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <View style={styles.feedAvatar}>
+                          <Text style={styles.feedAvatarText}>
+                            {(post.author_name || 'MD').slice(0, 2).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.feedAuthor, { color: colors.text }]} numberOfLines={1}>
+                            {post.author_name || 'Official Media Desk'}
+                          </Text>
+                          <Text style={[styles.feedMeta, { color: colors.textMuted }]}>
+                            {post.sport_name ? `${post.sport_name} · ` : ''}
+                            {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </Text>
+                        </View>
+                      </View>
+                      {post.is_story_highlight && (
+                        <View style={styles.storyPill}>
+                          <Text style={styles.storyPillText}>⭐ HIGHLIGHT</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Caption */}
+                    {post.caption ? (
+                      <Text style={[styles.feedCaption, { color: colors.text }]}>
+                        {post.caption}
+                      </Text>
+                    ) : null}
+
+                    {/* Media Image / Video Thumbnail */}
+                    {post.media_url ? (
+                      <TouchableOpacity
+                        activeOpacity={0.9}
+                        onPress={() => setActiveStory(post)}
+                        style={styles.feedMediaContainer}
+                      >
+                        <Image
+                          source={{ uri: post.thumbnail_url || post.media_url }}
+                          style={styles.feedMedia}
+                          resizeMode="cover"
+                        />
+                        {(post.media_type === 'video' || post.media_type === 'highlight_clip') && (
+                          <View style={styles.playButtonOverlay}>
+                            <Text style={styles.playIconText}>▶</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ) : null}
+
+                    {/* Footer Actions */}
+                    <View style={styles.feedActionsRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <TouchableOpacity
+                          onPress={() => handleReact(post.id, 'fire')}
+                          style={[styles.reactionBtn, hasReactedFire && styles.reactionBtnActive]}
+                        >
+                          <Text style={styles.reactionEmoji}>🔥</Text>
+                          <Text style={[styles.reactionCount, { color: colors.text }]}>{reactions.fire || 0}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => handleReact(post.id, 'clap')}
+                          style={[styles.reactionBtn, hasReactedClap && styles.reactionBtnActive]}
+                        >
+                          <Text style={styles.reactionEmoji}>👏</Text>
+                          <Text style={[styles.reactionCount, { color: colors.text }]}>{reactions.clap || 0}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => handleReact(post.id, 'trophy')}
+                          style={[styles.reactionBtn, hasReactedTrophy && styles.reactionBtnActive]}
+                        >
+                          <Text style={styles.reactionEmoji}>🏆</Text>
+                          <Text style={[styles.reactionCount, { color: colors.text }]}>{reactions.trophy || 0}</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() => handleSharePost(post)}
+                        style={[styles.sharePostBtn, { borderColor: isDark ? '#334155' : '#cbd5e1' }]}
+                      >
+                        <Text style={{ fontSize: 13, marginRight: 4 }}>🔗</Text>
+                        <Text style={[styles.sharePostText, { color: colors.primary }]}>Share</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        )}
         {activeTab === 'latest' && latestResult && (
           <View style={[styles.card, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
             <View style={styles.latestFullHeader}>
@@ -457,6 +671,64 @@ export default function PublicEventScoreboard() {
           </View>
         )}
       </ScrollView>
+
+      {/* Full-Screen Story Viewer Modal */}
+      {activeStory && (
+        <Modal visible={true} transparent={false} animationType="fade" onRequestClose={() => setActiveStory(null)}>
+          <SafeAreaView style={[styles.storyViewerContainer, { backgroundColor: '#000000' }]}>
+            <View style={styles.storyViewerHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={[styles.storyRingSmall, { width: 34, height: 34, borderRadius: 17, backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>
+                    {(activeStory.author_name || 'MD').slice(0, 2).toUpperCase()}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={styles.storyViewerAuthor}>{activeStory.author_name || 'Official Media Desk'}</Text>
+                  <Text style={styles.storyViewerSport}>{activeStory.sport_name || 'Tournament Highlight'}</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setActiveStory(null)} style={styles.storyCloseBtn}>
+                <Text style={styles.storyCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.storyViewerBody}>
+              <Image
+                source={{ uri: activeStory.thumbnail_url || activeStory.media_url }}
+                style={styles.storyViewerImage}
+                resizeMode="contain"
+              />
+            </View>
+
+            <View style={styles.storyViewerFooter}>
+              {activeStory.caption ? (
+                <Text style={styles.storyViewerCaption}>{activeStory.caption}</Text>
+              ) : null}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                <TouchableOpacity
+                  onPress={() => handleReact(activeStory.id, 'fire')}
+                  style={styles.storyViewerReactBtn}
+                >
+                  <Text style={{ fontSize: 16 }}>🔥 {activeStory.reactions?.fire || 0}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleReact(activeStory.id, 'trophy')}
+                  style={styles.storyViewerReactBtn}
+                >
+                  <Text style={{ fontSize: 16 }}>🏆 {activeStory.reactions?.trophy || 0}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleSharePost(activeStory)}
+                  style={[styles.storyViewerReactBtn, { flex: 1, backgroundColor: '#2563eb' }]}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '800', textAlign: 'center' }}>🔗 Share</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -970,5 +1242,230 @@ const styles = StyleSheet.create({
   },
   followBtnTextActive: {
     color: '#ffffff',
+  },
+  storiesContainer: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  storiesScroll: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  storyBubble: {
+    alignItems: 'center',
+    width: 64,
+  },
+  storyRing: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 2.5,
+    borderColor: '#3b82f6',
+    padding: 2,
+    position: 'relative',
+  },
+  storyAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 26,
+  },
+  storyBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#2563eb',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0f172a',
+  },
+  storyLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  feedContainer: {
+    gap: 14,
+  },
+  feedCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  feedCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+  },
+  feedAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedAvatarText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#3b82f6',
+  },
+  feedAuthor: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  feedMeta: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  storyPill: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  storyPillText: {
+    color: '#f59e0b',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  feedCaption: {
+    fontSize: 13,
+    lineHeight: 19,
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+  },
+  feedMediaContainer: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#000000',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  feedMedia: {
+    width: '100%',
+    height: '100%',
+  },
+  playButtonOverlay: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+  },
+  playIconText: {
+    color: '#ffffff',
+    fontSize: 18,
+    marginLeft: 3,
+  },
+  feedActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+  },
+  reactionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(148, 163, 184, 0.1)',
+  },
+  reactionBtnActive: {
+    backgroundColor: 'rgba(59, 130, 246, 0.25)',
+  },
+  reactionEmoji: {
+    fontSize: 14,
+  },
+  reactionCount: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  sharePostBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  sharePostText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  storyViewerContainer: {
+    flex: 1,
+  },
+  storyViewerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  storyRingSmall: {
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+  },
+  storyViewerAuthor: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  storyViewerSport: {
+    color: '#94a3b8',
+    fontSize: 10,
+  },
+  storyCloseBtn: {
+    padding: 8,
+  },
+  storyCloseText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  storyViewerBody: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  storyViewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  storyViewerFooter: {
+    padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+  },
+  storyViewerCaption: {
+    color: '#ffffff',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  storyViewerReactBtn: {
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

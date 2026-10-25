@@ -34,6 +34,9 @@ export const publicApi = {
   getFixtures: (slug, params) => api.get(`/public/events/${slug}/fixtures`, { params }),
   getStandings: (slug, params) => api.get(`/public/events/${slug}/standings`, { params }),
   getLatestResult: (slug) => api.get(`/public/events/${slug}/latest-result`),
+  getFeed: (slug) => api.get(`/public/events/${slug}/feed`),
+  reactFeed: (slug, postId, reaction) => api.post(`/public/events/${slug}/feed/${postId}/react`, { reaction }),
+  shareFeed: (slug, postId) => api.post(`/public/events/${slug}/feed/${postId}/share`),
   getVapidPublicKey: () => api.get('/public/push/vapid-public-key'),
   subscribePush: (data) => api.post('/public/push/subscribe', data),
   unsubscribePush: (data) => api.post('/public/push/unsubscribe', data),
@@ -97,6 +100,13 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append('banner', file);
     return api.post('/upload/advert-banner', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  uploadFeedMedia: (file) => {
+    const formData = new FormData();
+    formData.append('media', file);
+    return api.post('/upload/feed-media', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
@@ -199,5 +209,9 @@ export const mediaApi = {
 
   setLayoutOverride: (mode) => api.post('/media/tv-layout-override', { mode }),
   forceCompleteFixture: (id) => api.post(`/media/force-complete-fixture/${id}`),
+
+  getFeed: () => api.get('/media/feed'),
+  createFeedPost: (data) => api.post('/media/feed', data),
+  deleteFeedPost: (id) => api.delete(`/media/feed/${id}`),
 };
 

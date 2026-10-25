@@ -350,6 +350,107 @@ router.post('/force-complete-fixture/:id', authMiddleware, requireMediaOrAdmin, 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+// ==========================================
+// 4. SPECTATOR FANZONE FEED MANAGEMENT
+// ==========================================
+
+// GET /api/media/feed
+router.get('/feed', authMiddleware, requireMediaOrAdmin, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT p.*, s.name as sport_name,
+              f.round, f.score_a, f.score_b,
+              ta.name as team_a_name, tb.name as team_b_name
+       FROM spectator_feed_posts p
+       LEFT JOIN sports s ON p.sport_id = s.id
+       LEFT JOIN fixtures f ON p.fixture_id = f.id
+       LEFT JOIN teams ta ON f.team_a_id = ta.id
+       LEFT JOIN teams tb ON f.team_b_id = tb.id
+       WHERE p.organization_id = $1
+       ORDER BY p.created_at DESC`,
+      [req.orgId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/media/feed
+router.post('/feed', authMiddleware, requireMediaOrAdmin, async (req, res) => {
+  try {
+    const {
+      caption,
+      media_type = 'image',
+      media_url,
+      thumbnail_url,
+      duration_seconds = 0,
+      is_story_highlight = false,
+      story_title,
+      fixture_id,
+      sport_id,
+      author_name
+    } = req.body;
+
+    if (!media_url) {
+      return res.status(400).json({ error: 'Media URL is required' });
+    }
+
+    const postAuthor = author_name?.trim() || req.user?.name || 'Official Media Desk';
+
+    const result = await query(
+      `INSERT INTO spectator_feed_posts
+       (organization_id, fixture_id, sport_id, author_name, caption, media_type, media_url, thumbnail_url, duration_seconds, is_story_highlight, story_title)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING *`,
+      [
+        req.orgId,
+        fixture_id || null,
+        sport_id || null,
+        postAuthor,
+        caption?.trim() || '',
+        media_type,
+        media_url,
+        thumbnail_url || null,
+        parseInt(duration_seconds, 10) || 0,
+        Boolean(is_story_highlight),
+        story_title?.trim() || null
+      ]
+    );
+
+    const post = result.rows[0];
+
+    if (req.io) {
+      req.io.to(`tenant-${req.orgId}`).emit('spectator-feed-updated', { action: 'create', post });
+    }
+
+    res.status(201).json(post);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/media/feed/:id
+router.delete('/feed/:id', authMiddleware, requireMediaOrAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      'DELETE FROM spectator_feed_posts WHERE id = $1 AND organization_id = $2 RETURNING id',
+      [id, req.orgId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (req.io) {
+      req.io.to(`tenant-${req.orgId}`).emit('spectator-feed-updated', { action: 'delete', id: parseInt(id, 10) });
+    }
+
+    res.json({ success: true, deletedId: id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

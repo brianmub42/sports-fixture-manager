@@ -96,7 +96,9 @@ export default function ReportsPage() {
   const eventTitle = settings?.event_title || 'Tournament Championship';
   const completedFixturesCount = fixtures?.filter(f => f.status === 'completed' || f.status === 'draw').length || 0;
   const totalFixturesCount = fixtures?.length || 0;
-  const champion = logData?.leaderboard?.[0];
+  // useLogStandings returns a plain array; normalise to support both shapes
+  const logLeaderboard = Array.isArray(logData) ? logData : (logData?.leaderboard || []);
+  const champion = logLeaderboard[0];
 
   const handleDownloadMaster = () => {
     exportMasterTournamentPack({

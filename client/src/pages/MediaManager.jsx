@@ -21,7 +21,10 @@ import {
   CheckCircle2, 
   XCircle,
   HelpCircle,
-  ShieldCheck
+  ShieldCheck,
+  Camera,
+  Video,
+  Flame
 } from 'lucide-react';
 
 export default function MediaManager() {
@@ -31,7 +34,28 @@ export default function MediaManager() {
   const { data: settings } = useSettings();
   const { data: liveFixtures, isLoading: loadingLive } = useFixtures({ status: 'live' });
 
-  const [activeTab, setActiveTab] = useState('adverts'); // 'adverts' | 'announcements'
+  const [activeTab, setActiveTab] = useState('adverts'); // 'adverts' | 'announcements' | 'fanzone'
+
+  // Spectator FanZone Feed query
+  const { data: feedPosts, isLoading: loadingFeed } = useQuery({
+    queryKey: ['media-feed'],
+    queryFn: async () => {
+      const res = await mediaApi.getFeed();
+      return res.data;
+    }
+  });
+
+  // Feed Form State
+  const [feedForm, setFeedForm] = useState({
+    caption: '',
+    media_url: '',
+    media_type: 'image',
+    is_story_highlight: false,
+    story_title: '',
+    author_name: ''
+  });
+  const [uploadingFeedMedia, setUploadingFeedMedia] = useState(false);
+  const [creatingFeedPost, setCreatingFeedPost] = useState(false);
 
   // Adverts query
   const { data: adverts, isLoading: loadingAdverts } = useQuery({
@@ -109,6 +133,64 @@ export default function MediaManager() {
       showToast('Match marked completed and cleared from TV display', 'success');
     } catch (err) {
       alert('Failed to force complete match: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Spectator Feed Handlers
+  const handleUploadFeedMedia = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setUploadingFeedMedia(true);
+      const res = await uploadApi.uploadFeedMedia(file);
+      const isVid = file.type.startsWith('video');
+      setFeedForm(prev => ({
+        ...prev,
+        media_url: res.data.mediaUrl,
+        media_type: isVid ? 'video' : 'image'
+      }));
+      showToast('Media file uploaded successfully', 'success');
+    } catch (err) {
+      showToast('Failed to upload media: ' + (err.response?.data?.error || err.message), 'error');
+    } finally {
+      setUploadingFeedMedia(false);
+    }
+  };
+
+  const handleCreateFeedPost = async (e) => {
+    e.preventDefault();
+    if (!feedForm.media_url) {
+      showToast('Please upload an image or video first', 'warning');
+      return;
+    }
+    try {
+      setCreatingFeedPost(true);
+      await mediaApi.createFeedPost(feedForm);
+      queryClient.invalidateQueries({ queryKey: ['media-feed'] });
+      setFeedForm({
+        caption: '',
+        media_url: '',
+        media_type: 'image',
+        is_story_highlight: false,
+        story_title: '',
+        author_name: ''
+      });
+      showToast('Live moment published to Spectator Portal!', 'success');
+    } catch (err) {
+      showToast('Failed to publish post: ' + (err.response?.data?.error || err.message), 'error');
+    } finally {
+      setCreatingFeedPost(false);
+    }
+  };
+
+  const handleDeleteFeedPost = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this spectator feed post?')) return;
+    try {
+      await mediaApi.deleteFeedPost(id);
+      queryClient.invalidateQueries({ queryKey: ['media-feed'] });
+      showToast('Post removed from spectator feed', 'success');
+    } catch (err) {
+      showToast('Failed to delete post: ' + (err.response?.data?.error || err.message), 'error');
     }
   };
 
@@ -394,6 +476,21 @@ export default function MediaManager() {
           <span>Live TV Push Announcements</span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-pink-100 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 font-mono">
             {announcements?.length || 0}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('fanzone')}
+          className={`pb-3 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+            activeTab === 'fanzone'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'
+          }`}
+        >
+          <Camera size={16} />
+          <span>Spectator FanZone Feed</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-mono">
+            {feedPosts?.length || 0}
           </span>
         </button>
       </div>
@@ -820,6 +917,202 @@ export default function MediaManager() {
               >
                 <Radio size={14} className="animate-pulse" />
                 <span>{createAnnouncementMutation.isLoading ? 'Pushing...' : 'Broadcast to TV Screens'}</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: SPECTATOR FANZONE FEED */}
+      {activeTab === 'fanzone' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Published Feed List (2 Columns) */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                Published Fan Moments ({feedPosts?.length || 0})
+              </h3>
+            </div>
+
+            {loadingFeed ? (
+              <div className="text-center py-12 text-gray-400 text-sm">Loading feed posts...</div>
+            ) : feedPosts?.length === 0 ? (
+              <div className="text-center py-16 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-3xl p-8 bg-gray-50/50 dark:bg-gray-900/30">
+                <Camera className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-700" />
+                <h4 className="text-base font-bold text-gray-700 dark:text-gray-300">No Fan Moments Published Yet</h4>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
+                  Upload action photos or short video clips using the form to publish them immediately to the spectator portal and story reels.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {feedPosts.map((post) => {
+                  const reactions = post.reactions || {};
+                  const isVideo = post.media_type === 'video' || post.media_type === 'highlight_clip';
+                  return (
+                    <div
+                      key={post.id}
+                      className="k-card p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Media Preview */}
+                        <div className="h-44 rounded-xl bg-black border border-gray-200 dark:border-gray-800 overflow-hidden relative mb-3 flex items-center justify-center">
+                          {isVideo ? (
+                            <video
+                              src={post.media_url}
+                              className="w-full h-full object-cover"
+                              controls
+                              playsInline
+                            />
+                          ) : (
+                            <img
+                              src={post.media_url}
+                              alt={post.caption || 'Moment'}
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+
+                          {post.is_story_highlight && (
+                            <span className="absolute top-2 left-2 bg-amber-500 text-slate-950 font-black text-[9px] uppercase px-2 py-0.5 rounded-full shadow">
+                              ⭐ Story Reel
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px] text-gray-400">
+                            <span className="font-bold text-gray-700 dark:text-gray-300">{post.author_name}</span>
+                            <span>{new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          {post.caption && (
+                            <p className="text-xs text-gray-800 dark:text-gray-200 line-clamp-2 leading-relaxed">
+                              {post.caption}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Post Footer: Reactions & Delete */}
+                      <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100 dark:border-gray-800/80">
+                        <div className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-400">
+                          <span>🔥 {reactions.fire || 0}</span>
+                          <span>👏 {reactions.clap || 0}</span>
+                          <span>🏆 {reactions.trophy || 0}</span>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteFeedPost(post.id)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                          title="Delete Post"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* New Moment Form (1 Column) */}
+          <div className="k-card p-6 rounded-3xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl h-fit">
+            <div className="flex items-center gap-2 mb-4">
+              <Camera size={18} className="text-blue-500" />
+              <h3 className="text-base font-bold text-gray-900 dark:text-white">Publish Live Moment</h3>
+            </div>
+
+            <form onSubmit={handleCreateFeedPost} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Upload Photo or Video Clip <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleUploadFeedMedia}
+                  disabled={uploadingFeedMedia}
+                  className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-600 dark:file:text-blue-400 hover:file:bg-blue-100 cursor-pointer"
+                />
+                {uploadingFeedMedia && (
+                  <p className="text-[11px] text-blue-500 font-semibold mt-1">Uploading media file...</p>
+                )}
+                {feedForm.media_url && !uploadingFeedMedia && (
+                  <div className="mt-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 flex items-center justify-between text-xs">
+                    <span className="text-green-600 dark:text-green-400 font-bold truncate max-w-[200px]">
+                      ✓ {feedForm.media_type === 'video' ? 'Video' : 'Photo'} Attached
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFeedForm(f => ({ ...f, media_url: '' }))}
+                      className="text-red-500 text-xs font-bold"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Caption / Moment Description
+                </label>
+                <textarea
+                  rows={2}
+                  value={feedForm.caption}
+                  onChange={(e) => setFeedForm(f => ({ ...f, caption: e.target.value }))}
+                  placeholder="e.g. Under-16 Rugby: Incredible diving try in the corner! 🔥"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Author / Media Desk Tag
+                </label>
+                <input
+                  type="text"
+                  value={feedForm.author_name}
+                  onChange={(e) => setFeedForm(f => ({ ...f, author_name: e.target.value }))}
+                  placeholder="e.g. Official Media Desk, House Photographer"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800 dark:text-gray-200">
+                  <input
+                    type="checkbox"
+                    checked={feedForm.is_story_highlight}
+                    onChange={(e) => setFeedForm(f => ({ ...f, is_story_highlight: e.target.checked }))}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>Feature as Story Highlight Reel ⭐</span>
+                </label>
+
+                {feedForm.is_story_highlight && (
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                      Story Bubble Title
+                    </label>
+                    <input
+                      type="text"
+                      value={feedForm.story_title}
+                      onChange={(e) => setFeedForm(f => ({ ...f, story_title: e.target.value }))}
+                      placeholder="e.g. Winning Goal, Sprint Record"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={creatingFeedPost || !feedForm.media_url}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all mt-2"
+              >
+                <Camera size={14} />
+                <span>{creatingFeedPost ? 'Publishing...' : 'Publish to Spectator Portal'}</span>
               </button>
             </form>
           </div>

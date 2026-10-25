@@ -125,7 +125,9 @@ const drawSignOffBlock = (doc, startY) => {
 // 1. OVERALL CHAMPIONSHIP SHIELD REPORT
 // -------------------------------------------------------------
 export const exportOverallShieldPDF = ({ logData, settings }) => {
-  if (!logData || !logData.leaderboard || logData.leaderboard.length === 0) {
+  // Normalise: useLogStandings() returns a plain array; older code wrapped it in { leaderboard: [] }
+  const leaderboard = Array.isArray(logData) ? logData : (logData?.leaderboard || []);
+  if (!leaderboard || leaderboard.length === 0) {
     alert('No standings data available for Overall Shield report.');
     return;
   }
@@ -137,7 +139,7 @@ export const exportOverallShieldPDF = ({ logData, settings }) => {
   drawReportHeader(doc, orgName, eventTitle, 'Official Overall Championship Shield Standings', 'Combined Aggregate Points Across All Sporting Disciplines');
 
   // Top Champion Banner
-  const champion = logData.leaderboard[0];
+  const champion = leaderboard[0];
   if (champion) {
     doc.setFillColor(239, 246, 255); // Blue-50
     doc.setDrawColor(191, 219, 254); // Blue-200
@@ -146,7 +148,7 @@ export const exportOverallShieldPDF = ({ logData, settings }) => {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 58, 138); // Blue-900
-    doc.text(`TOURNAMENT CHAMPION: ${champion.name || champion.code} (${champion.total_points} PTS)`, 20, 52);
+    doc.text(`TOURNAMENT CHAMPION: ${champion.name || champion.code} (${champion.total_points ?? champion.total ?? champion.pts ?? 0} PTS)`, 20, 52);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
@@ -156,14 +158,14 @@ export const exportOverallShieldPDF = ({ logData, settings }) => {
 
   // Table
   const headers = ['Rank', 'Team / House', 'Code', 'Gold 1st', 'Silver 2nd', 'Bronze 3rd', 'Total Points'];
-  const rows = logData.leaderboard.map((item, idx) => [
+  const rows = leaderboard.map((item, idx) => [
     idx === 0 ? '1st [C]' : `${idx + 1}`,
     item.name || item.code,
     item.code,
-    item.gold_count || item.first_places || 0,
-    item.silver_count || item.second_places || 0,
-    item.bronze_count || item.third_places || 0,
-    item.total_points
+    item.gold_count ?? item.first_places ?? 0,
+    item.silver_count ?? item.second_places ?? 0,
+    item.bronze_count ?? item.third_places ?? 0,
+    item.total_points ?? item.total ?? item.pts ?? 0
   ]);
 
   runAutoTable(doc, {
@@ -193,16 +195,17 @@ export const exportOverallShieldPDF = ({ logData, settings }) => {
 };
 
 export const exportOverallShieldCSV = ({ logData, settings }) => {
-  if (!logData || !logData.leaderboard || logData.leaderboard.length === 0) return;
+  const leaderboard = Array.isArray(logData) ? logData : (logData?.leaderboard || []);
+  if (!leaderboard || leaderboard.length === 0) return;
   const headers = ['Rank', 'Team', 'Code', 'Gold 1st', 'Silver 2nd', 'Bronze 3rd', 'Total Points'];
-  const rows = logData.leaderboard.map((item, idx) => [
+  const rows = leaderboard.map((item, idx) => [
     idx + 1,
     item.name || item.code,
     item.code,
-    item.gold_count || item.first_places || 0,
-    item.silver_count || item.second_places || 0,
-    item.bronze_count || item.third_places || 0,
-    item.total_points
+    item.gold_count ?? item.first_places ?? 0,
+    item.silver_count ?? item.second_places ?? 0,
+    item.bronze_count ?? item.third_places ?? 0,
+    item.total_points ?? item.total ?? item.pts ?? 0
   ]);
   downloadCSV('overall-championship-shield', headers, rows);
 };
@@ -799,7 +802,9 @@ export const exportMasterTournamentPack = ({ settings, logData, fixtures, sports
   // PAGE 1: Executive Summary & Overall Championship
   drawReportHeader(doc, orgName, eventTitle, 'Official Post-Tournament Master Dossier', 'Volume 1: Complete Executive Results, League Standings & Records');
 
-  const champion = logData?.leaderboard?.[0];
+  // Normalise logData: useLogStandings returns a plain array
+  const masterLeaderboard = Array.isArray(logData) ? logData : (logData?.leaderboard || []);
+  const champion = masterLeaderboard[0];
   if (champion) {
     doc.setFillColor(239, 246, 255);
     doc.setDrawColor(191, 219, 254);
@@ -808,7 +813,7 @@ export const exportMasterTournamentPack = ({ settings, logData, fixtures, sports
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 58, 138);
-    doc.text(`TOURNAMENT CHAMPION: ${champion.name || champion.code} (${champion.total_points} PTS)`, 20, 52);
+    doc.text(`TOURNAMENT CHAMPION: ${champion.name || champion.code} (${champion.total_points ?? champion.total ?? champion.pts ?? 0} PTS)`, 20, 52);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
@@ -816,16 +821,16 @@ export const exportMasterTournamentPack = ({ settings, logData, fixtures, sports
     doc.text(`Official aggregate shield winner across all sporting codes`, 20, 57);
   }
 
-  if (logData?.leaderboard?.length > 0) {
+  if (masterLeaderboard.length > 0) {
     const shieldHeaders = ['Rank', 'Team / House', 'Code', 'Gold 1st', 'Silver 2nd', 'Bronze 3rd', 'Total Points'];
-    const shieldRows = logData.leaderboard.map((item, idx) => [
+    const shieldRows = masterLeaderboard.map((item, idx) => [
       idx === 0 ? '1st [C]' : `${idx + 1}`,
       item.name || item.code,
       item.code,
-      item.gold_count || item.first_places || 0,
-      item.silver_count || item.second_places || 0,
-      item.bronze_count || item.third_places || 0,
-      item.total_points
+      item.gold_count ?? item.first_places ?? 0,
+      item.silver_count ?? item.second_places ?? 0,
+      item.bronze_count ?? item.third_places ?? 0,
+      item.total_points ?? item.total ?? item.pts ?? 0
     ]);
 
     runAutoTable(doc, {

@@ -18,10 +18,10 @@ function TeamResultsBreakdown({ teamCode, teamName, sportName }) {
   }
 
   // Filter completed and draw fixtures for this specific sport
-  const filtered = fixtures?.filter(f => 
-    f.sport_name === sportName && 
-    (f.status === 'completed' || f.status === 'draw')
-  ) || [];
+  const filtered = Array.isArray(fixtures) ? fixtures.filter(f => 
+    f?.sport_name === sportName && 
+    (f?.status === 'completed' || f?.status === 'draw')
+  ) : [];
 
   return (
     <div className="bg-gray-50/50 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/60 p-4 rounded-lg mt-1 mb-2 mx-2 text-left shadow-inner transition-all animate-fadeIn">
@@ -102,8 +102,9 @@ function TeamResultsBreakdown({ teamCode, teamName, sportName }) {
 
 // ─── Placement Podium: top 3 visual cards ─────────────────────────────────────
 function PlacementPodium({ teams }) {
-  if (!teams || teams.length === 0) return null;
-  const [first, second, third] = teams;
+  const safeTeams = Array.isArray(teams) ? teams : [];
+  if (safeTeams.length === 0) return null;
+  const [first, second, third] = safeTeams;
   const podiumOrder = [second, first, third].filter(Boolean);
   const heights = ['h-20', 'h-28', 'h-16'];
   const borderColors = [
@@ -155,7 +156,8 @@ function PlacementMedalTable({ standings, eventsList, eventId, onEventChange }) 
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [sortCol, setSortCol] = useState('points');
 
-  const sorted = [...(standings || [])].sort((a, b) => {
+  const safeStandings = Array.isArray(standings) ? standings : [];
+  const sorted = [...safeStandings].sort((a, b) => {
     if (b[sortCol] !== a[sortCol]) return b[sortCol] - a[sortCol];
     if (b.gold !== a.gold) return b.gold - a.gold;
     if (b.silver !== a.silver) return b.silver - a.silver;
@@ -340,10 +342,16 @@ export default function Standings({
   const eventsList = isCustom ? propEventsList : hookEventsList;
   const isLoading = isCustom ? propIsLoading : (loadingStandings || loadingSports);
 
-  const sports = sportsData?.map(s => s.name) || [];
+  const sports = Array.isArray(sportsData) ? sportsData.map(s => (typeof s === 'string' ? s : s?.name)).filter(Boolean) : [];
+  const selectedSportObj = (Array.isArray(sportsData) ? sportsData : []).find(s => {
+    if (typeof s === 'string') return s === sport;
+    return s?.name === sport || s?.id === sport;
+  }) || null;
   const isPlacement = selectedSportObj?.scoring_type === 'placement' ||
                       selectedSportObj?.scoring_system === 'placement' ||
-                      ['swimming', 'aquatics', 'athletics', 'track', 'field', 'cross country', 'gala', 'diving', 'rowing', 'cycling'].some(k => selectedSportObj?.name?.toLowerCase().includes(k));
+                      ['swimming', 'aquatics', 'athletics', 'track', 'field', 'cross country', 'gala', 'diving', 'rowing', 'cycling'].some(k => 
+                        selectedSportObj?.name?.toLowerCase().includes(k) || sport?.toLowerCase().includes(k)
+                      );
 
   useEffect(() => {
     if (sports.length > 0 && !sport) {
@@ -437,7 +445,7 @@ export default function Standings({
           </div>
 
           {/* Podium (top 3) */}
-          {standings && standings.length > 0 && (
+          {Array.isArray(standings) && standings.length > 0 && (
             <div className="k-card overflow-hidden">
               <div className="border-b border-gray-100 dark:border-gray-800 pb-3 mb-1">
                 <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-2">
@@ -694,6 +702,11 @@ export default function Standings({
                       )}
                     </div>
                   ))}
+                  {(!Array.isArray(standings) || standings.length === 0) && (
+                    <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm italic">
+                      No standings recorded yet for {sport}.
+                    </div>
+                  )}
                 </div>
               </>
             );

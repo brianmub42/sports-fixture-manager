@@ -19,6 +19,10 @@ export default function MobileViewerEvent() {
   const [latestResult, setLatestResult] = useState(null);
   const [followedEntity, setFollowedEntity] = useState(null);
   const [pushNotice, setPushNotice] = useState('');
+  const [feedPosts, setFeedPosts] = useState([]);
+  const [stories, setStories] = useState([]);
+  const [activeStory, setActiveStory] = useState(null);
+  const [localReactions, setLocalReactions] = useState({});
 
   // Load followed entity from localStorage
   useEffect(() => {
@@ -70,16 +74,19 @@ export default function MobileViewerEvent() {
 
   const fetchPublicData = async () => {
     try {
-      const [infoRes, logRes, fixRes] = await Promise.all([
+      const [infoRes, logRes, fixRes, feedRes] = await Promise.all([
         axios.get(`/api/public/events/${eventSlug}`),
         axios.get(`/api/public/events/${eventSlug}/standings`),
         axios.get(`/api/public/events/${eventSlug}/fixtures`),
+        axios.get(`/api/public/events/${eventSlug}/feed`).catch(() => ({ data: { feed: [], stories: [] } })),
       ]);
 
       setEventDetails(infoRes.data);
       setLogStandings(logRes.data?.log || logRes.data || []);
       setSportsStandings(logRes.data?.sports || {});
       setFixtures(fixRes.data || []);
+      setFeedPosts(feedRes.data?.feed || []);
+      setStories(feedRes.data?.stories || []);
 
       // Latest results
       try {
@@ -96,6 +103,31 @@ export default function MobileViewerEvent() {
     }
   };
 
+  const handleReact = async (postId, reaction) => {
+    const key = `${postId}-${reaction}`;
+    if (localReactions[key]) return;
+    setLocalReactions(prev => ({ ...prev, [key]: true }));
+
+    try {
+      await axios.post(`/api/public/events/${eventSlug}/feed/${postId}/react`, { reaction });
+      setFeedPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          const r = { ...(p.reactions || { fire: 0, clap: 0, cheer: 0, trophy: 0 }) };
+          r[reaction] = (r[reaction] || 0) + 1;
+          return { ...p, reactions: r };
+        }
+        return p;
+      }));
+    } catch (e) {
+      console.warn('React error:', e);
+    }
+  };
+
+  const handleSharePost = (post) => {
+    const text = encodeURIComponent(`🏆 Check out this live moment: "${post.caption || 'Tournament Update'}"!\n${window.location.href}`);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
   useEffect(() => {
     fetchPublicData();
 
@@ -109,7 +141,6 @@ export default function MobileViewerEvent() {
 
     socket.on('score-updated', (data) => {
       fetchPublicData();
-      // Check if followed team is involved in update
       if (followedEntity && data) {
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification(`FixtureGrid: Score Update!`, {
@@ -118,6 +149,14 @@ export default function MobileViewerEvent() {
           });
         }
       }
+    });
+
+    socket.on('spectator-feed-updated', () => {
+      fetchPublicData();
+    });
+
+    socket.on('spectator-reaction-updated', ({ postId, reactions }) => {
+      setFeedPosts(prev => prev.map(p => p.id === postId ? { ...p, reactions } : p));
     });
 
     socket.on('eventResultsPublished', (payload) => {
@@ -180,82 +219,311 @@ export default function MobileViewerEvent() {
 
   return (
     <div style={{ paddingBottom: '36px', boxSizing: 'border-box' }}>
-      {/* Header bar */}
+      {/* Sticky Header with Integrated Mobile Menu Tabs */}
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '14px 16px',
-          backgroundColor: colors.headerBg,
-          borderBottom: `1px solid ${colors.headerBorder}`,
           position: 'sticky',
           top: 0,
-          zIndex: 20,
+          zIndex: 40,
+          backgroundColor: colors.headerBg,
+          borderBottom: `1px solid ${colors.headerBorder}`,
+          boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.4)' : '0 2px 10px rgba(0,0,0,0.05)',
         }}
       >
-        <button
-          onClick={() => navigate('/app/login')}
+        {/* Top Header Row */}
+        <div
           style={{
-            background: 'none',
-            border: 'none',
-            color: colors.primary,
-            fontSize: '14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            padding: '4px 8px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '10px 14px 6px',
+            gap: '8px',
           }}
         >
-          Exit
-        </button>
+          <button
+            onClick={() => navigate('/app/login')}
+            style={{
+              background: 'none',
+              border: `1px solid ${colors.border}`,
+              borderRadius: '8px',
+              color: colors.primary,
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              padding: '5px 10px',
+              flexShrink: 0,
+            }}
+          >
+            ← Exit
+          </button>
 
-        <div style={{ textAlign: 'center', flex: 1, padding: '0 8px', minWidth: 0 }}>
-          <h2
-            style={{
-              fontSize: '15px',
-              fontWeight: 800,
-              color: colors.text,
-              margin: 0,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {eventDetails.name || 'Tournament'}
-          </h2>
-          <div
-            style={{
-              fontSize: '11px',
-              color: colors.textMuted,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            Hosted by {eventDetails.school_name}
+          <div style={{ textAlign: 'center', flex: 1, padding: '0 4px', minWidth: 0 }}>
+            <h2
+              style={{
+                fontSize: '14px',
+                fontWeight: 900,
+                color: colors.text,
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: 1.2,
+              }}
+            >
+              {eventDetails.name || 'Tournament'}
+            </h2>
+            <div
+              style={{
+                fontSize: '10px',
+                color: colors.textMuted,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              Hosted by {eventDetails.school_name}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <MobileThemeToggle compact={true} />
+            <span
+              style={{
+                backgroundColor: '#10b98120',
+                color: '#10b981',
+                fontSize: '9px',
+                fontWeight: 900,
+                padding: '3px 7px',
+                borderRadius: '10px',
+                letterSpacing: '0.04em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span style={{ display: 'inline-block', width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+              LIVE
+            </span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <MobileThemeToggle compact={true} />
-          <span
+        {/* Navigation Menus Row: Results, Championship, Sports Table, Schedule */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '4px 10px 8px',
+            gap: '6px',
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {latestResult && (
+            <button
+              onClick={() => setActiveTab('latest')}
+              style={{
+                flex: '1 0 auto',
+                padding: '7px 12px',
+                fontSize: '12px',
+                fontWeight: 800,
+                borderRadius: '20px',
+                border: activeTab === 'latest' ? '1px solid #f59e0b' : `1px solid ${colors.border}`,
+                backgroundColor: activeTab === 'latest' ? (isDark ? '#78350f50' : '#fef3c7') : (isDark ? '#1e293b' : '#f1f5f9'),
+                color: activeTab === 'latest' ? '#d97706' : colors.textMuted,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>⚡</span> Results
+            </button>
+          )}
+
+          <button
+            onClick={() => setActiveTab('feed')}
             style={{
-              backgroundColor: '#10b98120',
-              color: '#10b981',
-              fontSize: '10px',
-              fontWeight: 900,
-              padding: '3px 8px',
-              borderRadius: '12px',
-              letterSpacing: '0.04em',
+              flex: '1 0 auto',
+              padding: '7px 12px',
+              fontSize: '12px',
+              fontWeight: 800,
+              borderRadius: '20px',
+              border: activeTab === 'feed' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
+              backgroundColor: activeTab === 'feed' ? colors.primary : (isDark ? '#1e293b' : '#f1f5f9'),
+              color: activeTab === 'feed' ? '#ffffff' : colors.textMuted,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '4px',
+              transition: 'all 0.15s ease',
             }}
           >
-            <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-            LIVE
-          </span>
+            <span>📸</span> Fan Feed
+          </button>
+
+          <button
+            onClick={() => setActiveTab('log')}
+            style={{
+              flex: '1 0 auto',
+              padding: '7px 12px',
+              fontSize: '12px',
+              fontWeight: 800,
+              borderRadius: '20px',
+              border: activeTab === 'log' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
+              backgroundColor: activeTab === 'log' ? colors.primary : (isDark ? '#1e293b' : '#f1f5f9'),
+              color: activeTab === 'log' ? '#ffffff' : colors.textMuted,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>🏆</span> Championship
+          </button>
+
+          <button
+            onClick={() => setActiveTab('sports')}
+            style={{
+              flex: '1 0 auto',
+              padding: '7px 12px',
+              fontSize: '12px',
+              fontWeight: 800,
+              borderRadius: '20px',
+              border: activeTab === 'sports' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
+              backgroundColor: activeTab === 'sports' ? colors.primary : (isDark ? '#1e293b' : '#f1f5f9'),
+              color: activeTab === 'sports' ? '#ffffff' : colors.textMuted,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>📊</span> Sports Table
+          </button>
+
+          <button
+            onClick={() => setActiveTab('fixtures')}
+            style={{
+              flex: '1 0 auto',
+              padding: '7px 12px',
+              fontSize: '12px',
+              fontWeight: 800,
+              borderRadius: '20px',
+              border: activeTab === 'fixtures' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
+              backgroundColor: activeTab === 'fixtures' ? colors.primary : (isDark ? '#1e293b' : '#f1f5f9'),
+              color: activeTab === 'fixtures' ? '#ffffff' : colors.textMuted,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>📅</span> Schedule
+          </button>
         </div>
+
+        {/* Stories Highlight Carousel */}
+        {stories.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              gap: '12px',
+              padding: '6px 14px 10px',
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
+              borderTop: `1px solid ${colors.border}`,
+            }}
+          >
+            {stories.map((st, i) => (
+              <div
+                key={st.id || i}
+                onClick={() => setActiveStory(st)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  width: '56px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '50%',
+                    padding: '2px',
+                    background: 'linear-gradient(45deg, #f59e0b, #ec4899, #3b82f6)',
+                    position: 'relative',
+                  }}
+                >
+                  <img
+                    src={st.thumbnail_url || st.media_url}
+                    alt={st.story_title || 'Story'}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '2px solid #000',
+                    }}
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=100&q=80'; }}
+                  />
+                  {st.media_type === 'video' && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: -2,
+                        right: -2,
+                        backgroundColor: '#2563eb',
+                        color: '#fff',
+                        fontSize: '8px',
+                        width: '13px',
+                        height: '13px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      ▶
+                    </span>
+                  )}
+                </div>
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    color: colors.text,
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    width: '100%',
+                  }}
+                >
+                  {st.story_title || 'Moment'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Notification Toast */}
@@ -394,189 +662,200 @@ export default function MobileViewerEvent() {
         )}
       </div>
 
-      {/* Prominent Post-Event Results Spotlight Banner (Persistent) */}
-      {latestResult && (
+      {/* Latest Result Compact Alert (Only when not on Results tab) */}
+      {latestResult && activeTab !== 'latest' && (
         <div
+          onClick={() => setActiveTab('latest')}
           style={{
-            margin: '0 14px 12px',
-            borderRadius: '16px',
-            padding: '14px',
+            margin: '8px 14px 12px',
+            borderRadius: '12px',
+            padding: '10px 14px',
             backgroundColor: isDark ? '#1e1b4b' : '#fffbeb',
             border: '1px solid #f59e0b',
-            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.15)',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{
-                  backgroundColor: '#f59e0b',
-                  color: '#ffffff',
-                  fontSize: '10px',
-                  fontWeight: 900,
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                ⚡ LATEST RESULT
-              </span>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#cbd5e1' : '#78350f' }}>
-                {latestResult.sportName} · {latestResult.category}
-              </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <span style={{ fontSize: '15px' }}>⚡</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '10px', fontWeight: 900, color: '#d97706', letterSpacing: '0.04em' }}>
+                LATEST HEAT RESULT
+              </div>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: colors.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {latestResult.eventName} ({latestResult.sportName})
+              </div>
             </div>
-            <button
-              onClick={() => setActiveTab(activeTab === 'latest' ? 'log' : 'latest')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#f59e0b',
-                fontSize: '12px',
-                fontWeight: 800,
-                cursor: 'pointer',
-                padding: '2px 6px',
-              }}
-            >
-              {activeTab === 'latest' ? 'View Standings' : 'View Full Card →'}
-            </button>
           </div>
-
-          <h3 style={{ fontSize: '15px', fontWeight: 800, color: colors.text, margin: '0 0 10px' }}>
-            {latestResult.eventName}
-          </h3>
-
-          {latestResult.results && latestResult.results.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {latestResult.results.slice(0, 3).map((r) => {
-                const medal = r.placement === 1 ? '🥇' : r.placement === 2 ? '🥈' : '🥉';
-                return (
-                  <div
-                    key={r.placement}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                      border: `1px solid ${isDark ? '#334155' : '#fde68a'}`,
-                      borderRadius: '10px',
-                      padding: '8px 12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '15px' }}>{medal}</span>
-                      <div
-                        style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: r.teamColor || colors.primary,
-                        }}
-                      />
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: colors.text }}>
-                        {r.teamName}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                      {r.timeFormatted && (
-                        <span style={{ color: colors.primary, fontWeight: 700 }}>
-                          {r.timeFormatted}
-                        </span>
-                      )}
-                      <span style={{ color: '#f59e0b', fontWeight: 800 }}>+{r.points} pts</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', flexShrink: 0, padding: '3px 8px', borderRadius: '6px', backgroundColor: isDark ? '#0f172a' : '#ffffff', border: '1px solid #fde68a' }}>
+            View Podium →
+          </span>
         </div>
       )}
 
-      {/* Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          borderBottom: `1px solid ${colors.border}`,
-          margin: '0 14px 14px',
-          gap: '4px',
-          overflowX: 'auto',
-          scrollbarWidth: 'none',
-        }}
-      >
-        {latestResult && (
-          <button
-            onClick={() => setActiveTab('latest')}
-            style={{
-              flex: 1,
-              padding: '10px 8px',
-              fontSize: '12px',
-              fontWeight: 800,
-              background: 'none',
-              border: 'none',
-              borderBottom: activeTab === 'latest' ? '3px solid #f59e0b' : '3px solid transparent',
-              color: activeTab === 'latest' ? '#f59e0b' : colors.textMuted,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ⚡ Result
-          </button>
-        )}
-        <button
-          onClick={() => setActiveTab('log')}
-          style={{
-            flex: 1,
-            padding: '10px 8px',
-            fontSize: '12px',
-            fontWeight: 800,
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'log' ? `3px solid ${colors.primary}` : '3px solid transparent',
-            color: activeTab === 'log' ? colors.primary : colors.textMuted,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Championship
-        </button>
-        <button
-          onClick={() => setActiveTab('sports')}
-          style={{
-            flex: 1,
-            padding: '10px 8px',
-            fontSize: '12px',
-            fontWeight: 800,
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'sports' ? `3px solid ${colors.primary}` : '3px solid transparent',
-            color: activeTab === 'sports' ? colors.primary : colors.textMuted,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Sports Table
-        </button>
-        <button
-          onClick={() => setActiveTab('fixtures')}
-          style={{
-            flex: 1,
-            padding: '10px 8px',
-            fontSize: '12px',
-            fontWeight: 800,
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'fixtures' ? `3px solid ${colors.primary}` : '3px solid transparent',
-            color: activeTab === 'fixtures' ? colors.primary : colors.textMuted,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Schedules
-        </button>
-      </div>
-
       {/* Tab Contents */}
       <div style={{ padding: '0 14px' }}>
+        {/* Fan Feed Tab */}
+        {activeTab === 'feed' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '20px' }}>
+            {feedPosts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: colors.textMuted }}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📸</div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: colors.text }}>Fan Feed is Ready</div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>Photos and short video highlights published by match officials will appear here!</div>
+              </div>
+            ) : (
+              feedPosts.map((post) => {
+                const reactions = post.reactions || { fire: 0, clap: 0, cheer: 0, trophy: 0 };
+                const isVideo = post.media_type === 'video' || post.media_type === 'highlight_clip';
+                return (
+                  <div
+                    key={post.id}
+                    style={{
+                      backgroundColor: colors.card,
+                      borderRadius: '16px',
+                      border: `1px solid ${colors.border}`,
+                      overflow: 'hidden',
+                      boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    <div style={{ padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            backgroundColor: colors.primary,
+                            color: '#fff',
+                            fontSize: '11px',
+                            fontWeight: 900,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {post.author_name?.slice(0, 2).toUpperCase() || 'MD'}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: 800, color: colors.text }}>
+                            {post.author_name || 'Official Media Desk'}
+                          </div>
+                          <div style={{ fontSize: '10px', color: colors.textMuted }}>
+                            {post.sport_name ? `${post.sport_name} · ` : ''}
+                            {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSharePost(post)}
+                        style={{
+                          backgroundColor: '#10b98120',
+                          border: '1px solid #10b98160',
+                          color: '#10b981',
+                          borderRadius: '12px',
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Share 📤
+                      </button>
+                    </div>
+
+                    {post.caption && (
+                      <p style={{ padding: '0 12px 10px', fontSize: '12px', color: colors.text, margin: 0, lineHeight: 1.4 }}>
+                        {post.caption}
+                      </p>
+                    )}
+
+                    <div style={{ position: 'relative', backgroundColor: '#000', maxHeight: '300px', overflow: 'hidden' }}>
+                      {isVideo ? (
+                        <video
+                          src={post.media_url}
+                          controls
+                          playsInline
+                          style={{ width: '100%', maxHeight: '300px', objectFit: 'contain' }}
+                          poster={post.thumbnail_url}
+                        />
+                      ) : (
+                        <img
+                          src={post.media_url}
+                          alt="Moment"
+                          style={{ width: '100%', maxHeight: '300px', objectFit: 'cover' }}
+                          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80'; }}
+                        />
+                      )}
+                    </div>
+
+                    <div style={{ padding: '10px 12px', display: 'flex', gap: '8px', borderTop: `1px solid ${colors.border}` }}>
+                      <button
+                        onClick={() => handleReact(post.id, 'fire')}
+                        style={{
+                          background: isDark ? '#1e293b' : '#f1f5f9',
+                          border: `1px solid ${colors.border}`,
+                          color: colors.text,
+                          borderRadius: '16px',
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        🔥 {reactions.fire || 0}
+                      </button>
+                      <button
+                        onClick={() => handleReact(post.id, 'clap')}
+                        style={{
+                          background: isDark ? '#1e293b' : '#f1f5f9',
+                          border: `1px solid ${colors.border}`,
+                          color: colors.text,
+                          borderRadius: '16px',
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        👏 {reactions.clap || 0}
+                      </button>
+                      <button
+                        onClick={() => handleReact(post.id, 'trophy')}
+                        style={{
+                          background: isDark ? '#1e293b' : '#f1f5f9',
+                          border: `1px solid ${colors.border}`,
+                          color: colors.text,
+                          borderRadius: '16px',
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        🏆 {reactions.trophy || 0}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
         {/* Latest Result Tab */}
         {activeTab === 'latest' && latestResult && (
           <div
@@ -875,6 +1154,139 @@ export default function MobileViewerEvent() {
           </div>
         )}
       </div>
+
+      {/* Full-Screen Story Viewer Modal */}
+      {activeStory && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            backgroundColor: '#000000',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 16,
+              left: 16,
+              right: 16,
+              zIndex: 10,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  backgroundColor: colors.primary,
+                  color: '#fff',
+                  fontSize: '11px',
+                  fontWeight: 900,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {activeStory.author_name?.slice(0, 2).toUpperCase() || 'MD'}
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: '#fff' }}>
+                {activeStory.story_title || 'Moment Highlight'}
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveStory(null)}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: '#fff',
+                fontSize: '14px',
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Media Body */}
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+            }}
+          >
+            {activeStory.media_type === 'video' ? (
+              <video
+                src={activeStory.media_url}
+                autoPlay
+                playsInline
+                controls
+                style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+              />
+            ) : (
+              <img
+                src={activeStory.media_url}
+                alt="Story"
+                style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80'; }}
+              />
+            )}
+
+            {activeStory.caption && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 24,
+                  left: 16,
+                  right: 16,
+                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                  backdropFilter: 'blur(8px)',
+                  padding: '12px 14px',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                <p style={{ margin: '0 0 6px', fontSize: '12px', fontWeight: 700, color: '#fff' }}>
+                  {activeStory.caption}
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>FixtureGrid Live Pulse</span>
+                  <button
+                    onClick={() => handleSharePost(activeStory)}
+                    style={{
+                      backgroundColor: '#10b981',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Share 📤
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

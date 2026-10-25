@@ -596,4 +596,120 @@ router.get('/events/:eventSlug/latest-result', async (req, res) => {
   }
 });
 
+// GET /api/public/events/:eventSlug/feed
+// Returns live spectator feed posts and story highlights
+router.get('/events/:eventSlug/feed', async (req, res) => {
+  try {
+    const { eventSlug } = req.params;
+    const orgRes = await query('SELECT id FROM organizations WHERE slug = $1', [eventSlug]);
+    if (orgRes.rows.length === 0) {
+      return res.status(404).json({ error: `Event not found: ${eventSlug}` });
+    }
+    const orgId = orgRes.rows[0].id;
+
+    const postsRes = await query(
+      `SELECT p.*, s.name as sport_name,
+              f.round, f.score_a, f.score_b,
+              ta.name as team_a_name, tb.name as team_b_name
+       FROM spectator_feed_posts p
+       LEFT JOIN sports s ON p.sport_id = s.id
+       LEFT JOIN fixtures f ON p.fixture_id = f.id
+       LEFT JOIN teams ta ON f.team_a_id = ta.id
+       LEFT JOIN teams tb ON f.team_b_id = tb.id
+       WHERE p.organization_id = $1
+       ORDER BY p.created_at DESC
+       LIMIT 50`,
+      [orgId]
+    );
+
+    const stories = postsRes.rows.filter(p => p.is_story_highlight);
+    const feed = postsRes.rows;
+
+    res.json({
+      stories,
+      feed,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/public/events/:eventSlug/feed/:postId/react
+// Increments emoji reaction on a post and broadcasts live update
+router.post('/events/:eventSlug/feed/:postId/react', async (req, res) => {
+  try {
+    const { eventSlug, postId } = req.params;
+    const { reaction } = req.body;
+    const allowed = ['fire', 'clap', 'cheer', 'trophy'];
+    if (!allowed.includes(reaction)) {
+      return res.status(400).json({ error: 'Invalid reaction type' });
+    }
+
+    const orgRes = await query('SELECT id FROM organizations WHERE slug = $1', [eventSlug]);
+    if (orgRes.rows.length === 0) {
+      return res.status(404).json({ error: `Event not found: ${eventSlug}` });
+    }
+    const orgId = orgRes.rows[0].id;
+
+    const updateRes = await query(
+      `UPDATE spectator_feed_posts
+       SET reactions = jsonb_set(
+         COALESCE(reactions, '{}'::jsonb),
+         ARRAY[$1],
+         (COALESCE((reactions->>$1)::int, 0) + 1)::text::jsonb
+       )
+       WHERE id = $2 AND organization_id = $3
+       RETURNING id, reactions`,
+      [reaction, postId, orgId]
+    );
+
+    if (updateRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const updated = updateRes.rows[0];
+
+    // Broadcast to spectators in the tenant room
+    if (req.io) {
+      req.io.to(`tenant-${eventSlug}`).emit('spectator-reaction-updated', {
+        postId: updated.id,
+        reactions: updated.reactions
+      });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/public/events/:eventSlug/feed/:postId/share
+// Increments share counter on a post
+router.post('/events/:eventSlug/feed/:postId/share', async (req, res) => {
+  try {
+    const { eventSlug, postId } = req.params;
+    const orgRes = await query('SELECT id FROM organizations WHERE slug = $1', [eventSlug]);
+    if (orgRes.rows.length === 0) {
+      return res.status(404).json({ error: `Event not found: ${eventSlug}` });
+    }
+    const orgId = orgRes.rows[0].id;
+
+    const updateRes = await query(
+      `UPDATE spectator_feed_posts
+       SET shares_count = COALESCE(shares_count, 0) + 1
+       WHERE id = $1 AND organization_id = $2
+       RETURNING id, shares_count`,
+      [postId, orgId]
+    );
+
+    if (updateRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    res.json(updateRes.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

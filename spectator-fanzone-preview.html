@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spectator Experience Concept — FanZone & Low-Scroll View</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #131b2e;
+      --card-border: #1e293b;
+      --accent-blue: #3b82f6;
+      --accent-amber: #f59e0b;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-sub: #64748b;
+      --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-main);
+      background: #060911;
+      color: var(--text-main);
+      line-height: 1.4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 12px 60px;
+    }
+
+    /* Top Demo Control Banner */
+    .concept-banner {
+      width: 100%;
+      max-width: 900px;
+      background: linear-gradient(135deg, rgba(30, 58, 138, 0.4), rgba(88, 28, 135, 0.3));
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .concept-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #93c5fd;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .concept-desc {
+      font-size: 12px;
+      color: #cbd5e1;
+      margin-top: 2px;
+    }
+
+    .view-toggle-group {
+      display: flex;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      gap: 4px;
+    }
+
+    .view-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .view-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    }
+
+    /* App Frame Container */
+    .app-viewport {
+      width: 100%;
+      max-width: 440px;
+      background: var(--bg);
+      border-radius: 36px;
+      border: 6px solid #1e293b;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      position: relative;
+      transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-viewport.desktop-mode {
+      max-width: 820px;
+      border-radius: 20px;
+      border: 1px solid #1e293b;
+    }
+
+    /* Dynamic Compact Header */
+    .spectator-header {
+      background: linear-gradient(180deg, #131c31 0%, #0b0f19 100%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 14px 16px 10px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(16px);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .brand-cluster {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      color: #fb7185;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #f43f5e;
+      animation: pulse-dot 1.5s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .event-meta {
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+
+    .icon-btn:hover {
+      background: #334155;
+      transform: scale(1.05);
+    }
+
+    /* STORY HIGHLIGHTS (Reels & Moments Carousel) */
+    .stories-container {
+      padding: 6px 12px 10px;
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .stories-container::-webkit-scrollbar { display: none; }
+
+    .story-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+      cursor: pointer;
+      width: 64px;
+    }
+
+    .story-ring {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      padding: 2.5px;
+      background: linear-gradient(45deg, #f59e0b, #ec4899, #3b82f6);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .story-ring.video-ring::after {
+      content: '▶';
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 8px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #0b0f19;
+    }
+
+    .story-item:hover .story-ring {
+      transform: scale(1.06);
+    }
+
+    .story-avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #0f172a;
+      border: 2px solid #0b0f19;
+    }
+
+    .story-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #cbd5e1;
+      text-align: center;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* HORIZONTAL LIVE TICKER (Zero-Scroll Matches) */
+    .live-ticker-strip {
+      padding: 10px 12px;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      background: rgba(15, 23, 42, 0.4);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .ticker-card {
+      background: #141d33;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 10px 12px;
+      min-width: 175px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      transition: transform 0.15s, border-color 0.15s;
+      cursor: pointer;
+    }
+
+    .ticker-card:hover {
+      border-color: #3b82f6;
+      transform: translateY(-2px);
+    }
+
+    .ticker-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .ticker-sport { color: #94a3b8; }
+    .ticker-status { color: #34d399; font-weight: 900; }
+
+    .ticker-team-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .ticker-team-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .team-badge {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 900;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ticker-score {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    /* SEGMENTED TAB NAV (Sticky & Sleek) */
+    .segmented-nav {
+      display: flex;
+      background: #111827;
+      border-radius: 14px;
+      padding: 3px;
+      margin: 10px 14px 6px;
+      border: 1px solid #1f2937;
+    }
+
+    .nav-tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 8px 6px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.15s;
+    }
+
+    .nav-tab-btn.active {
+      background: #1e293b;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .tab-badge {
+      background: #ef4444;
+      color: #fff;
+      font-size: 8px;
+      padding: 1px 5px;
+      border-radius: 8px;
+    }
+
+    /* Floating Bottom Navigation Dock */
+    .mobile-bottom-dock {
+      position: sticky;
+      bottom: 12px;
+      margin: 14px 12px 12px 12px;
+      z-index: 50;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      padding: 5px;
+      display: flex;
+      justify-content: space-around;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+    }
+
+    .dock-nav-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 6px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      border-radius: 14px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .dock-nav-btn:active {
+      transform: scale(0.92);
+    }
+
+    .dock-nav-btn.active {
+      color: #38bdf8;
+      font-weight: 900;
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    .dock-badge {
+      position: absolute;
+      top: -2px;
+      right: -4px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: live-pulse-anim 1.5s infinite;
+    }
+
+    /* MAIN CONTENT PANELS */
+    .content-area {
+      padding: 10px 14px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* TAB 1: FAN ZONE & MULTIMEDIA FEED */
+    .feed-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .feed-header {
+      padding: 12px 14px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .author-info {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .author-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #2563eb;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .author-name {
+      font-size: 12px;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .feed-time {
+      font-size: 10px;
+      color: #64748b;
+    }
+
+    .feed-tag {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .feed-caption {
+      padding: 0 14px 10px;
+      font-size: 12.5px;
+      color: #cbd5e1;
+      line-height: 1.45;
+    }
+
+    .feed-media-wrap {
+      position: relative;
+      width: 100%;
+      background: #000;
+      max-height: 340px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .feed-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+    }
+
+    .feed-video-player {
+      width: 100%;
+      height: 240px;
+      object-fit: cover;
+      background: #000;
+    }
+
+    .video-play-overlay {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.8);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      backdrop-filter: blur(4px);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .video-play-overlay:hover {
+      transform: scale(1.1);
+      background: #2563eb;
+    }
+
+    .clip-duration-pill {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+
+    /* Action bar below media */
+    .feed-actions-bar {
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .reactions-cluster {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .react-btn {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #cbd5e1;
+      padding: 4px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+
+    .react-btn:hover, .react-btn.reacted {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: #f59e0b;
+      color: #fbbf24;
+      transform: scale(1.05);
+    }
+
+    .share-btn {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border: none;
+      color: #ffffff;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+      transition: opacity 0.15s;
+    }
+
+    .share-btn:hover { opacity: 0.9; }
+
+    /* TAB 2: COMPACT CHAMPIONSHIP STANDINGS (Zero Endless Scroll) */
+    .micro-podium-strip {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr 1fr;
+      gap: 8px;
+      align-items: flex-end;
+      margin-bottom: 8px;
+    }
+
+    .podium-tile {
+      background: var(--card-bg);
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+      padding: 10px 8px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .podium-tile.first {
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.12) 0%, #131b2e 100%);
+      border-color: rgba(245, 158, 11, 0.4);
+      padding: 14px 8px;
+    }
+
+    .podium-rank-tag {
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      padding: 2px 7px;
+      border-radius: 12px;
+    }
+
+    .first .podium-rank-tag { background: #f59e0b; color: #000; }
+    .second .podium-rank-tag { background: #94a3b8; color: #000; }
+    .third .podium-rank-tag { background: #b45309; color: #fff; }
+
+    .podium-crest {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 900;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    .podium-name {
+      font-size: 11px;
+      font-weight: 800;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+    }
+
+    .podium-pts {
+      font-size: 15px;
+      font-weight: 900;
+      color: #60a5fa;
+      margin-top: 2px;
+    }
+
+    .first .podium-pts { color: #f59e0b; font-size: 17px; }
+
+    /* Compact Standings Table */
+    .compact-table-wrap {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .compact-table-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #f1f5f9;
+    }
+
+    .table-sub {
+      font-size: 10px;
+      color: #64748b;
+    }
+
+    .c-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .c-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 9px;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    .c-table th.center, .c-table td.center { text-align: center; }
+    .c-table th.right, .c-table td.right { text-align: right; }
+
+    .c-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .c-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .c-table tr.highlight-followed td {
+      background: rgba(37, 99, 235, 0.12);
+      border-color: rgba(37, 99, 235, 0.3);
+    }
+
+    .team-cell {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .pts-badge {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: #38bdf8;
+      font-size: 13px;
+    }
+
+    /* STORY MODAL VIEWER */
+    .story-modal {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: #000000;
+      z-index: 100;
+      flex-direction: column;
+      border-radius: 30px;
+      overflow: hidden;
+    }
+
+    .story-modal.active {
+      display: flex;
+    }
+
+    .story-progress-bar {
+      height: 3px;
+      background: rgba(255, 255, 255, 0.3);
+      width: 100%;
+      position: relative;
+    }
+
+    .story-progress-fill {
+      height: 100%;
+      background: #ffffff;
+      width: 45%;
+      animation: progress-slide 5s linear forwards;
+    }
+
+    @keyframes progress-slide {
+      from { width: 0%; }
+      to { width: 100%; }
+    }
+
+    .story-modal-header {
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: absolute;
+      top: 4px;
+      width: 100%;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+    }
+
+    .story-close-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .story-content-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .story-full-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .story-caption-overlay {
+      position: absolute;
+      bottom: 24px;
+      left: 16px;
+      right: 16px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* SHARE CARD MODAL */
+    .share-modal-sheet {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 999999;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    .share-modal-sheet.active {
+      display: flex !important;
+    }
+
+    .share-card-dialog {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 20px;
+      max-width: 380px;
+      width: 100%;
+      padding: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .share-options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .share-option-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .share-option-btn:hover {
+      background: #2563eb;
+      border-color: #3b82f6;
+    }
+
+    /* Toast Notification */
+    .concept-toast {
+      position: fixed;
+      bottom: 24px;
+      background: #10b981;
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+      display: none;
+      z-index: 300;
+      animation: toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes toast-in {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Demo Controller Banner -->
+  <div class="concept-banner">
+    <div>
+      <div class="concept-title">
+        <span>⚡ FixtureGrid FanZone & Low-Scroll Spectator Experience</span>
+      </div>
+      <div class="concept-desc">
+        Solves the "too much scrolling" flaw with compact headers, horizontal live tickers, story highlights, short video clips, and shareable social cards.
+      </div>
+    </div>
+    <div class="view-toggle-group">
+      <button class="view-btn active" id="btn-phone" onclick="setViewMode('phone')">📱 Mobile View</button>
+      <button class="view-btn" id="btn-desktop" onclick="setViewMode('desktop')">💻 Tablet/Desktop View</button>
+    </div>
+  </div>
+
+  <!-- Spectator Interactive App Frame -->
+  <div class="app-viewport" id="viewport">
+
+    <!-- COMPACT STICKY HEADER (Saves 150px of vertical height compared to old header) -->
+    <header class="spectator-header">
+      <div class="header-top">
+        <div class="brand-cluster">
+          <span class="live-badge">
+            <span class="live-dot"></span> LIVE
+          </span>
+          <div class="event-meta" title="Inter-House Championship 2026">Inter-House Championship</div>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" title="Followed Team Alerts">🔔</button>
+          <button class="icon-btn" onclick="openShareModal('Inter-House Championship 2026', 'https://fixtures.app/watch/championship-2026')" title="Share Event">📤</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 1. STORY HIGHLIGHTS / REEL BUBBLES (Photos & 15s Clips) -->
+    <div class="stories-container">
+      <div class="story-item" onclick="openStory('Winning Goal ⚡', 'video', 'Baraza House scores dramatic 89th minute screamer!', 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=500&q=80')">
+        <div class="story-ring video-ring">
+          <img class="story-avatar" src="https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=100&q=80" alt="Goal">
+        </div>
+        <span class="story-label">Winning Goal</span>
+      </div>
+
+      <div class="story-item" onclick="openStory('Sprint Finish 🏃', 'image', 'Record broken in Senior Boys 100m Sprint!', 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=500&q=80')">
+        <div class="story-ring">
+          <img class="story-avatar" src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=100&q=80" alt="Sprint">
+        </div>
+        <span class="story-label">100m Record</span>
+      </div>
+
+      <div class="story-item" onclick="openStory('House Spirit 🎉', 'image', 'Zambezi House cheer team bringing the heat from the grandstands!', 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=500&q=80')">
+        <div class="story-ring">
+          <img class="story-avatar" src="https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=100&q=80" alt="Cheer">
+        </div>
+        <span class="story-label">House Spirit</span>
+      </div>
+
+      <div class="story-item" onclick="openStory('Tug of War 💥', 'video', 'Epic final pull between Halsted and Shaka!', 'https://images.unsplash.com/photo-1526676037777-05a232554f77?w=500&q=80')">
+        <div class="story-ring video-ring">
+          <img class="story-avatar" src="https://images.unsplash.com/photo-1526676037777-05a232554f77?w=100&q=80" alt="Tug of war">
+        </div>
+        <span class="story-label">Tug of War</span>
+      </div>
+
+      <div class="story-item" onclick="openStory('Medal Day 🥇', 'image', 'Podium celebrations for Girls High Jump', 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=500&q=80')">
+        <div class="story-ring">
+          <img class="story-avatar" src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&q=80" alt="Medals">
+        </div>
+        <span class="story-label">Medal Podiums</span>
+      </div>
+    </div>
+
+    <!-- 2. HORIZONTAL LIVE MATCH TICKER (Glanceable Scores - No Vertical Scrolling) -->
+    <div class="live-ticker-strip">
+      <div class="ticker-card" onclick="showToast('Viewing Rugby U16 Match Center')">
+        <div class="ticker-head">
+          <span class="ticker-sport">🏉 Rugby · 2nd Half</span>
+          <span class="ticker-status">LIVE</span>
+        </div>
+        <div class="ticker-team-row">
+          <div class="ticker-team-info">
+            <span class="team-badge" style="background: #2563eb;">ZAM</span>
+            <span>Zambezi</span>
+          </div>
+          <span class="ticker-score">19</span>
+        </div>
+        <div class="ticker-team-row">
+          <div class="ticker-team-info">
+            <span class="team-badge" style="background: #dc2626;">BAR</span>
+            <span>Baraza</span>
+          </div>
+          <span class="ticker-score">14</span>
+        </div>
+      </div>
+
+      <div class="ticker-card" onclick="showToast('Viewing Basketball Match Center')">
+        <div class="ticker-head">
+          <span class="ticker-sport">🏀 Basketball · Q4</span>
+          <span class="ticker-status">LIVE</span>
+        </div>
+        <div class="ticker-team-row">
+          <div class="ticker-team-info">
+            <span class="team-badge" style="background: #16a34a;">HAL</span>
+            <span>Halsted</span>
+          </div>
+          <span class="ticker-score">42</span>
+        </div>
+        <div class="ticker-team-row">
+          <div class="ticker-team-info">
+            <span class="team-badge" style="background: #9333ea;">SHA</span>
+            <span>Shaka</span>
+          </div>
+          <span class="ticker-score">38</span>
+        </div>
+      </div>
+
+      <div class="ticker-card" onclick="showToast('Viewing Soccer Final Result')">
+        <div class="ticker-head">
+          <span class="ticker-sport">⚽ Soccer · FT</span>
+          <span style="color: #94a3b8; font-weight: 800;">FINAL</span>
+        </div>
+        <div class="ticker-team-row">
+          <div class="ticker-team-info">
+            <span class="team-badge" style="background: #ea580c;">TEH</span>
+            <span>Tehilla</span>
+          </div>
+          <span class="ticker-score">2</span>
+        </div>
+        <div class="ticker-team-row">
+          <div class="ticker-team-info">
+            <span class="team-badge" style="background: #0284c7;">TOW</span>
+            <span>Town</span>
+          </div>
+          <span class="ticker-score">1</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. SEGMENTED NAVIGATION TABS -->
+    <div class="segmented-nav">
+      <button class="nav-tab-btn active" id="tab-btn-feed" onclick="switchTab('feed')">
+        <span>📸 Fan Feed</span>
+        <span class="tab-badge">NEW</span>
+      </button>
+      <button class="nav-tab-btn" id="tab-btn-standings" onclick="switchTab('standings')">
+        <span>🏆 Standings</span>
+      </button>
+      <button class="nav-tab-btn" id="tab-btn-fixtures" onclick="switchTab('fixtures')">
+        <span>📅 Matches</span>
+      </button>
+    </div>
+
+    <!-- 4. TAB CONTENTS -->
+    <div class="content-area">
+
+      <!-- TAB 1: FAN FEED & MULTIMEDIA CONTENT -->
+      <div id="tab-feed" style="display: flex; flex-direction: column; gap: 14px;">
+        
+        <!-- Post 1: Short Video Clip / Reel -->
+        <article class="feed-card">
+          <div class="feed-header">
+            <div class="author-info">
+              <div class="author-avatar" style="background: #dc2626;">MC</div>
+              <div>
+                <div class="author-name">Official Media Desk</div>
+                <div class="feed-time">2 mins ago · Field A</div>
+              </div>
+            </div>
+            <span class="feed-tag">⚡ Match Highlight</span>
+          </div>
+          <div class="feed-caption">
+            Unbelievable sidestep and diving try by Baraza House Captain in the corner! 🔥 Parents on their feet!
+          </div>
+          <div class="feed-media-wrap" onclick="showToast('Playing full-screen replay clip')">
+            <img class="feed-img" src="https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&q=80" alt="Rugby try highlight" style="height: 220px;">
+            <div class="video-play-overlay">▶</div>
+            <span class="clip-duration-pill">0:18</span>
+          </div>
+          <div class="feed-actions-bar">
+            <div class="reactions-cluster">
+              <button class="react-btn" onclick="toggleReaction(this, '🔥', 48)">🔥 48</button>
+              <button class="react-btn" onclick="toggleReaction(this, '👏', 22)">👏 22</button>
+              <button class="react-btn" onclick="toggleReaction(this, '⚡', 15)">⚡ 15</button>
+            </div>
+            <button class="share-btn" onclick="openShareModal('Baraza Diving Try Highlight Clip', 'https://fixtures.app/watch/championship-2026/highlight-1')">
+              <span>Share Clip</span> 📤
+            </button>
+          </div>
+        </article>
+
+        <!-- Post 2: High-Res Photo Moment & House Spirit -->
+        <article class="feed-card">
+          <div class="feed-header">
+            <div class="author-info">
+              <div class="author-avatar" style="background: #2563eb;">ZH</div>
+              <div>
+                <div class="author-name">Zambezi House Media</div>
+                <div class="feed-time">14 mins ago · Track & Field</div>
+              </div>
+            </div>
+            <span class="feed-tag">📸 Photo Moment</span>
+          </div>
+          <div class="feed-caption">
+            Gold medal ceremony for Under 17 400m sprint! Huge congratulations to all houses for the tremendous sportsmanship! 🥇
+          </div>
+          <div class="feed-media-wrap">
+            <img class="feed-img" src="https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&q=80" alt="Athletics Sprint Podium" style="height: 240px;">
+          </div>
+          <div class="feed-actions-bar">
+            <div class="reactions-cluster">
+              <button class="react-btn" onclick="toggleReaction(this, '🏆', 64)">🏆 64</button>
+              <button class="react-btn" onclick="toggleReaction(this, '💙', 31)">💙 31</button>
+            </div>
+            <button class="share-btn" onclick="openShareModal('400m Podium Celebration Card', 'https://fixtures.app/watch/championship-2026/photo-2')">
+              <span>Share Card</span> 📤
+            </button>
+          </div>
+        </article>
+
+      </div>
+
+      <!-- TAB 2: COMPACT STANDINGS (Eliminates Endless Scrolling) -->
+      <div id="tab-standings" style="display: none; flex-direction: column; gap: 12px;">
+        
+        <!-- Micro-Podium Strip -->
+        <div class="micro-podium-strip">
+          <!-- 2nd Place -->
+          <div class="podium-tile second">
+            <span class="podium-rank-tag">2nd</span>
+            <div class="podium-crest" style="background: #dc2626;">BAR</div>
+            <div class="podium-name">Baraza</div>
+            <div class="podium-pts">312</div>
+          </div>
+          <!-- 1st Place (Crown) -->
+          <div class="podium-tile first">
+            <span class="podium-rank-tag">👑 1st</span>
+            <div class="podium-crest" style="background: #2563eb; width: 38px; height: 38px; font-size: 13px;">ZAM</div>
+            <div class="podium-name">Zambezi</div>
+            <div class="podium-pts">348</div>
+          </div>
+          <!-- 3rd Place -->
+          <div class="podium-tile third">
+            <span class="podium-rank-tag">3rd</span>
+            <div class="podium-crest" style="background: #16a34a;">HAL</div>
+            <div class="podium-name">Halsted</div>
+            <div class="podium-pts">285</div>
+          </div>
+        </div>
+
+        <!-- High-Density Quick Leaderboard -->
+        <div class="compact-table-wrap">
+          <div class="compact-table-header">
+            <div>
+              <div class="table-title">Aggregate Championship Shield</div>
+              <div class="table-sub">Live updated across 6 sports</div>
+            </div>
+            <button class="share-btn" style="padding: 4px 10px; font-size: 10px;" onclick="openShareModal('Overall Championship Standings', 'https://fixtures.app/watch/championship-2026/standings')">
+              Share Table 📤
+            </button>
+          </div>
+          <table class="c-table">
+            <thead>
+              <tr>
+                <th style="width: 38px; text-align: center;">#</th>
+                <th>Team</th>
+                <th class="center">🥇</th>
+                <th class="center">🥈</th>
+                <th class="center">🥉</th>
+                <th class="right">Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="highlight-followed">
+                <td class="center font-bold" style="color: #f59e0b;">1</td>
+                <td>
+                  <div class="team-cell">
+                    <span class="team-badge" style="background: #2563eb;">ZAM</span>
+                    <div>
+                      <div style="font-weight: 800; color: #fff;">Zambezi</div>
+                      <div style="font-size: 9px; color: #60a5fa;">★ You follow</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="center">8</td>
+                <td class="center">4</td>
+                <td class="center">2</td>
+                <td class="right"><span class="pts-badge">348</span></td>
+              </tr>
+
+              <tr>
+                <td class="center font-bold" style="color: #94a3b8;">2</td>
+                <td>
+                  <div class="team-cell">
+                    <span class="team-badge" style="background: #dc2626;">BAR</span>
+                    <span style="font-weight: 700; color: #e2e8f0;">Baraza</span>
+                  </div>
+                </td>
+                <td class="center">6</td>
+                <td class="center">7</td>
+                <td class="center">3</td>
+                <td class="right"><span class="pts-badge">312</span></td>
+              </tr>
+
+              <tr>
+                <td class="center font-bold" style="color: #b45309;">3</td>
+                <td>
+                  <div class="team-cell">
+                    <span class="team-badge" style="background: #16a34a;">HAL</span>
+                    <span style="font-weight: 700; color: #e2e8f0;">Halsted</span>
+                  </div>
+                </td>
+                <td class="center">5</td>
+                <td class="center">5</td>
+                <td class="center">6</td>
+                <td class="right"><span class="pts-badge">285</span></td>
+              </tr>
+
+              <tr>
+                <td class="center" style="color: #64748b;">4</td>
+                <td>
+                  <div class="team-cell">
+                    <span class="team-badge" style="background: #9333ea;">SHA</span>
+                    <span style="font-weight: 600; color: #cbd5e1;">Shaka</span>
+                  </div>
+                </td>
+                <td class="center">4</td>
+                <td class="center">4</td>
+                <td class="center">5</td>
+                <td class="right"><span class="pts-badge" style="color: #94a3b8;">240</span></td>
+              </tr>
+
+              <tr>
+                <td class="center" style="color: #64748b;">5</td>
+                <td>
+                  <div class="team-cell">
+                    <span class="team-badge" style="background: #ea580c;">TEH</span>
+                    <span style="font-weight: 600; color: #cbd5e1;">Tehilla</span>
+                  </div>
+                </td>
+                <td class="center">3</td>
+                <td class="center">2</td>
+                <td class="center">4</td>
+                <td class="right"><span class="pts-badge" style="color: #94a3b8;">198</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- TAB 3: MATCHES & SCHEDULE -->
+      <div id="tab-fixtures" style="display: none; flex-direction: column; gap: 10px;">
+        <div style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">
+          Today's Schedule & Courts
+        </div>
+
+        <div class="feed-card" style="padding: 12px;">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748b; font-weight: 800; margin-bottom: 8px;">
+            <span>COURT 1 · VOLLEYBALL</span>
+            <span style="color: #10b981;">UPCOMING 14:30</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="team-badge" style="background: #2563eb;">ZAM</span>
+              <span style="font-size: 13px; font-weight: 800; color: #fff;">Zambezi</span>
+            </div>
+            <span style="font-size: 11px; font-weight: 800; color: #64748b;">VS</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 13px; font-weight: 800; color: #fff;">Halsted</span>
+              <span class="team-badge" style="background: #16a34a;">HAL</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="feed-card" style="padding: 12px;">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748b; font-weight: 800; margin-bottom: 8px;">
+            <span>MAIN PITCH · SOCCER BOYS U19</span>
+            <span style="color: #10b981;">UPCOMING 15:15</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="team-badge" style="background: #dc2626;">BAR</span>
+              <span style="font-size: 13px; font-weight: 800; color: #fff;">Baraza</span>
+            </div>
+            <span style="font-size: 11px; font-weight: 800; color: #64748b;">VS</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 13px; font-weight: 800; color: #fff;">Shaka</span>
+              <span class="team-badge" style="background: #9333ea;">SHA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 5. FULL-SCREEN STORY HIGHLIGHT VIEWER MODAL -->
+    <div class="story-modal" id="story-modal">
+      <div class="story-progress-bar">
+        <div class="story-progress-fill" id="story-progress"></div>
+      </div>
+      <div class="story-modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 900; color: #fff;" id="modal-story-title">Winning Goal ⚡</span>
+        </div>
+        <button class="story-close-btn" onclick="closeStory()">✕</button>
+      </div>
+      <div class="story-content-body">
+        <img class="story-full-img" id="modal-story-img" src="" alt="Story content">
+        <div class="story-caption-overlay">
+          <p id="modal-story-caption" style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 6px;"></p>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 10px; color: #94a3b8;">Shared by House Media Rep</span>
+            <button class="share-btn" style="padding: 4px 10px; font-size: 10px;" onclick="openShareModal('Story Highlight', window.location.href)">
+              Share Story 📤
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Mobile-First Thumb Dock -->
+    <nav class="mobile-bottom-dock">
+      <button class="dock-nav-btn active" id="dock-btn-feed" onclick="switchTab('feed')">
+        <div style="position: relative;">
+          <span style="font-size: 14px;">📸</span>
+          <span class="dock-badge"></span>
+        </div>
+        <span>FanZone</span>
+      </button>
+      <button class="dock-nav-btn" id="dock-btn-standings" onclick="switchTab('standings')">
+        <span style="font-size: 14px;">🏆</span>
+        <span>Standings</span>
+      </button>
+      <button class="dock-nav-btn" id="dock-btn-fixtures" onclick="switchTab('fixtures')">
+        <span style="font-size: 14px;">📅</span>
+        <span>Matches</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- 6. 1-TAP SOCIAL SHARING MODAL -->
+  <div class="share-modal-sheet" id="share-modal" onclick="if(event.target === this) closeShareModal()">
+    <div class="share-card-dialog">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 14px; font-weight: 900; color: #fff;">📤 Share Live Moment</h3>
+        <button onclick="closeShareModal()" style="background: rgba(255,255,255,0.1); border: none; color: #cbd5e1; width: 28px; height: 28px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+      </div>
+      <p style="font-size: 11px; color: #94a3b8;" id="share-summary-text">
+        Share instant live result & video moment directly to parents & spectator groups.
+      </p>
+
+      <div class="share-options-grid">
+        <button class="share-option-btn" onclick="handleShareChannel('WhatsApp')">
+          <span style="font-size: 20px;">💬</span>
+          <span>WhatsApp Group</span>
+        </button>
+        <button class="share-option-btn" onclick="handleShareChannel('Device')">
+          <span style="font-size: 20px;">📱</span>
+          <span>Device Share Menu</span>
+        </button>
+        <button class="share-option-btn" onclick="handleShareChannel('Instagram')">
+          <span style="font-size: 20px;">📸</span>
+          <span>Instagram Story</span>
+        </button>
+        <button class="share-option-btn" onclick="handleShareChannel('Copy Link')">
+          <span style="font-size: 20px;">🔗</span>
+          <span>Copy Direct Link</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Element -->
+  <div class="concept-toast" id="toast"></div>
+
+  <script>
+    let currentShareTitle = 'Inter-House Championship 2026';
+    let currentShareUrl = window.location.href;
+
+    function setViewMode(mode) {
+      const vp = document.getElementById('viewport');
+      const btnPhone = document.getElementById('btn-phone');
+      const btnDesk = document.getElementById('btn-desktop');
+
+      if (mode === 'desktop') {
+        vp.classList.add('desktop-mode');
+        btnDesk.classList.add('active');
+        btnPhone.classList.remove('active');
+      } else {
+        vp.classList.remove('desktop-mode');
+        btnPhone.classList.add('active');
+        btnDesk.classList.remove('active');
+      }
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-tab-btn').forEach(b => b.classList.remove('active'));
+      const tabBtn = document.getElementById('tab-btn-' + tabId);
+      if (tabBtn) tabBtn.classList.add('active');
+
+      document.querySelectorAll('.dock-nav-btn').forEach(b => b.classList.remove('active'));
+      const dockBtn = document.getElementById('dock-btn-' + tabId);
+      if (dockBtn) dockBtn.classList.add('active');
+
+      document.getElementById('tab-feed').style.display = tabId === 'feed' ? 'flex' : 'none';
+      document.getElementById('tab-standings').style.display = tabId === 'standings' ? 'flex' : 'none';
+      document.getElementById('tab-fixtures').style.display = tabId === 'fixtures' ? 'flex' : 'none';
+    }
+
+    function toggleReaction(btn, emoji, baseCount) {
+      const isReacted = btn.classList.contains('reacted');
+      if (isReacted) {
+        btn.classList.remove('reacted');
+        btn.innerHTML = `${emoji} ${baseCount}`;
+      } else {
+        btn.classList.add('reacted');
+        btn.innerHTML = `${emoji} ${baseCount + 1}`;
+        showToast(`Reacted with ${emoji}!`);
+      }
+    }
+
+    function openStory(title, type, caption, imgUrl) {
+      document.getElementById('modal-story-title').innerText = title;
+      document.getElementById('modal-story-caption').innerText = caption;
+      document.getElementById('modal-story-img').src = imgUrl;
+
+      const modal = document.getElementById('story-modal');
+      modal.style.display = 'flex';
+      modal.classList.add('active');
+
+      // Restart progress bar
+      const p = document.getElementById('story-progress');
+      p.style.animation = 'none';
+      p.offsetHeight; /* trigger reflow */
+      p.style.animation = 'progress-slide 5s linear forwards';
+    }
+
+    function closeStory() {
+      const modal = document.getElementById('story-modal');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+      }
+    }
+
+    function openShareModal(title, url) {
+      currentShareTitle = title || 'Inter-House Championship 2026';
+      currentShareUrl = url || window.location.href;
+
+      const summary = document.getElementById('share-summary-text');
+      if (summary) {
+        summary.innerText = `Sharing: "${currentShareTitle}"`;
+      }
+
+      const modal = document.getElementById('share-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('active');
+      }
+    }
+
+    function closeShareModal() {
+      const modal = document.getElementById('share-modal');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+      }
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast('✓ Link copied to clipboard!');
+        }).catch(() => {
+          fallbackCopyText(text);
+        });
+      } else {
+        fallbackCopyText(text);
+      }
+    }
+
+    function fallbackCopyText(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('✓ Link copied to clipboard!');
+      } catch (e) {
+        showToast('✓ Link ready to share');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function handleShareChannel(channel) {
+      const title = currentShareTitle || 'Inter-House Championship 2026';
+      const url = currentShareUrl || window.location.href;
+      const shareText = `🏆 Check out "${title}" on FixtureGrid!\n${url}`;
+
+      closeShareModal();
+
+      if (channel === 'Copy Link') {
+        copyToClipboard(url);
+      } else if (channel === 'WhatsApp') {
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+        window.open(waUrl, '_blank');
+        showToast('✓ Opening WhatsApp...');
+      } else if (channel === 'Instagram') {
+        copyToClipboard(shareText);
+        showToast('✓ Caption copied for Instagram Story!');
+      } else if (channel === 'Device') {
+        if (navigator.share) {
+          navigator.share({
+            title: title,
+            text: shareText,
+            url: url
+          }).then(() => {
+            showToast('✓ Shared successfully!');
+          }).catch((err) => {
+            if (err.name !== 'AbortError') {
+              copyToClipboard(url);
+            }
+          });
+        } else {
+          copyToClipboard(url);
+        }
+      } else {
+        showToast(`✓ Preparing ${channel}...`);
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 2600);
+    }
+
+    // Attach to window globally
+    window.openShareModal = openShareModal;
+    window.closeShareModal = closeShareModal;
+    window.handleShareChannel = handleShareChannel;
+    window.openStory = openStory;
+    window.closeStory = closeStory;
+    window.setViewMode = setViewMode;
+    window.switchTab = switchTab;
+    window.toggleReaction = toggleReaction;
+  </script>
+</body>
+</html>

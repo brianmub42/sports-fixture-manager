@@ -41,7 +41,6 @@ export default function MobileAppShell({ children }) {
           backgroundColor: colors.background,
           borderColor: isDark ? '#334155' : '#cbd5e1',
           minHeight: '100vh',
-          maxHeight: isExpanded ? 'none' : '100vh'
         }}
       >
         {/* Offline Alert Strip */}

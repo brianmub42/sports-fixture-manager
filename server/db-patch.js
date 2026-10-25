@@ -141,6 +141,31 @@ async function runPatch() {
       console.warn('Note: users foreign key update notice:', fkErr.message);
     }
 
+    // 8. Spectator FanZone & Media Feed Posts
+    console.log('Creating spectator_feed_posts table for multimedia feed...');
+    await query(`
+      CREATE TABLE IF NOT EXISTS spectator_feed_posts (
+          id SERIAL PRIMARY KEY,
+          organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+          fixture_id INT REFERENCES fixtures(id) ON DELETE SET NULL,
+          sport_id INT REFERENCES sports(id) ON DELETE SET NULL,
+          author_name VARCHAR(100) DEFAULT 'Official Media Desk',
+          caption TEXT,
+          media_type VARCHAR(20) NOT NULL DEFAULT 'image',
+          media_url TEXT NOT NULL,
+          thumbnail_url TEXT,
+          duration_seconds INT DEFAULT 0,
+          is_story_highlight BOOLEAN DEFAULT FALSE,
+          story_title VARCHAR(50),
+          reactions JSONB DEFAULT '{"fire": 0, "clap": 0, "cheer": 0, "trophy": 0}'::jsonb,
+          shares_count INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_feed_org_created ON spectator_feed_posts(organization_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_feed_org_story ON spectator_feed_posts(organization_id, is_story_highlight);
+    `);
+
     console.log('Database schema patch applied successfully!');
   } catch (err) {
     console.error('Error applying database patch:', err);
