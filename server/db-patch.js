@@ -169,10 +169,6 @@ async function runPatch() {
     console.log('Database schema patch applied successfully!');
   } catch (err) {
     console.error('Error applying database patch:', err);
-  } finally {
-    try {
-      await pool.end();
-    } catch (e) {}
   }
 }
 

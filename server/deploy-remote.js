@@ -18,7 +18,6 @@ conn.on('ready', () => {
     'npm run build',
     'cd server',
     'node migrate.js',
-    'node db-patch.js',
     'pm2 restart kalife-backend || pm2 start ecosystem.config.cjs'
   ];
 
