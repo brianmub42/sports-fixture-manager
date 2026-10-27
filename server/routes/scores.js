@@ -6,12 +6,13 @@ import { notifyScoreUpdate, checkAndNotifyLeaderChange } from '../services/notif
 const router = Router();
 const pendingScores = new Map();
 
-// PATCH /api/scores/:id
+// PATCH /api/scores/:id (Scorekeeper/Admin)
 router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
   const { score_a, score_b, playerId, pointsScored } = req.body;
+  const isLiveUpdate = req.body.is_live === true || req.body.status === 'live' || req.body.status === 'in_progress';
   const requestId = req.body.requestId || req.body.request_id || req.headers['idempotency-key'] || req.headers['x-request-id'];
   const fixtureId = req.params.id;
-  const key = `score:${fixtureId}:${score_a}:${score_b}:${playerId || 'none'}:${pointsScored || 0}`;
+  const key = `score:${fixtureId}:${score_a}:${score_b}:${playerId || 'none'}:${pointsScored || 0}:${isLiveUpdate ? 'live' : 'final'}`;
 
   if (pendingScores.has(key)) {
     console.log('[Idempotency] Duplicate score request detected, sharing promise for key:', key);
@@ -44,8 +45,8 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
 
     if (!fixture) throw new Error('Fixture not found');
 
-    // Check if result is already recorded
-    if (fixture.status === 'completed' || fixture.score_a !== null || fixture.score_b !== null) {
+    // Check if result is already finalized (only reject if not an in-progress live update)
+    if ((fixture.status === 'completed' || fixture.status === 'draw') && !isLiveUpdate) {
       // Check if it's a retry of the same requestId
       if (requestId && fixture.last_request_id === requestId) {
         console.log('[Idempotency] Request is a retry of a completed submission. Returning recorded result.');
@@ -63,17 +64,21 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
       throw err;
     }
 
-    // Determine winner
     let winnerId = null;
-    let status = 'completed';
-    if (score_a > score_b) winnerId = fixture.team_a_id;
-    else if (score_b > score_a) winnerId = fixture.team_b_id;
-    else status = 'draw';
+    let status = isLiveUpdate ? 'live' : 'completed';
+
+    if (!isLiveUpdate) {
+      if (score_a > score_b) winnerId = fixture.team_a_id;
+      else if (score_b > score_a) winnerId = fixture.team_b_id;
+      else status = 'draw';
+    }
 
     // Update fixture
     await query(`
       UPDATE fixtures 
-      SET score_a = $1, score_b = $2, winner_id = $3, status = $4, submitted_by = $5, submitted_at = NOW(), last_request_id = $6, updated_at = NOW()
+      SET score_a = $1, score_b = $2, winner_id = $3, status = $4, submitted_by = $5, 
+          submitted_at = CASE WHEN $4 IN ('completed', 'draw') THEN NOW() ELSE submitted_at END,
+          last_request_id = $6, updated_at = NOW()
       WHERE id = $7
     `, [score_a, score_b, winnerId, status, req.user.name || req.user.email || 'Official', requestId || null, fixtureId]);
 
@@ -91,8 +96,8 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
       `, [fixtureId, playerId, pointsScored || 1]);
     }
 
-    // Auto-advance playoff winner if applicable
-    if (winnerId && fixture.round) {
+    // If final, auto-advance playoff winner if applicable
+    if (!isLiveUpdate && winnerId && fixture.round) {
       const roundName = fixture.round; // e.g. "Quarter-final 1"
       
       const nextMatchRes = await query(`
@@ -129,7 +134,8 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
 
     // Broadcast update
     if (req.io) {
-      req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId, score_a, score_b, winner_id: winnerId });
+      req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId, score_a, score_b, winner_id: winnerId, status });
+      req.io.to(`tenant-${req.orgId}`).emit('fixture-updated', { id: fixtureId, score_a, score_b, status, winner_id: winnerId });
     }
 
     // Invalidate standings cache on write
@@ -143,24 +149,26 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
       console.error('Redis cache invalidation error:', err);
     }
 
-    // Dispatch push notifications to followers
-    notifyScoreUpdate({
-      orgId: req.orgId,
-      orgSlug: fixture.org_slug || req.orgSlug,
-      fixture,
-      oldScoreA: fixture.score_a,
-      oldScoreB: fixture.score_b,
-      newScoreA: score_a,
-      newScoreB: score_b,
-      status
-    }).catch(err => console.error('[Push Service] Score notification error:', err));
+    // Dispatch push notifications to followers if finalized
+    if (!isLiveUpdate) {
+      notifyScoreUpdate({
+        orgId: req.orgId,
+        orgSlug: fixture.org_slug || req.orgSlug,
+        fixture,
+        oldScoreA: fixture.score_a,
+        oldScoreB: fixture.score_b,
+        newScoreA: score_a,
+        newScoreB: score_b,
+        status
+      }).catch(err => console.error('[Push Service] Score notification error:', err));
 
-    checkAndNotifyLeaderChange({
-      orgId: req.orgId,
-      orgSlug: fixture.org_slug || req.orgSlug
-    }).catch(err => console.error('[Push Service] Leader check error:', err));
+      checkAndNotifyLeaderChange({
+        orgId: req.orgId,
+        orgSlug: fixture.org_slug || req.orgSlug
+      }).catch(err => console.error('[Push Service] Leader check error:', err));
+    }
 
-    return { success: true, fixtureId, score_a, score_b, status };
+    return { success: true, fixtureId, score_a, score_b, status, is_live: isLiveUpdate };
   })();
 
   pendingScores.set(key, promise);
@@ -183,6 +191,60 @@ router.patch('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res)
     setTimeout(() => {
       pendingScores.delete(key);
     }, 10000);
+  }
+});
+
+// PATCH /api/scores/:id/status (Scorekeeper/Admin - Quick status transition e.g. live, upcoming)
+router.patch('/:id/status', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
+  try {
+    const fixtureId = req.params.id;
+    const { status } = req.body;
+    const allowed = ['upcoming', 'live', 'in_progress', 'completed', 'draw', 'cancelled'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Allowed: ${allowed.join(', ')}` });
+    }
+
+    const fixtureRes = await query('SELECT * FROM fixtures WHERE id = $1 AND organization_id = $2', [fixtureId, req.orgId]);
+    if (fixtureRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Fixture not found' });
+    }
+
+    const fixture = fixtureRes.rows[0];
+    let winnerId = fixture.winner_id;
+    if (status === 'completed') {
+      if (fixture.score_a > fixture.score_b) winnerId = fixture.team_a_id;
+      else if (fixture.score_b > fixture.score_a) winnerId = fixture.team_b_id;
+    } else if (status === 'upcoming' || status === 'live' || status === 'in_progress') {
+      winnerId = null;
+    }
+
+    const updateRes = await query(`
+      UPDATE fixtures
+      SET status = $1, winner_id = $2, updated_at = NOW()
+      WHERE id = $3 AND organization_id = $4
+      RETURNING *
+    `, [status, winnerId, fixtureId, req.orgId]);
+
+    const updated = updateRes.rows[0];
+
+    if (req.io) {
+      req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId, status, winner_id: winnerId, score_a: updated.score_a, score_b: updated.score_b });
+      req.io.to(`tenant-${req.orgId}`).emit('fixture-updated', updated);
+    }
+
+    // Invalidate cache if finalized or completed
+    try {
+      const cacheKeys = await req.redisClient.keys(`leaderboard:${req.orgId}:*`);
+      if (cacheKeys.length > 0) {
+        await req.redisClient.del(cacheKeys);
+      }
+    } catch (err) {
+      console.error('Redis cache error:', err);
+    }
+
+    res.json({ success: true, fixture: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

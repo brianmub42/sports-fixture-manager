@@ -910,35 +910,54 @@ export default function PublicWatchPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {fixtures.map((f) => (
-                  <div
-                    key={f.id}
-                    className="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-sm hover:border-slate-700 transition-all"
-                  >
-                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1.5">
-                      <span>{f.sport_name} · {f.venue_name || 'Main Field'}</span>
-                      <span className={f.status === 'live' ? 'text-rose-400 font-black' : f.status === 'completed' ? 'text-slate-400' : 'text-blue-400 font-semibold'}>
-                        {f.status === 'live' ? '🔴 LIVE' : f.status === 'completed' ? 'FINAL' : f.scheduled_at ? new Date(f.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'UPCOMING'}
-                      </span>
-                    </div>
+                {fixtures.map((f) => {
+                  const isLive = f.status === 'live' || f.status === 'in_progress';
+                  const isFinal = f.status === 'completed' || f.status === 'draw';
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: f.team_a_color || '#3b82f6' }} />
-                        <span className="font-bold text-xs text-white">{f.team_a_name}</span>
+                  return (
+                    <div
+                      key={f.id}
+                      className={`bg-slate-900 border rounded-2xl p-3 shadow-sm hover:border-slate-700 transition-all ${
+                        isLive ? 'border-rose-500/60 shadow-lg shadow-rose-500/10 ring-1 ring-rose-500/30 bg-gradient-to-r from-rose-950/20 to-slate-900' : 'border-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="truncate">{f.sport_name} · {f.venue_name || 'Main Field'}</span>
+                          {f.round && (
+                            <span className="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded text-[9px] font-semibold shrink-0">
+                              {f.round}
+                            </span>
+                          )}
+                        </div>
+                        <span className={isLive ? 'text-rose-400 font-black animate-pulse flex items-center gap-1' : isFinal ? 'text-slate-400' : 'text-blue-400 font-semibold'}>
+                          {isLive ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                              🔴 LIVE
+                            </>
+                          ) : isFinal ? 'FINAL' : f.scheduled_at ? new Date(f.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'UPCOMING'}
+                        </span>
                       </div>
-                      <span className="font-mono text-sm font-black text-white">{f.score_a ?? '—'}</span>
-                    </div>
 
-                    <div className="flex items-center justify-between mt-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: f.team_b_color || '#ef4444' }} />
-                        <span className="font-bold text-xs text-white">{f.team_b_name}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: f.team_a_color || '#3b82f6' }} />
+                          <span className="font-bold text-xs text-white truncate max-w-[140px]">{f.team_a_name}</span>
+                        </div>
+                        <span className="font-mono text-sm font-black text-white">{f.score_a ?? '—'}</span>
                       </div>
-                      <span className="font-mono text-sm font-black text-white">{f.score_b ?? '—'}</span>
+
+                      <div className="flex items-center justify-between mt-1">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: f.team_b_color || '#ef4444' }} />
+                          <span className="font-bold text-xs text-white truncate max-w-[140px]">{f.team_b_name}</span>
+                        </div>
+                        <span className="font-mono text-sm font-black text-white">{f.score_b ?? '—'}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

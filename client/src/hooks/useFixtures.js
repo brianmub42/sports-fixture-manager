@@ -166,3 +166,47 @@ export function useDeleteFixture() {
     },
   });
 }
+
+export function useCreateFixture() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => fixturesApi.create(data).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['fixtures']);
+      queryClient.invalidateQueries(['standings']);
+    },
+  });
+}
+
+export function useUpdateFixture() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => fixturesApi.update(id, data).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['fixtures']);
+      queryClient.invalidateQueries(['standings']);
+    },
+  });
+}
+
+export function useUpdateFixtureStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }) => scoresApi.updateStatus(id, status).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['fixtures']);
+      queryClient.invalidateQueries(['standings']);
+    },
+  });
+}
+
+export function useUpdateLiveScore() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => scoresApi.updateLiveScore(id, data).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['fixtures']);
+      queryClient.invalidateQueries(['standings']);
+    },
+  });
+}

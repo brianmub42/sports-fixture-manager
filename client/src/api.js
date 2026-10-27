@@ -46,6 +46,8 @@ export const publicApi = {
 export const fixturesApi = {
   getAll: (params) => api.get('/fixtures', { params }),
   getById: (id) => api.get(`/fixtures/${id}`),
+  create: (data) => api.post('/fixtures', data),
+  update: (id, data) => api.put(`/fixtures/${id}`, data),
   getTeamSchedule: (code) => api.get(`/fixtures/team/${code}/schedule`),
   getDistrictSchedule: (code) => api.get(`/fixtures/district/${code}/schedule`),
   getLineups: (id) => api.get(`/fixtures/${id}/lineups`),
@@ -55,6 +57,8 @@ export const fixturesApi = {
 
 export const scoresApi = {
   update: (id, data) => api.patch(`/scores/${id}`, data),
+  updateLiveScore: (id, data) => api.patch(`/scores/${id}`, { ...data, is_live: true }),
+  updateStatus: (id, status) => api.patch(`/scores/${id}/status`, { status }),
   getLogs: () => api.get('/scores/logs'),
 };
 

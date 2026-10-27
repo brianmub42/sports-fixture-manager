@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useFixtures, useSettings, useSports } from '../hooks/useFixtures.js';
 import { usePlayers, useLineups, useSaveLineup } from '../hooks/usePlayers.js';
-import { Calendar, Download, ChevronDown, ChevronUp, Save, Users } from 'lucide-react';
+import { Calendar, Download, ChevronDown, ChevronUp, Save, Users, Plus, Radio } from 'lucide-react';
 import SportTag from '../components/SportTag.jsx';
 import TeamPill from '../components/TeamPill.jsx';
+import CreateFixtureModal from '../components/CreateFixtureModal.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { exportFixturesToPDF, exportFixturesToCSV } from '../utils/pdfExport.js';
 import { useToast } from '../contexts/ToastContext.jsx';
@@ -17,9 +18,11 @@ export default function Fixtures({
   setFilter: propSetFilter
 } = {}) {
   const isCustom = propFixtures !== undefined;
+  const { isScorekeeper } = useAuth();
 
   const [filter, setFilter] = useState('All');
   const [expandedMatchId, setExpandedMatchId] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const { data: hookFixtures, isLoading: loadingFixtures } = useFixtures(filter === 'All' ? {} : { sport: filter }, { enabled: !isCustom });
   const { data: hookSettings } = useSettings({ enabled: !isCustom });
@@ -77,7 +80,19 @@ export default function Fixtures({
           <p className="text-gray-500 dark:text-gray-400">Complete tournament schedule</p>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {isScorekeeper && (
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="k-btn k-btn-primary flex items-center gap-1.5 cursor-pointer shadow-sm text-xs font-bold"
+              title="Manually schedule a new match or exhibition fixture"
+            >
+              <Plus size={14} />
+              <span>Schedule Match</span>
+            </button>
+          )}
+
           <button 
             type="button"
             onClick={() => exportFixturesToPDF(fixtures, settings)}
@@ -167,7 +182,12 @@ export default function Fixtures({
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      {f.status === 'completed' || f.status === 'draw' ? (
+                      {f.status === 'live' || f.status === 'in_progress' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                          LIVE
+                        </span>
+                      ) : f.status === 'completed' || f.status === 'draw' ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50 dark:bg-green-950/20">Done</span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-400 bg-gray-50 dark:bg-gray-800/40">Upcoming</span>
@@ -207,7 +227,12 @@ export default function Fixtures({
                 <div className="flex justify-between items-center">
                   <SportTag sport={f.sport_name} />
                   <div className="flex items-center gap-2">
-                    {f.status === 'completed' || f.status === 'draw' ? (
+                    {f.status === 'live' || f.status === 'in_progress' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                        LIVE
+                      </span>
+                    ) : f.status === 'completed' || f.status === 'draw' ? (
                       <span className="text-[10px] font-semibold text-green-600 bg-green-50 dark:bg-green-950/20 px-2 py-0.5 rounded-full">Done</span>
                     ) : (
                       <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-850 px-2 py-0.5 rounded-full">Upcoming</span>
@@ -251,6 +276,11 @@ export default function Fixtures({
           );
         })}
       </div>
+
+      <CreateFixtureModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
   );
 }

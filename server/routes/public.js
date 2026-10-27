@@ -76,9 +76,9 @@ router.get('/events/:eventSlug/fixtures', async (req, res) => {
     if (isAllSports || (!isPlacementSport && sport)) {
       let fixturesSql = `
         SELECT f.id, f.sport_id, f.venue_id, f.scheduled_at, f.duration_minutes, f.status,
+          f.round, f.score_a, f.score_b, f.winner_id, f.notes,
           a.name as team_a_name, a.code as team_a_code, a.color as team_a_color, a.logo_url as team_a_logo,
           b.name as team_b_name, b.code as team_b_code, b.color as team_b_color, b.logo_url as team_b_logo,
-          f.score_a, f.score_b, f.winner_id, f.notes,
           v.name as venue_name, s.name as sport_name, s.scoring_type as scoring_type
         FROM fixtures f
         JOIN teams a ON f.team_a_id = a.id
@@ -105,6 +105,11 @@ router.get('/events/:eventSlug/fixtures', async (req, res) => {
           ae.scheduled_at,
           ae.duration_minutes,
           ae.status,
+          ae.category as round,
+          NULL as score_a,
+          NULL as score_b,
+          NULL as winner_id,
+          NULL as notes,
           ae.name || ' (' || ae.category || ')' as team_a_name,
           NULL as team_a_code,
           NULL as team_a_color,
@@ -118,10 +123,6 @@ router.get('/events/:eventSlug/fixtures', async (req, res) => {
           NULL as team_b_code,
           NULL as team_b_color,
           NULL as team_b_logo,
-          NULL as score_a,
-          NULL as score_b,
-          NULL as winner_id,
-          NULL as notes,
           v.name as venue_name,
           s.name as sport_name,
           s.scoring_type as scoring_type
@@ -157,15 +158,33 @@ router.get('/events/:eventSlug/fixtures', async (req, res) => {
       sqlParts.push({ sql: athleticsSql, params: aParams });
     }
 
+    const statusRank = { live: 1, in_progress: 1, upcoming: 2, completed: 3, draw: 3, cancelled: 4 };
     let finalRows = [];
     if (sqlParts.length === 1) {
-      const queryRes = await query(sqlParts[0].sql + ' ORDER BY scheduled_at ASC', sqlParts[0].params);
+      const orderSql = `
+        ORDER BY 
+          CASE 
+            WHEN status IN ('live', 'in_progress') THEN 1
+            WHEN status = 'upcoming' THEN 2
+            WHEN status IN ('completed', 'draw') THEN 3
+            ELSE 4
+          END ASC, 
+          scheduled_at ASC
+      `;
+      const queryRes = await query(sqlParts[0].sql + orderSql, sqlParts[0].params);
       finalRows = queryRes.rows;
     } else {
       const resFixtures = await query(sqlParts[0].sql, sqlParts[0].params);
       const resAthletics = await query(sqlParts[1].sql, sqlParts[1].params);
       finalRows = [...resFixtures.rows, ...resAthletics.rows];
-      finalRows.sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+      finalRows.sort((a, b) => {
+        const rankA = statusRank[a.status] || 99;
+        const rankB = statusRank[b.status] || 99;
+        if (rankA !== rankB) {
+          return rankA - rankB;
+        }
+        return new Date(a.scheduled_at) - new Date(b.scheduled_at);
+      });
     }
 
     res.json(finalRows);

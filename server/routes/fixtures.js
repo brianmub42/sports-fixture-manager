@@ -368,6 +368,190 @@ router.post('/:id/lineups', authMiddleware, requireScorekeeperOrAdmin, async (re
   }
 });
 
+// POST /api/fixtures (Scorekeeper/Admin - Manual fixture creation)
+router.post('/', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
+  try {
+    const { sport_id, venue_id, team_a_id, team_b_id, scheduled_at, duration_minutes = 30, round, notes, force = false } = req.body;
+
+    if (!sport_id || !venue_id || !team_a_id || !team_b_id || !scheduled_at) {
+      return res.status(400).json({ error: 'sport_id, venue_id, team_a_id, team_b_id, and scheduled_at are required' });
+    }
+
+    if (Number(team_a_id) === Number(team_b_id)) {
+      return res.status(400).json({ error: 'Team A and Team B must be different teams' });
+    }
+
+    // Verify sport belongs to tenant
+    const sportRes = await query('SELECT id, name FROM sports WHERE id = $1 AND organization_id = $2', [sport_id, req.orgId]);
+    if (sportRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Sport not found in this organization' });
+    }
+
+    // Verify venue belongs to tenant
+    const venueRes = await query('SELECT id, name FROM venues WHERE id = $1 AND organization_id = $2', [venue_id, req.orgId]);
+    if (venueRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Venue not found in this organization' });
+    }
+
+    // Verify teams belong to tenant
+    const teamsRes = await query(
+      'SELECT id, name, code FROM teams WHERE id IN ($1, $2) AND organization_id = $3',
+      [team_a_id, team_b_id, req.orgId]
+    );
+    if (teamsRes.rows.length < 2) {
+      return res.status(404).json({ error: 'One or both teams not found in this organization' });
+    }
+
+    const dur = parseInt(duration_minutes, 10) || 30;
+
+    // Check for scheduling collision on venue or teams
+    if (!force) {
+      const conflictRes = await query(`
+        SELECT f.id, f.round, f.scheduled_at, v.name as venue_name, ta.name as team_a_name, tb.name as team_b_name
+        FROM fixtures f
+        JOIN venues v ON f.venue_id = v.id
+        JOIN teams ta ON f.team_a_id = ta.id
+        JOIN teams tb ON f.team_b_id = tb.id
+        WHERE f.organization_id = $1
+          AND f.status NOT IN ('completed', 'cancelled')
+          AND (f.venue_id = $2 OR f.team_a_id IN ($3, $4) OR f.team_b_id IN ($3, $4))
+          AND f.scheduled_at < ($5::timestamptz + ($6::int * interval '1 minute'))
+          AND (f.scheduled_at + (COALESCE(f.duration_minutes, 30)::int * interval '1 minute')) > $5::timestamptz
+        LIMIT 1
+      `, [req.orgId, venue_id, team_a_id, team_b_id, scheduled_at, dur]);
+
+      if (conflictRes.rows.length > 0) {
+        const c = conflictRes.rows[0];
+        return res.status(409).json({
+          error: `Schedule conflict: ${c.venue_name} or teams already have fixture "${c.round || 'Match'}" (${c.team_a_name} vs ${c.team_b_name}) at this time.`,
+          code: 'SCHEDULE_CONFLICT',
+          conflict: c
+        });
+      }
+    }
+
+    const insertRes = await query(`
+      INSERT INTO fixtures (
+        organization_id, sport_id, venue_id, team_a_id, team_b_id,
+        scheduled_at, duration_minutes, round, notes, status, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'upcoming', NOW(), NOW())
+      RETURNING *
+    `, [req.orgId, sport_id, venue_id, team_a_id, team_b_id, scheduled_at, dur, round || 'Match', notes || null]);
+
+    const newFixture = insertRes.rows[0];
+
+    // Fetch full details with joined team and venue info
+    const fullRes = await query(`
+      SELECT f.id, f.organization_id, f.sport_id, f.venue_id, f.scheduled_at, f.duration_minutes, f.status,
+        f.round, f.team_a_id, f.team_b_id,
+        a.name as team_a_name, a.code as team_a_code, a.color as team_a_color, a.logo_url as team_a_logo,
+        b.name as team_b_name, b.code as team_b_code, b.color as team_b_color, b.logo_url as team_b_logo,
+        f.score_a, f.score_b, f.winner_id, f.notes, f.created_at, f.updated_at,
+        v.name as venue_name, s.name as sport_name, s.scoring_type as scoring_type
+      FROM fixtures f
+      JOIN teams a ON f.team_a_id = a.id
+      JOIN teams b ON f.team_b_id = b.id
+      JOIN venues v ON f.venue_id = v.id
+      JOIN sports s ON f.sport_id = s.id
+      WHERE f.id = $1
+    `, [newFixture.id]);
+
+    const created = fullRes.rows[0];
+
+    if (req.io) {
+      req.io.to(`tenant-${req.orgId}`).emit('fixture-created', created);
+      req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId: created.id });
+    }
+
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/fixtures/:id (Scorekeeper/Admin - Reschedule or update fixture details)
+router.put('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
+  try {
+    const fixtureId = req.params.id;
+    const { venue_id, scheduled_at, duration_minutes, round, notes, status, force = false } = req.body;
+
+    // Check fixture exists
+    const fixtureRes = await query('SELECT * FROM fixtures WHERE id = $1 AND organization_id = $2', [fixtureId, req.orgId]);
+    if (fixtureRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Fixture not found' });
+    }
+    const current = fixtureRes.rows[0];
+
+    const targetVenueId = venue_id ? Number(venue_id) : current.venue_id;
+    const targetTime = scheduled_at || current.scheduled_at;
+    const targetDur = duration_minutes !== undefined ? parseInt(duration_minutes, 10) : (current.duration_minutes || 30);
+    const targetRound = round !== undefined ? round : current.round;
+    const targetNotes = notes !== undefined ? notes : current.notes;
+    const targetStatus = status !== undefined ? status : current.status;
+
+    // Check conflict if venue or time changed
+    if (!force && (venue_id || scheduled_at)) {
+      const conflictRes = await query(`
+        SELECT f.id, f.round, f.scheduled_at, v.name as venue_name, ta.name as team_a_name, tb.name as team_b_name
+        FROM fixtures f
+        JOIN venues v ON f.venue_id = v.id
+        JOIN teams ta ON f.team_a_id = ta.id
+        JOIN teams tb ON f.team_b_id = tb.id
+        WHERE f.organization_id = $1
+          AND f.id != $2
+          AND f.status NOT IN ('completed', 'cancelled')
+          AND (f.venue_id = $3 OR f.team_a_id IN ($4, $5) OR f.team_b_id IN ($4, $5))
+          AND f.scheduled_at < ($6::timestamptz + ($7::int * interval '1 minute'))
+          AND (f.scheduled_at + (COALESCE(f.duration_minutes, 30)::int * interval '1 minute')) > $6::timestamptz
+        LIMIT 1
+      `, [req.orgId, fixtureId, targetVenueId, current.team_a_id, current.team_b_id, targetTime, targetDur]);
+
+      if (conflictRes.rows.length > 0) {
+        const c = conflictRes.rows[0];
+        return res.status(409).json({
+          error: `Schedule conflict: ${c.venue_name} or teams already have fixture "${c.round || 'Match'}" (${c.team_a_name} vs ${c.team_b_name}) at this time.`,
+          code: 'SCHEDULE_CONFLICT',
+          conflict: c
+        });
+      }
+    }
+
+    const updateRes = await query(`
+      UPDATE fixtures
+      SET venue_id = $1, scheduled_at = $2, duration_minutes = $3, round = $4, notes = $5, status = $6, updated_at = NOW()
+      WHERE id = $7 AND organization_id = $8
+      RETURNING *
+    `, [targetVenueId, targetTime, targetDur, targetRound, targetNotes, targetStatus, fixtureId, req.orgId]);
+
+    // Fetch full details
+    const fullRes = await query(`
+      SELECT f.id, f.organization_id, f.sport_id, f.venue_id, f.scheduled_at, f.duration_minutes, f.status,
+        f.round, f.team_a_id, f.team_b_id,
+        a.name as team_a_name, a.code as team_a_code, a.color as team_a_color, a.logo_url as team_a_logo,
+        b.name as team_b_name, b.code as team_b_code, b.color as team_b_color, b.logo_url as team_b_logo,
+        f.score_a, f.score_b, f.winner_id, f.notes, f.created_at, f.updated_at,
+        v.name as venue_name, s.name as sport_name, s.scoring_type as scoring_type
+      FROM fixtures f
+      JOIN teams a ON f.team_a_id = a.id
+      JOIN teams b ON f.team_b_id = b.id
+      JOIN venues v ON f.venue_id = v.id
+      JOIN sports s ON f.sport_id = s.id
+      WHERE f.id = $1
+    `, [fixtureId]);
+
+    const updated = fullRes.rows[0];
+
+    if (req.io) {
+      req.io.to(`tenant-${req.orgId}`).emit('fixture-updated', updated);
+      req.io.to(`tenant-${req.orgId}`).emit('score-updated', { fixtureId: updated.id, status: updated.status });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/fixtures/:id (Scorekeeper/Admin)
 router.delete('/:id', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
   try {

@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { useFixtures, useUpdateScore, useSettings, useDeleteFixture } from '../hooks/useFixtures.js';
+import { useState, useEffect } from 'react';
+import { useFixtures, useUpdateScore, useSettings, useDeleteFixture, useUpdateFixtureStatus, useUpdateLiveScore } from '../hooks/useFixtures.js';
 import { useLineups } from '../hooks/usePlayers.js';
 import SportTag from '../components/SportTag.jsx';
 import TeamPill from '../components/TeamPill.jsx';
 import MatchTimerControl from '../components/MatchTimerControl.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { Target, ShieldAlert, Award, Check, Trash2 } from 'lucide-react';
+import { Target, ShieldAlert, Award, Check, Trash2, Radio, Play, Pause, Plus, Minus } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext.jsx';
 
 export default function LiveScores() {
@@ -23,14 +23,19 @@ export default function LiveScores() {
       )]
     : ['All'];
 
+  const activeFixturesCount = fixtures?.filter(f => (f.status === 'upcoming' || f.status === 'live' || f.status === 'in_progress') && f.scoring_type !== 'placement').length || 0;
+  const liveCount = fixtures?.filter(f => (f.status === 'live' || f.status === 'in_progress') && f.scoring_type !== 'placement').length || 0;
+  const completedCount = fixtures?.filter(f => (f.status === 'completed' || f.status === 'draw') && f.scoring_type !== 'placement').length || 0;
+
   const filteredFixtures = fixtures?.filter(f => {
     // Exclude placement-based sports (Athletics and Novelty) from live match cards
     const isPlacement = f.scoring_type === 'placement';
     if (isPlacement) return false;
     
     // Status filter
+    const isLive = f.status === 'live' || f.status === 'in_progress';
     const statusMatch = statusFilter === 'upcoming' 
-      ? f.status === 'upcoming' 
+      ? (f.status === 'upcoming' || isLive)
       : (f.status === 'completed' || f.status === 'draw');
       
     if (!statusMatch) return false;
@@ -48,12 +53,18 @@ export default function LiveScores() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
-        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-          {isAuthenticated 
-            ? "Log points and manage active match timers in real time."
-            : "Sign in via Official Access to update scores and log player points."}
-        </p>
-        <button className="k-btn text-xs shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700" onClick={() => window.location.reload()}>Refresh List</button>
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Radio className="text-rose-500 animate-pulse" />
+            Live Match Control & Scoring
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+            {isAuthenticated 
+              ? "Log points, start live broadcasts, and manage active match clocks in real time."
+              : "Sign in via Official Access to update scores and log player points."}
+          </p>
+        </div>
+        <button className="k-btn text-xs shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750" onClick={() => window.location.reload()}>Refresh List</button>
       </div>
 
       <div className="flex flex-col gap-4 mb-6 border-b border-gray-100 dark:border-gray-850 pb-4">
@@ -64,26 +75,31 @@ export default function LiveScores() {
               setStatusFilter('upcoming');
               setSportFilter('All');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
               statusFilter === 'upcoming'
                 ? 'bg-blue-600 text-white dark:bg-white dark:text-gray-900 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}
           >
-            Active & Upcoming ({fixtures?.filter(f => f.status === 'upcoming' && f.scoring_type !== 'placement').length || 0})
+            <span>Active & Upcoming ({activeFixturesCount})</span>
+            {liveCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
+                🔴 {liveCount} LIVE
+              </span>
+            )}
           </button>
           <button
             onClick={() => {
               setStatusFilter('completed');
               setSportFilter('All');
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               statusFilter === 'completed'
                 ? 'bg-blue-600 text-white dark:bg-white dark:text-gray-900 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}
           >
-            Completed & Draws ({fixtures?.filter(f => (f.status === 'completed' || f.status === 'draw') && f.scoring_type !== 'placement').length || 0})
+            Completed & Draws ({completedCount})
           </button>
         </div>
 
@@ -133,12 +149,23 @@ export default function LiveScores() {
 
 function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
   const updateScore = useUpdateScore();
+  const updateLiveScore = useUpdateLiveScore();
+  const updateFixtureStatus = useUpdateFixtureStatus();
   const deleteFixture = useDeleteFixture();
   const { showToast } = useToast();
   
   // Local score states for input bindings
-  const [scoreA, setScoreA] = useState(fixture.score_a || 0);
-  const [scoreB, setScoreB] = useState(fixture.score_b || 0);
+  const [scoreA, setScoreA] = useState(fixture.score_a !== null ? fixture.score_a : 0);
+  const [scoreB, setScoreB] = useState(fixture.score_b !== null ? fixture.score_b : 0);
+
+  // Sync state if fixture changes from websocket
+  useEffect(() => {
+    if (fixture.score_a !== null) setScoreA(fixture.score_a);
+    if (fixture.score_b !== null) setScoreB(fixture.score_b);
+  }, [fixture.score_a, fixture.score_b]);
+
+  const isLive = fixture.status === 'live' || fixture.status === 'in_progress';
+  const isFinal = fixture.status === 'completed' || fixture.status === 'draw';
   
   // Selected player for points logging
   const [selectedPlayerA, setSelectedPlayerA] = useState('');
@@ -153,21 +180,59 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
   const activePlayersA = lineup?.filter(l => l.team_id === fixture.team_a_id) || [];
   const activePlayersB = lineup?.filter(l => l.team_id === fixture.team_b_id) || [];
 
-  const handleSaveResult = () => {
+  const handleToggleLiveStatus = (newStatus) => {
     setSaveStatus('saving');
-    updateScore.mutate({
+    updateFixtureStatus.mutate({ id: fixture.id, status: newStatus }, {
+      onSuccess: () => {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus(null), 2500);
+        showToast(`Match status updated to ${newStatus.toUpperCase()}!`, 'success');
+      },
+      onError: (err) => {
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus(null), 3000);
+        alert('Failed to update status: ' + err.message);
+      }
+    });
+  };
+
+  const handleBroadcastLive = () => {
+    setSaveStatus('saving');
+    updateLiveScore.mutate({
       id: fixture.id,
       score_a: scoreA,
       score_b: scoreB
     }, {
       onSuccess: () => {
         setSaveStatus('saved');
-        setTimeout(() => setSaveStatus(null), 3000);
-        showToast('Score saved successfully!', 'success');
+        setTimeout(() => setSaveStatus(null), 2500);
+        showToast('Live score broadcasted to screens & fans!', 'success');
       },
-      onError: () => {
+      onError: (err) => {
         setSaveStatus('error');
         setTimeout(() => setSaveStatus(null), 3000);
+        alert('Failed to broadcast score: ' + err.message);
+      }
+    });
+  };
+
+  const handleSaveResult = () => {
+    setSaveStatus('saving');
+    updateScore.mutate({
+      id: fixture.id,
+      score_a: scoreA,
+      score_b: scoreB,
+      is_final: true
+    }, {
+      onSuccess: () => {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus(null), 3000);
+        showToast('Final score saved and verified!', 'success');
+      },
+      onError: (err) => {
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus(null), 3000);
+        alert('Failed to save final score: ' + err.message);
       }
     });
   };
@@ -188,7 +253,7 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
 
     // Save updated score + attribute points to player
     setSaveStatus('saving');
-    updateScore.mutate({
+    updateLiveScore.mutate({
       id: fixture.id,
       score_a: newScoreA,
       score_b: newScoreB,
@@ -200,7 +265,7 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
         setTimeout(() => setSaveStatus(null), 3000);
         showToast('Points logged for player!', 'success');
       },
-      onError: () => {
+      onError: (err) => {
         setSaveStatus('error');
         setTimeout(() => setSaveStatus(null), 3000);
       }
@@ -234,20 +299,57 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
   };
 
   return (
-    <div className="k-card p-4 space-y-4">
+    <div className={`k-card p-4 space-y-4 transition-all ${
+      isLive ? 'border-rose-500/60 dark:border-rose-500/50 shadow-md shadow-rose-500/5 ring-1 ring-rose-500/30 bg-rose-50/10 dark:bg-rose-950/10' : ''
+    }`}>
       <div className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-2">
           <SportTag sport={fixture.sport_name} />
+          {isLive && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-500 text-white animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-white" />
+              LIVE IN PLAY
+            </span>
+          )}
           {fixture.status === 'completed' && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-500/10 text-green-600 dark:text-green-400 animate-in fade-in zoom-in-95 duration-150">Completed</span>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-500/10 text-green-600 dark:text-green-400">Completed</span>
           )}
           {fixture.status === 'draw' && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-500/10 text-orange-600 dark:text-orange-400 animate-in fade-in zoom-in-95 duration-150">Draw</span>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-500/10 text-orange-600 dark:text-orange-400">Draw</span>
+          )}
+          {fixture.round && (
+            <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
+              {fixture.round}
+            </span>
           )}
         </div>
-        <span className="text-xs text-gray-400 font-mono">
-          {(fixture.time || (fixture.scheduled_at?.includes('Z') ? new Date(fixture.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : fixture.scheduled_at?.slice(11, 16))) || ''} · {fixture.venue_name}
-        </span>
+        <div className="flex items-center gap-2">
+          {isAuthenticated && (
+            !isFinal && (
+              isLive ? (
+                <button
+                  onClick={() => handleToggleLiveStatus('upcoming')}
+                  className="px-2 py-0.5 text-[10px] font-bold rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors cursor-pointer"
+                  title="Pause match / set status back to upcoming"
+                >
+                  Set Upcoming
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleToggleLiveStatus('live')}
+                  className="px-2.5 py-1 text-[11px] font-black rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                  title="Start match and notify spectators that match is live"
+                >
+                  <Play size={10} className="fill-white" />
+                  <span>KICK OFF (GO LIVE)</span>
+                </button>
+              )
+            )
+          )}
+          <span className="text-xs text-gray-400 font-mono">
+            {(fixture.time || (fixture.scheduled_at?.includes('Z') ? new Date(fixture.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : fixture.scheduled_at?.slice(11, 16))) || ''} · {fixture.venue_name}
+          </span>
+        </div>
       </div>
 
       {saveStatus && (
@@ -260,9 +362,9 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
           {saveStatus === 'saving' && <span className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />}
           {saveStatus === 'error' && <ShieldAlert size={14} />}
           <span>
-            {saveStatus === 'saved' ? 'Score saved successfully!' :
-             saveStatus === 'saving' ? 'Saving score...' :
-             'Failed to save score. Please try again.'}
+            {saveStatus === 'saved' ? 'Score updated successfully!' :
+             saveStatus === 'saving' ? 'Updating match...' :
+             'Failed to update match. Please try again.'}
           </span>
         </div>
       )}
@@ -272,12 +374,44 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
         <div className="text-center flex flex-col items-center flex-1">
           <TeamPill code={fixture.team_a_code} name={fixture.team_a_name} logoUrl={fixture.team_a_logo} />
           {isAuthenticated ? (
-            <input
-              type="number"
-              className="k-score-input mt-2"
-              value={scoreA}
-              onChange={(e) => setScoreA(parseInt(e.target.value) || 0)}
-            />
+            <div className="flex flex-col items-center gap-1.5 mt-2">
+              <input
+                type="number"
+                className="k-score-input text-center text-2xl font-bold"
+                value={scoreA}
+                onChange={(e) => setScoreA(parseInt(e.target.value, 10) || 0)}
+              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setScoreA(s => Math.max(0, s - 1))}
+                  className="w-7 h-6 flex items-center justify-center bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded text-xs font-bold text-gray-600 dark:text-gray-300 cursor-pointer"
+                >
+                  -1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScoreA(s => s + 1)}
+                  className="w-7 h-6 flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 rounded text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer"
+                >
+                  +1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScoreA(s => s + 2)}
+                  className="w-7 h-6 flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 rounded text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer"
+                >
+                  +2
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScoreA(s => s + 3)}
+                  className="w-7 h-6 flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 rounded text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer"
+                >
+                  +3
+                </button>
+              </div>
+            </div>
           ) : (
             <span className="text-3xl font-extrabold mt-2 tabular-nums">{fixture.score_a !== null ? fixture.score_a : '—'}</span>
           )}
@@ -289,12 +423,44 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
         <div className="text-center flex flex-col items-center flex-1">
           <TeamPill code={fixture.team_b_code} name={fixture.team_b_name} logoUrl={fixture.team_b_logo} />
           {isAuthenticated ? (
-            <input
-              type="number"
-              className="k-score-input mt-2"
-              value={scoreB}
-              onChange={(e) => setScoreB(parseInt(e.target.value) || 0)}
-            />
+            <div className="flex flex-col items-center gap-1.5 mt-2">
+              <input
+                type="number"
+                className="k-score-input text-center text-2xl font-bold"
+                value={scoreB}
+                onChange={(e) => setScoreB(parseInt(e.target.value, 10) || 0)}
+              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setScoreB(s => Math.max(0, s - 1))}
+                  className="w-7 h-6 flex items-center justify-center bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded text-xs font-bold text-gray-600 dark:text-gray-300 cursor-pointer"
+                >
+                  -1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScoreB(s => s + 1)}
+                  className="w-7 h-6 flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 rounded text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer"
+                >
+                  +1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScoreB(s => s + 2)}
+                  className="w-7 h-6 flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 rounded text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer"
+                >
+                  +2
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScoreB(s => s + 3)}
+                  className="w-7 h-6 flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 rounded text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer"
+                >
+                  +3
+                </button>
+              </div>
+            </div>
           ) : (
             <span className="text-3xl font-extrabold mt-2 tabular-nums">{fixture.score_b !== null ? fixture.score_b : '—'}</span>
           )}
@@ -380,19 +546,32 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
 
       {isAuthenticated && (
         <div className="flex flex-wrap gap-2 justify-center pt-2 border-t border-gray-100 dark:border-gray-800/60">
+          {/* If Live, offer quick Broadcast button */}
+          {isLive && (
+            <button
+              className="k-btn bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+              onClick={handleBroadcastLive}
+              title="Broadcast current live score without finishing the game"
+            >
+              <Radio size={12} className="animate-pulse" />
+              <span>Broadcast Live Score</span>
+            </button>
+          )}
+
           <button
-            className="k-btn k-btn-primary text-xs cursor-pointer"
+            className="k-btn k-btn-primary text-xs cursor-pointer font-semibold"
             onClick={handleSaveResult}
           >
-            Save final score
+            {isFinal ? 'Update Final Score' : '🏁 Save Final Score'}
           </button>
+
           <button
             className="k-btn text-xs border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
             onClick={() => {
               setScoreA(0);
               setScoreB(20);
               setSaveStatus('saving');
-              updateScore.mutate({ id: fixture.id, score_a: 0, score_b: 20 }, {
+              updateScore.mutate({ id: fixture.id, score_a: 0, score_b: 20, is_final: true }, {
                 onSuccess: () => {
                   setSaveStatus('saved');
                   setTimeout(() => setSaveStatus(null), 3000);
@@ -413,7 +592,7 @@ function LiveMatchCard({ fixture, isAuthenticated, showLineups }) {
               setScoreA(20);
               setScoreB(0);
               setSaveStatus('saving');
-              updateScore.mutate({ id: fixture.id, score_a: 20, score_b: 0 }, {
+              updateScore.mutate({ id: fixture.id, score_a: 20, score_b: 0, is_final: true }, {
                 onSuccess: () => {
                   setSaveStatus('saved');
                   setTimeout(() => setSaveStatus(null), 3000);
