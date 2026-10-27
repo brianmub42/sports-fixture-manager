@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authMiddleware, requireScorekeeperOrAdmin } from '../middleware/auth.js';
+import { checkTeamQuota } from '../middleware/quota.js';
 
 const router = Router();
 
@@ -14,8 +15,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/teams (Admin only or Scorekeeper)
-router.post('/', authMiddleware, requireScorekeeperOrAdmin, async (req, res) => {
+// POST /api/teams (Admin only or Scorekeeper with Quota Enforcement)
+router.post('/', authMiddleware, requireScorekeeperOrAdmin, checkTeamQuota, async (req, res) => {
   try {
     const { code, name, color } = req.body;
     if (!code || !name) {

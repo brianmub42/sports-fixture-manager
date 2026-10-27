@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
 import { classifySport, SCORING_PARADIGMS } from '../lib/sportClassifier.js';
+import { checkSportQuota } from '../middleware/quota.js';
 
 const router = Router();
 
@@ -39,8 +40,8 @@ router.get('/scoring-paradigms', async (req, res) => {
   res.json(SCORING_PARADIGMS);
 });
 
-// POST /api/sports - Create a new sport (Protected: Admin)
-router.post('/', authMiddleware, requireAdmin, async (req, res) => {
+// POST /api/sports - Create a new sport (Protected: Admin with Quota Enforcement)
+router.post('/', authMiddleware, requireAdmin, checkSportQuota, async (req, res) => {
   try {
     const { name, scoring_type, scoring_system, scoring_rules, win_points, draw_points } = req.body;
     if (!name || !name.trim()) {

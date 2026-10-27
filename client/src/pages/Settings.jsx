@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSettings, useUpdateSettings, useResetDatabase, useVenues, useCreateVenue, useDeleteVenue, useSports, useCreateSport, useDeleteSport } from '../hooks/useFixtures.js';
-import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff, CreditCard, Megaphone, HelpCircle, BookOpen, Trophy } from 'lucide-react';
+import { Settings as SettingsIcon, Save, RefreshCw, AlertTriangle, ShieldAlert, Plus, Trash2, Star, ExternalLink, Users, MapPin, Award, Eye, EyeOff, CreditCard, Megaphone, HelpCircle, BookOpen, Trophy, HardDrive } from 'lucide-react';
 import ScoringFormatsModal from '../components/ScoringFormatsModal.jsx';
 import CreateTournamentModal from '../components/CreateTournamentModal.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
-import { settingsApi, authApi, uploadApi } from '../api.js';
+import { settingsApi, authApi, uploadApi, organizationsApi } from '../api.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../contexts/ToastContext.jsx';
 
@@ -80,6 +80,13 @@ export default function Settings() {
   const [billingInvoiceSuccess, setBillingInvoiceSuccess] = useState(false);
   const [billingPopSuccess, setBillingPopSuccess] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
+
+  // Workspace Resource Quota & Usage
+  const { data: quotaStats, isLoading: loadingQuota } = useQuery({
+    queryKey: ['workspace_quota', currentOrgSlug],
+    queryFn: () => organizationsApi.getQuota().then(r => r.data),
+    enabled: Boolean(currentOrgSlug)
+  });
 
   // Team Management State
   const { data: teamUsers, isLoading: loadingUsers } = useQuery({
@@ -1743,6 +1750,115 @@ Please log in to manage fixtures and scores.`}
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Workspace Resource Quota Meter */}
+              <div className="k-card">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <HardDrive size={18} className="text-indigo-500" />
+                    <h2 className="text-lg font-semibold">Workspace Resource Quotas</h2>
+                  </div>
+                  {quotaStats?.organization?.maintenance_mode && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 flex items-center gap-1">
+                      <AlertTriangle size={12} /> Maintenance Mode
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  Real-time resource utilization and limits enforced by platform governance.
+                </p>
+
+                {loadingQuota ? (
+                  <div className="flex items-center justify-center py-6 text-xs text-gray-400">
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                    Loading workspace quotas...
+                  </div>
+                ) : quotaStats ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Teams Quota */}
+                    <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">
+                          <span className="flex items-center gap-1.5"><Users size={14} className="text-blue-500" /> Teams</span>
+                          <span className="font-mono text-slate-800 dark:text-slate-200 font-bold">{quotaStats.teams.current} / {quotaStats.teams.limit}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 mt-2 overflow-hidden">
+                          <div
+                            className={`h-2 rounded-full transition-all duration-500 ${
+                              quotaStats.teams.percentage >= 100
+                                ? 'bg-red-500'
+                                : quotaStats.teams.percentage >= 80
+                                ? 'bg-amber-500'
+                                : 'bg-blue-600'
+                            }`}
+                            style={{ width: `${Math.min(100, quotaStats.teams.percentage)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 text-[11px] text-gray-400 flex justify-between items-center">
+                        <span>{quotaStats.teams.percentage}% allocated</span>
+                        {quotaStats.teams.isExceeded && (
+                          <span className="text-red-500 font-bold">Quota Maxed</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Sports Quota */}
+                    <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">
+                          <span className="flex items-center gap-1.5"><Award size={14} className="text-indigo-500" /> Disciplines</span>
+                          <span className="font-mono text-slate-800 dark:text-slate-200 font-bold">{quotaStats.sports.current} / {quotaStats.sports.limit}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 mt-2 overflow-hidden">
+                          <div
+                            className={`h-2 rounded-full transition-all duration-500 ${
+                              quotaStats.sports.percentage >= 100
+                                ? 'bg-red-500'
+                                : quotaStats.sports.percentage >= 80
+                                ? 'bg-amber-500'
+                                : 'bg-indigo-600'
+                            }`}
+                            style={{ width: `${Math.min(100, quotaStats.sports.percentage)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 text-[11px] text-gray-400 flex justify-between items-center">
+                        <span>{quotaStats.sports.percentage}% allocated</span>
+                        {quotaStats.sports.isExceeded && (
+                          <span className="text-red-500 font-bold">Quota Maxed</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Media Storage Quota */}
+                    <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">
+                          <span className="flex items-center gap-1.5"><HardDrive size={14} className="text-emerald-500" /> Media Storage</span>
+                          <span className="font-mono text-slate-800 dark:text-slate-200 font-bold">{quotaStats.storage.usedMb} / {quotaStats.storage.limitMb} MB</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 mt-2 overflow-hidden">
+                          <div
+                            className={`h-2 rounded-full transition-all duration-500 ${
+                              quotaStats.storage.percentage >= 100
+                                ? 'bg-red-500'
+                                : quotaStats.storage.percentage >= 80
+                                ? 'bg-amber-500'
+                                : 'bg-emerald-600'
+                            }`}
+                            style={{ width: `${Math.min(100, quotaStats.storage.percentage)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 text-[11px] text-gray-400 flex justify-between items-center">
+                        <span>{quotaStats.storage.fileCount} media asset{quotaStats.storage.fileCount !== 1 ? 's' : ''}</span>
+                        <span>{quotaStats.storage.percentage}% used</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* Offline Invoice Request Form */}

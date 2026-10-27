@@ -169,6 +169,7 @@ export const sportsApi = {
 export const organizationsApi = {
   getAll: () => api.get('/organizations'),
   getMyTournaments: () => api.get('/organizations/my-tournaments'),
+  getQuota: () => api.get('/organizations/current/quota'),
   create: (data) => api.post('/organizations', data),
   createTournament: (data) => api.post('/organizations/create-tournament', data),
 };

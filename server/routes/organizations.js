@@ -2,6 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { query } from '../db.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
+import { getWorkspaceQuotaStats } from '../middleware/quota.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'kalife-2026-secret-key-change-in-production';
@@ -214,6 +215,22 @@ router.post('/create-tournament', authMiddleware, requireAdmin, async (req, res)
   }
 });
 
+// GET /api/organizations/current/quota (Returns workspace resource quotas and usage)
+router.get('/current/quota', async (req, res) => {
+  try {
+    if (!req.orgId) {
+      return res.status(400).json({ error: 'No workspace resolved' });
+    }
+    const stats = await getWorkspaceQuotaStats(req.orgId);
+    if (!stats) {
+      return res.status(404).json({ error: 'Workspace not found' });
+    }
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/organizations (Public creation of first or standalone workspace)
 router.post('/', async (req, res) => {
   try {
@@ -221,6 +238,17 @@ router.post('/', async (req, res) => {
     if (!name || !creator_email) {
       return res.status(400).json({ error: 'Organization name and creator email are required' });
     }
+
+    // Check if public registration is enabled in platform settings
+    try {
+      const regRes = await query("SELECT value FROM platform_settings WHERE key = 'allow_public_registration'");
+      if (regRes.rows.length > 0 && regRes.rows[0].value === 'false') {
+        return res.status(403).json({
+          error: 'New workspace registration is currently disabled by platform administrators. Please contact support.',
+          code: 'REGISTRATION_DISABLED'
+        });
+      }
+    } catch {}
 
     const cleanEmail = creator_email.trim().toLowerCase();
 
@@ -236,14 +264,27 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Determine default trial duration from platform settings
+    let trialDays = 14;
+    try {
+      const trialRes = await query("SELECT value FROM platform_settings WHERE key = 'default_trial_days'");
+      if (trialRes.rows.length > 0 && trialRes.rows[0].value) {
+        trialDays = parseInt(trialRes.rows[0].value, 10) || 14;
+      }
+    } catch {}
+
     // Generate unique slug
     const slug = await generateUniqueSlug(name);
 
-    // Create organization
-    const orgRes = await query(
-      'INSERT INTO organizations (name, slug, event_title, creator_email) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, slug, event_title || 'Championship', cleanEmail]
-    );
+    // Create organization with trial expiration
+    const orgRes = await query(`
+      INSERT INTO organizations (
+        name, slug, event_title, creator_email, 
+        subscription_status, term_expires_at, 
+        max_teams, max_sports, storage_quota_mb
+      ) VALUES ($1, $2, $3, $4, 'active', NOW() + ($5 * INTERVAL '1 day'), 20, 10, 500)
+      RETURNING *
+    `, [name, slug, event_title || 'Championship', cleanEmail, trialDays]);
     const org = orgRes.rows[0];
 
     // Seed default settings for this organization

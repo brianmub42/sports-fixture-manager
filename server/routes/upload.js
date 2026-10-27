@@ -6,6 +6,7 @@ import { authMiddleware, requireAdmin, requireMediaOrAdmin } from '../middleware
 import { sendPopUploadNotification } from '../lib/email.js';
 import { classifySport, classifyVenue } from '../lib/sportClassifier.js';
 import { parseSafeLocalDate } from '../lib/scheduler.js';
+import { checkStorageQuota } from '../middleware/quota.js';
 
 const router = Router();
 const upload = multer({ dest: 'uploads/' });
@@ -201,7 +202,7 @@ router.post('/fixtures', authMiddleware, upload.single('file'), async (req, res)
 });
 
 // POST /api/upload/logo
-router.post('/logo', authMiddleware, requireAdmin, upload.single('logo'), async (req, res) => {
+router.post('/logo', authMiddleware, requireAdmin, upload.single('logo'), checkStorageQuota, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No logo uploaded' });
     const { teamCode, districtCode } = req.body;
@@ -226,7 +227,7 @@ router.post('/logo', authMiddleware, requireAdmin, upload.single('logo'), async 
 });
 
 // POST /api/upload/pop
-router.post('/pop', authMiddleware, requireAdmin, upload.single('pop'), async (req, res) => {
+router.post('/pop', authMiddleware, requireAdmin, upload.single('pop'), checkStorageQuota, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No proof of payment file uploaded' });
 
@@ -258,7 +259,7 @@ router.post('/pop', authMiddleware, requireAdmin, upload.single('pop'), async (r
 });
 
 // POST /api/upload/sponsor-logo (Admin or Media Manager)
-router.post('/sponsor-logo', authMiddleware, requireMediaOrAdmin, upload.single('sponsorLogo'), async (req, res) => {
+router.post('/sponsor-logo', authMiddleware, requireMediaOrAdmin, upload.single('sponsorLogo'), checkStorageQuota, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No logo file uploaded' });
     const logoUrl = `/uploads/${req.file.filename}`;
@@ -269,7 +270,7 @@ router.post('/sponsor-logo', authMiddleware, requireMediaOrAdmin, upload.single(
 });
 
 // POST /api/upload/advert-banner (Admin or Media Manager)
-router.post('/advert-banner', authMiddleware, requireMediaOrAdmin, upload.single('banner'), async (req, res) => {
+router.post('/advert-banner', authMiddleware, requireMediaOrAdmin, upload.single('banner'), checkStorageQuota, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No banner image uploaded' });
     const bannerUrl = `/uploads/${req.file.filename}`;
@@ -280,7 +281,7 @@ router.post('/advert-banner', authMiddleware, requireMediaOrAdmin, upload.single
 });
 
 // POST /api/upload/feed-media (Admin or Media Manager)
-router.post('/feed-media', authMiddleware, requireMediaOrAdmin, upload.single('media'), async (req, res) => {
+router.post('/feed-media', authMiddleware, requireMediaOrAdmin, upload.single('media'), checkStorageQuota, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No media file uploaded' });
     const mediaUrl = `/uploads/${req.file.filename}`;

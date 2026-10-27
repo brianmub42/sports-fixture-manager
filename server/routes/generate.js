@@ -148,6 +148,20 @@ router.post('/', authMiddleware, async (req, res) => {
     // Get sport ID (auto-create missing with auto-detected ruleset)
     let sportRes = await query('SELECT id, win_points, draw_points, scoring_type, scoring_system, scoring_rules FROM sports WHERE name = $1 AND organization_id = $2', [sport, req.orgId]);
     if (sportRes.rows.length === 0) {
+      if (req.user?.role !== 'superadmin') {
+        const maxSports = req.orgInfo?.max_sports || 10;
+        const countRes = await query('SELECT COUNT(*)::int as count FROM sports WHERE organization_id = $1', [req.orgId]);
+        const currentCount = countRes.rows[0]?.count || 0;
+        if (currentCount >= maxSports) {
+          return res.status(403).json({
+            error: `Workspace sport quota reached (${currentCount}/${maxSports} sports). Upgrade quota in Superadmin to add new sport "${sport}".`,
+            code: 'QUOTA_EXCEEDED_SPORTS',
+            limit: maxSports,
+            current: currentCount
+          });
+        }
+      }
+
       const profile = classifySport(sport);
       sportRes = await query(
         "INSERT INTO sports (organization_id, name, scoring_type, scoring_system, scoring_rules, win_points, draw_points) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, win_points, draw_points, scoring_type, scoring_system, scoring_rules",
@@ -310,6 +324,37 @@ router.post('/', authMiddleware, async (req, res) => {
     // Resolve all input team names/codes to team database objects (creating them if missing)
     const teamMap = {}; // Maps input string -> team object
     const allTeamInputs = groups ? groups.flat() : teams;
+
+    // Check team quota before auto-creating teams
+    if (req.user?.role !== 'superadmin') {
+      const maxTeams = req.orgInfo?.max_teams || 20;
+      const currentRes = await query('SELECT COUNT(*)::int as count FROM teams WHERE organization_id = $1', [req.orgId]);
+      const currentCount = currentRes.rows[0]?.count || 0;
+
+      let newTeamsCount = 0;
+      for (const input of allTeamInputs) {
+        const cleanId = (input || '').trim();
+        if (!cleanId) continue;
+        const existsRes = await query(
+          'SELECT id FROM teams WHERE (UPPER(code) = $1 OR UPPER(name) = $2) AND organization_id = $3',
+          [cleanId.toUpperCase(), cleanId.toUpperCase(), req.orgId]
+        );
+        if (existsRes.rows.length === 0) {
+          newTeamsCount++;
+        }
+      }
+
+      if (currentCount + newTeamsCount > maxTeams) {
+        return res.status(403).json({
+          error: `Generating this schedule would exceed your workspace team limit. Currently have ${currentCount} teams, attempting to create ${newTeamsCount} new teams (limit: ${maxTeams}).`,
+          code: 'QUOTA_EXCEEDED_TEAMS',
+          limit: maxTeams,
+          current: currentCount,
+          required: currentCount + newTeamsCount
+        });
+      }
+    }
+
     for (const input of allTeamInputs) {
       const teamObj = await getOrCreateTeam(req.orgId, input);
       teamMap[input] = teamObj;

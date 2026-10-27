@@ -23,6 +23,7 @@ import superadminRoutes from './routes/superadmin.js';
 import mediaRoutes from './routes/media.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { billingMiddleware } from './middleware/billing.js';
+import { checkMaintenanceMode } from './middleware/quota.js';
 import { query } from './db.js';
 import publicRoutes from './routes/public.js';
 import pushRoutes from './routes/push.js';
@@ -91,6 +92,7 @@ app.use('/api/public/push', pushRoutes);
 
 app.use(tenantMiddleware);
 app.use(billingMiddleware);
+app.use(checkMaintenanceMode);
 
 // Routes
 app.use('/uploads', express.static('uploads'));

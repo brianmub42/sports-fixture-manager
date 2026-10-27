@@ -9,7 +9,10 @@ export async function tenantMiddleware(req, res, next) {
       if (slugHeader) {
         try {
           const orgRes = await query(
-            'SELECT id, name, slug, event_title, creator_email, billing_school_name, billing_address, billing_contact_person, billing_contact_number FROM organizations WHERE slug = $1',
+            `SELECT id, name, slug, event_title, creator_email, subscription_status, term_expires_at, credit_balance,
+                    max_teams, max_sports, storage_quota_mb, custom_domain, is_featured, maintenance_mode,
+                    billing_school_name, billing_address, billing_contact_person, billing_contact_number, created_at
+             FROM organizations WHERE slug = $1`,
             [slugHeader]
           );
           if (orgRes.rows.length > 0) {
@@ -25,7 +28,10 @@ export async function tenantMiddleware(req, res, next) {
     const slug = slugHeader || 'demo-tournament';
 
     const orgRes = await query(
-      'SELECT id, name, slug, event_title, creator_email, billing_school_name, billing_address, billing_contact_person, billing_contact_number FROM organizations WHERE slug = $1',
+      `SELECT id, name, slug, event_title, creator_email, subscription_status, term_expires_at, credit_balance,
+              max_teams, max_sports, storage_quota_mb, custom_domain, is_featured, maintenance_mode,
+              billing_school_name, billing_address, billing_contact_person, billing_contact_number, created_at
+       FROM organizations WHERE slug = $1`,
       [slug]
     );
     if (orgRes.rows.length === 0) {
