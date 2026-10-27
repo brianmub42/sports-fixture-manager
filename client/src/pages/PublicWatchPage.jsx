@@ -986,25 +986,34 @@ export default function PublicWatchPage() {
               <thead>
                 <tr className="bg-slate-950/60 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
                   <th className="py-2.5 px-3 text-left">Place</th>
-                  <th className="py-2.5 px-3 text-left">Team</th>
-                  <th className="py-2.5 px-3 text-right">Time</th>
+                  <th className="py-2.5 px-3 text-left">Team &amp; Competitor</th>
+                  <th className="py-2.5 px-3 text-right">Mark / Time</th>
                   <th className="py-2.5 px-3 text-right">Points</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {latestResult.results?.map((r) => (
-                  <tr key={r.placement} className="hover:bg-slate-800/40">
-                    <td className="py-2 px-3 font-bold text-white">
+                {latestResult.results?.map((r, rIdx) => (
+                  <tr key={`${r.placement || 'P'}-${r.teamId}-${rIdx}`} className="hover:bg-slate-800/40">
+                    <td className="py-2 px-3 font-bold text-white whitespace-nowrap">
                       {r.placement === 1 ? '🥇 1st' : r.placement === 2 ? '🥈 2nd' : r.placement === 3 ? '🥉 3rd' : `#${r.placement}`}
                     </td>
                     <td className="py-2 px-3">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.teamColor || '#64748b' }} />
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: r.teamColor || '#64748b' }} />
                         <span className="font-bold text-white">{r.teamName}</span>
                       </div>
+                      {(r.athleteName || r.athlete_name) && (
+                        <div className="text-[10px] text-slate-400 pl-4 font-normal">
+                          🏃 {r.athleteName || r.athlete_name}
+                        </div>
+                      )}
                     </td>
-                    <td className="py-2 px-3 text-right font-mono text-slate-400">{r.timeFormatted || '—'}</td>
-                    <td className="py-2 px-3 text-right font-black text-amber-400">+{r.points}</td>
+                    <td className="py-2 px-3 text-right font-mono text-slate-400 whitespace-nowrap">
+                      {r.distanceFormatted || r.timeFormatted || '—'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-black text-amber-400 whitespace-nowrap">
+                      +{r.points}
+                    </td>
                   </tr>
                 ))}
               </tbody>

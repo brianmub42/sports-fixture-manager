@@ -285,8 +285,13 @@ function PlacementMedalTable({ standings, eventsList, eventId, onEventChange }) 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {team.event_breakdown.map((eb, idx) => (
                         <div key={idx} className="flex justify-between items-center py-2 px-3 rounded-md bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/50 shadow-sm">
-                          <span className="text-xs text-gray-700 dark:text-gray-300 font-medium">{eb.event_name}</span>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col min-w-0 pr-2">
+                            <span className="text-xs text-gray-700 dark:text-gray-300 font-medium truncate">{eb.event_name}</span>
+                            {eb.athlete_name && (
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400 font-normal truncate">🏃 {eb.athlete_name}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
                             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                               eb.placement === 1 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' :
                               eb.placement === 2 ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' :

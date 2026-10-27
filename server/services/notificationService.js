@@ -317,16 +317,19 @@ export async function notifyPlacementResults({ orgId, orgSlug, eventInfo, result
   for (const r of results) {
     const teamId = r.teamId;
     const teamName = r.teamName || 'Your team';
+    const athlete = r.athleteName || r.athlete_name;
     const placement = r.placement;
     const placementStr = r.status && r.status !== 'OK'
       ? r.status
       : r.tied
       ? `T-${placement === 1 ? '1st' : placement === 2 ? '2nd' : placement === 3 ? '3rd' : `${placement}th`}`
       : placement === 1 ? '1st' : placement === 2 ? '2nd' : placement === 3 ? '3rd' : `${placement}th`;
-    const timeOrPts = r.timeFormatted || (r.points ? `+${r.points} pts` : '');
+    const timeOrPts = r.distanceFormatted || r.timeFormatted || (r.points ? `+${r.points} pts` : '');
 
     const title = `${teamName} — ${eventName} Result`;
-    const body = `${teamName} just finished — ${placementStr} place${timeOrPts ? `, ${timeOrPts}` : ''} in ${eventName}.`;
+    const body = athlete
+      ? `${athlete} (${teamName}) finished ${placementStr} place${timeOrPts ? ` (${timeOrPts})` : ''} in ${eventName}.`
+      : `${teamName} just finished — ${placementStr} place${timeOrPts ? `, ${timeOrPts}` : ''} in ${eventName}.`;
 
     dispatchNotificationToFollowers({
       orgId,

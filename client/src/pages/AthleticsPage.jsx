@@ -595,13 +595,7 @@ export default function AthleticsPage() {
     if (entryMode === 'by_distance') {
       const computedLanes = computeDistancePlacements(lanes, settings?.points_allocation);
 
-      // Verify no duplicate teams assigned
-      const selectedTeamIds = computedLanes.map(l => l.teamId).filter(id => id !== '');
-      const uniqueTeamIds = new Set(selectedTeamIds);
-      if (selectedTeamIds.length !== uniqueTeamIds.size) {
-        alert('A team cannot be selected for multiple positions.');
-        return;
-      }
+      // Multi-position team scoring allowed: cumulative points and medals are credited to the team
 
       // Filter entries with an assigned team and either a valid distance or foul/NM/DNS/DNF/DQ status
       const validEntries = computedLanes.filter(l => l.teamId && (l.hasDistance || ['FOUL', 'NM', 'DNS', 'DNF', 'DQ', 'DSQ', 'FS'].includes(l.status)));
@@ -656,13 +650,7 @@ export default function AthleticsPage() {
     if (entryMode === 'by_time') {
       const computedLanes = computeTimePlacements(lanes, settings?.points_allocation);
 
-      // Verify no duplicate teams assigned
-      const selectedTeamIds = computedLanes.map(l => l.teamId).filter(id => id !== '');
-      const uniqueTeamIds = new Set(selectedTeamIds);
-      if (selectedTeamIds.length !== uniqueTeamIds.size) {
-        alert('A team cannot be selected for multiple lanes.');
-        return;
-      }
+      // Multi-lane team scoring allowed: cumulative points and medals are credited to the team
 
       // Filter entries with an assigned team and either a valid time or DNS/DNF/DQ/DSQ/FS status
       const validEntries = computedLanes.filter(l => l.teamId && (l.hasTime || ['DNS', 'DNF', 'DQ', 'DSQ', 'FS'].includes(l.status)));
@@ -720,12 +708,7 @@ export default function AthleticsPage() {
       return;
     }
 
-    const selectedTeamIds = placements.map(p => p.teamId).filter(id => id !== '');
-    const uniqueTeamIds = new Set(selectedTeamIds);
-    if (selectedTeamIds.length !== uniqueTeamIds.size) {
-      alert('A team cannot be selected for multiple placements.');
-      return;
-    }
+    // Multi-position team scoring allowed: cumulative points and medals are credited to the team
 
     const unconfiguredPlacements = [];
     placements.forEach((p, idx) => {
@@ -1069,17 +1052,58 @@ export default function AthleticsPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase">Category*</label>
-                  <select
+                  <div className="flex justify-between items-center">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase">Grade / Category*</label>
+                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">Grades &amp; Age Groups</span>
+                  </div>
+                  <input
+                    type="text"
+                    list="category-suggestions"
+                    placeholder="e.g. Grade 3, Form 1, U14, Boys Open"
                     value={eventCategory}
                     onChange={e => setEventCategory(e.target.value)}
-                    className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100"
-                  >
-                    <option value="Men">Men</option>
-                    <option value="Women">Women</option>
-                    <option value="Mixed">Mixed</option>
-                    <option value="U20">U20</option>
-                  </select>
+                    required
+                    className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 text-xs focus:ring-1 focus:ring-purple-500"
+                  />
+                  <datalist id="category-suggestions">
+                    <option value="Grade 1" />
+                    <option value="Grade 2" />
+                    <option value="Grade 3" />
+                    <option value="Grade 4" />
+                    <option value="Grade 5" />
+                    <option value="Grade 6" />
+                    <option value="Grade 7" />
+                    <option value="Grade 8" />
+                    <option value="Grade 9" />
+                    <option value="Grade 10" />
+                    <option value="Grade 11" />
+                    <option value="Grade 12" />
+                    <option value="Form 1" />
+                    <option value="Form 2" />
+                    <option value="Form 3" />
+                    <option value="Form 4" />
+                    <option value="Lower 6" />
+                    <option value="Upper 6" />
+                    <option value="Under 9 (U9)" />
+                    <option value="Under 10 (U10)" />
+                    <option value="Under 11 (U11)" />
+                    <option value="Under 12 (U12)" />
+                    <option value="Under 13 (U13)" />
+                    <option value="Under 14 (U14)" />
+                    <option value="Under 15 (U15)" />
+                    <option value="Under 16 (U16)" />
+                    <option value="Under 17 (U17)" />
+                    <option value="Under 18 (U18)" />
+                    <option value="Under 20 (U20)" />
+                    <option value="Boys" />
+                    <option value="Girls" />
+                    <option value="Mixed" />
+                    <option value="Men" />
+                    <option value="Women" />
+                    <option value="Open" />
+                    <option value="Seniors" />
+                    <option value="Sub-Juniors" />
+                  </datalist>
                 </div>
               </div>
 
@@ -1168,9 +1192,17 @@ export default function AthleticsPage() {
                 <X size={18} />
               </button>
             </div>
-            <p className="text-xs text-gray-400 mb-4 uppercase font-semibold">
+            <p className="text-xs text-gray-400 mb-2 uppercase font-semibold">
               Event: {selectedEventForResults?.name} ({selectedEventForResults?.category})
             </p>
+
+            {/* Multi-Position Scoring Hint */}
+            <div className="mb-3 px-3 py-2 rounded-xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40 text-[11px] text-purple-800 dark:text-purple-300 flex items-start gap-2">
+              <span className="shrink-0 text-sm">💡</span>
+              <p className="leading-relaxed">
+                <span className="font-bold">Multi-Position Team Scoring:</span> The same team or house can occupy multiple positions (e.g. 1st and 2nd). All points and medals accumulate towards the team's standings. Specifying <span className="font-semibold underline">Athlete Names</span> is recommended to distinguish individual competitors.
+              </p>
+            </div>
 
             {/* Mode Switcher: Manual vs By Time vs By Distance */}
             {(() => {

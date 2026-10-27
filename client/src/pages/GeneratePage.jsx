@@ -80,6 +80,14 @@ const GENDER_GROUPS = [
 
 const AGE_GROUPS = [
   {
+    group: 'Primary School Grades',
+    categories: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'ECD / Kindergarten']
+  },
+  {
+    group: 'High School Grades & Forms',
+    categories: ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'Form 1', 'Form 2', 'Form 3', 'Form 4', 'Lower 6', 'Upper 6']
+  },
+  {
     group: 'Junior Age Groups (Primary)',
     categories: ['Under 9 (U9)', 'Under 10 (U10)', 'Under 11 (U11)', 'Under 12 (U12)']
   },
@@ -89,12 +97,15 @@ const AGE_GROUPS = [
   },
   {
     group: 'Divisions & Open',
-    categories: ['Sub-Juniors', 'Juniors', 'Seniors', 'Open']
+    categories: ['Sub-Juniors', 'Juniors', 'Seniors', 'Open', 'Staff / Alumni']
   }
 ];
 
 const STANDARD_GENDERS = ['Boys', 'Girls', 'Mixed', 'Men', 'Women'];
 const STANDARD_AGE_GROUPS = [
+  'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7',
+  'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12',
+  'Form 1', 'Form 2', 'Form 3', 'Form 4', 'Lower 6', 'Upper 6',
   'Under 9 (U9)', 'Under 10 (U10)', 'Under 11 (U11)', 'Under 12 (U12)',
   'Under 13 (U13)', 'Under 14 (U14)', 'Under 15 (U15)', 'Under 16 (U16)',
   'Under 17 (U17)', 'Under 18 (U18)', 'Under 20 (U20)', 'Seniors', 'Open'
@@ -225,6 +236,12 @@ function EventAgeGroupManager({ events, eventConfigs, onChange }) {
       nextAges = ['Under 9 (U9)', 'Under 10 (U10)', 'Under 11 (U11)', 'Under 12 (U12)'];
     } else if (preset === 'seniors') {
       nextAges = ['Under 13 (U13)', 'Under 14 (U14)', 'Under 15 (U15)', 'Under 16 (U16)', 'Under 17 (U17)'];
+    } else if (preset === 'grades-primary') {
+      nextAges = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7'];
+    } else if (preset === 'forms-highschool') {
+      nextAges = ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Lower 6', 'Upper 6'];
+    } else if (preset === 'grades-highschool') {
+      nextAges = ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
     } else if (preset === 'all') {
       nextAges = [...STANDARD_AGE_GROUPS];
     } else if (preset === 'none') {
@@ -444,6 +461,27 @@ function EventAgeGroupManager({ events, eventConfigs, onChange }) {
                   </span>
                   <div className="flex items-center gap-1 text-[10px]">
                     <span className="text-gray-400">Presets:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSetAgePreset(eventName, 'grades-primary')}
+                      className="px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-semibold cursor-pointer"
+                    >
+                      Grades 1-7
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetAgePreset(eventName, 'forms-highschool')}
+                      className="px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 font-semibold cursor-pointer"
+                    >
+                      Forms 1-6
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetAgePreset(eventName, 'grades-highschool')}
+                      className="px-1.5 py-0.5 rounded border border-cyan-200 dark:border-cyan-800/60 bg-cyan-50/50 dark:bg-cyan-950/20 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 font-semibold cursor-pointer"
+                    >
+                      Grades 8-12
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleSetAgePreset(eventName, 'u9-u10')}
@@ -730,6 +768,9 @@ function EventQueueBuilder({ queue, onQueueChange, sportName }) {
     if (preset === 'u9-u10') nextA = ['Under 9 (U9)', 'Under 10 (U10)'];
     else if (preset === 'juniors') nextA = ['Under 9 (U9)', 'Under 10 (U10)', 'Under 11 (U11)', 'Under 12 (U12)'];
     else if (preset === 'seniors') nextA = ['Under 13 (U13)', 'Under 14 (U14)', 'Under 15 (U15)', 'Under 16 (U16)', 'Under 17 (U17)'];
+    else if (preset === 'grades-primary') nextA = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7'];
+    else if (preset === 'forms-highschool') nextA = ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Lower 6', 'Upper 6'];
+    else if (preset === 'grades-highschool') nextA = ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
     else if (preset === 'all') nextA = [...STANDARD_AGE_GROUPS];
     const nextC = genders.flatMap(g => nextA.map(a => `${g} ${a}`));
     updateItem(idx, { ageGroups: nextA, categories: nextC });
@@ -1017,6 +1058,9 @@ function EventQueueBuilder({ queue, onQueueChange, sportName }) {
                         <span className="font-bold text-gray-600 dark:text-gray-300">🎂 Age Groups:</span>
                         <div className="flex items-center gap-1 text-[10px]">
                           <span className="text-gray-400">Quick:</span>
+                          <button type="button" onClick={() => setAgePreset(idx, 'grades-primary')} className="px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-semibold cursor-pointer">Grades 1–7</button>
+                          <button type="button" onClick={() => setAgePreset(idx, 'forms-highschool')} className="px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 font-semibold cursor-pointer">Forms 1–6</button>
+                          <button type="button" onClick={() => setAgePreset(idx, 'grades-highschool')} className="px-1.5 py-0.5 rounded border border-cyan-200 dark:border-cyan-800/60 bg-cyan-50/50 dark:bg-cyan-950/20 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 font-semibold cursor-pointer">Grades 8–12</button>
                           <button type="button" onClick={() => setAgePreset(idx, 'u9-u10')} className="px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-semibold cursor-pointer">U9 &amp; U10</button>
                           <button type="button" onClick={() => setAgePreset(idx, 'juniors')} className="px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-semibold cursor-pointer">U9–U12</button>
                           <button type="button" onClick={() => setAgePreset(idx, 'seniors')} className="px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-semibold cursor-pointer">U13–U17</button>

@@ -163,11 +163,12 @@ router.get('/', async (req, res) => {
           ar.team_id,
           ae.name as event_name,
           ar.placement,
-          ar.points
+          ar.points,
+          ar.athlete_name
         FROM athletics_results ar
         JOIN athletics_events ae ON ar.event_id = ae.id
         WHERE ae.sport_id = $1 AND ae.organization_id = $2 AND ae.status = 'completed'
-        ORDER BY ae.name ASC
+        ORDER BY ae.name ASC, ar.placement ASC
       `, [sportRow.id, req.orgId]);
 
       const breakdownMap = {};
@@ -178,7 +179,8 @@ router.get('/', async (req, res) => {
         breakdownMap[row.team_id].push({
           event_name: row.event_name,
           placement: row.placement,
-          points: row.points
+          points: row.points,
+          athlete_name: row.athlete_name
         });
       });
 
