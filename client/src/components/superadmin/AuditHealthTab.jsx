@@ -86,7 +86,7 @@ export default function AuditHealthTab() {
             {formatUptime(health?.uptime_seconds)}
           </p>
           <span className="text-[10px] text-slate-400 mt-0.5 block">
-            Node {health?.node_version || process.version}
+            Node {health?.node_version || 'Runtime'}
           </span>
         </div>
 

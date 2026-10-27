@@ -1,24 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, Building, ShieldAlert } from 'lucide-react';
 
 export default function EditTenantModal({ tenant, isOpen, onClose, onSave, isSaving }) {
   if (!isOpen || !tenant) return null;
 
   const [form, setForm] = useState({
-    name: tenant.name || '',
-    event_title: tenant.event_title || '',
-    slug: tenant.slug || '',
-    creator_email: tenant.creator_email || '',
-    max_teams: tenant.max_teams || 20,
-    max_sports: tenant.max_sports || 10,
-    storage_quota_mb: tenant.storage_quota_mb || 500,
-    custom_domain: tenant.custom_domain || '',
-    billing_school_name: tenant.billing_school_name || '',
-    billing_contact_person: tenant.billing_contact_person || '',
-    billing_contact_number: tenant.billing_contact_number || '',
-    billing_address: tenant.billing_address || '',
-    maintenance_mode: Boolean(tenant.maintenance_mode)
+    name: tenant?.name || '',
+    event_title: tenant?.event_title || '',
+    slug: tenant?.slug || '',
+    creator_email: tenant?.creator_email || '',
+    max_teams: tenant?.max_teams || 20,
+    max_sports: tenant?.max_sports || 10,
+    storage_quota_mb: tenant?.storage_quota_mb || 500,
+    custom_domain: tenant?.custom_domain || '',
+    billing_school_name: tenant?.billing_school_name || '',
+    billing_contact_person: tenant?.billing_contact_person || '',
+    billing_contact_number: tenant?.billing_contact_number || '',
+    billing_address: tenant?.billing_address || '',
+    maintenance_mode: Boolean(tenant?.maintenance_mode)
   });
+
+  useEffect(() => {
+    if (tenant) {
+      setForm({
+        name: tenant.name || '',
+        event_title: tenant.event_title || '',
+        slug: tenant.slug || '',
+        creator_email: tenant.creator_email || '',
+        max_teams: tenant.max_teams || 20,
+        max_sports: tenant.max_sports || 10,
+        storage_quota_mb: tenant.storage_quota_mb || 500,
+        custom_domain: tenant.custom_domain || '',
+        billing_school_name: tenant.billing_school_name || '',
+        billing_contact_person: tenant.billing_contact_person || '',
+        billing_contact_number: tenant.billing_contact_number || '',
+        billing_address: tenant.billing_address || '',
+        maintenance_mode: Boolean(tenant.maintenance_mode)
+      });
+    }
+  }, [tenant]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

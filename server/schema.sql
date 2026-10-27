@@ -15,6 +15,12 @@ CREATE TABLE IF NOT EXISTS organizations (
     billing_address TEXT,
     billing_contact_person VARCHAR(100),
     billing_contact_number VARCHAR(30),
+    max_teams INT DEFAULT 20,
+    max_sports INT DEFAULT 10,
+    storage_quota_mb INT DEFAULT 500,
+    custom_domain VARCHAR(100),
+    is_featured BOOLEAN DEFAULT FALSE,
+    maintenance_mode BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -110,6 +116,9 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(20) DEFAULT 'viewer',
     team_id INT REFERENCES teams(id) ON DELETE SET NULL,
     credit_balance NUMERIC(10, 2) DEFAULT 100.00,
+    is_locked BOOLEAN DEFAULT FALSE,
+    last_login_at TIMESTAMP,
+    token_version INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
