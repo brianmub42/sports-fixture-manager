@@ -256,3 +256,29 @@ CREATE TABLE IF NOT EXISTS spectator_feed_posts (
 CREATE INDEX IF NOT EXISTS idx_feed_org_created ON spectator_feed_posts(organization_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_feed_org_story ON spectator_feed_posts(organization_id, is_story_highlight);
 
+-- Superadmin Global Platform Settings Key-Value Store
+CREATE TABLE IF NOT EXISTS platform_settings (
+    key VARCHAR(64) PRIMARY KEY,
+    value TEXT NOT NULL,
+    category VARCHAR(32) DEFAULT 'general',
+    description TEXT,
+    updated_at TIMESTAMP DEFAULT NOW(),
+    updated_by INT REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Superadmin Action Audit Logs
+CREATE TABLE IF NOT EXISTS superadmin_audit_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(100) NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
+    target_id VARCHAR(50),
+    details JSONB DEFAULT '{}'::jsonb,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON superadmin_audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON superadmin_audit_logs(action);
+
+

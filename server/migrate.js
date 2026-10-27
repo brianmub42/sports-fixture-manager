@@ -161,6 +161,61 @@ async function migrate() {
       );
       CREATE INDEX IF NOT EXISTS idx_feed_org_created ON spectator_feed_posts(organization_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_feed_org_story ON spectator_feed_posts(organization_id, is_story_highlight);
+
+      -- =========================================================================
+      -- PHASE 1: SUPERADMIN PLATFORM INFRASTRUCTURE
+      -- =========================================================================
+
+      -- 1. Global Platform Configuration Key-Value Store
+      CREATE TABLE IF NOT EXISTS platform_settings (
+          key VARCHAR(64) PRIMARY KEY,
+          value TEXT NOT NULL,
+          category VARCHAR(32) DEFAULT 'general',
+          description TEXT,
+          updated_at TIMESTAMP DEFAULT NOW(),
+          updated_by INT REFERENCES users(id) ON DELETE SET NULL
+      );
+
+      -- 2. Superadmin Administrative Audit Trail
+      CREATE TABLE IF NOT EXISTS superadmin_audit_logs (
+          id SERIAL PRIMARY KEY,
+          user_id INT REFERENCES users(id) ON DELETE SET NULL,
+          action VARCHAR(100) NOT NULL,
+          target_type VARCHAR(50) NOT NULL,
+          target_id VARCHAR(50),
+          details JSONB DEFAULT '{}'::jsonb,
+          ip_address VARCHAR(45),
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON superadmin_audit_logs(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON superadmin_audit_logs(action);
+
+      -- 3. Enhance Organizations with Quotas and Feature Governance
+      ALTER TABLE organizations 
+      ADD COLUMN IF NOT EXISTS max_teams INT DEFAULT 20,
+      ADD COLUMN IF NOT EXISTS max_sports INT DEFAULT 10,
+      ADD COLUMN IF NOT EXISTS storage_quota_mb INT DEFAULT 500,
+      ADD COLUMN IF NOT EXISTS custom_domain VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS maintenance_mode BOOLEAN DEFAULT FALSE;
+
+      -- 4. Enhance Users with Account Security Controls
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;
+
+      -- 5. Seed Platform Default Configurations
+      INSERT INTO platform_settings (key, value, category, description) VALUES
+          ('default_trial_days', '14', 'billing', 'Default trial period duration in days for newly created workspaces'),
+          ('default_license_days', '120', 'billing', 'Default duration in days granted upon proof of payment approval'),
+          ('grace_period_days', '3', 'billing', 'Number of days a workspace stays in grace period before suspension'),
+          ('platform_name', 'FixtureGrid', 'branding', 'Public name of the sports management platform'),
+          ('support_email', 'support@fixturegrid.co.zw', 'branding', 'Official superadmin support contact email'),
+          ('maintenance_mode', 'false', 'security', 'When true, non-superadmin users see an under-maintenance screen'),
+          ('maintenance_message', 'Platform undergoing scheduled maintenance. Please check back shortly.', 'security', 'Notice displayed during maintenance mode'),
+          ('allow_public_registration', 'true', 'security', 'Whether new organizers can create workspaces without prior invite')
+      ON CONFLICT (key) DO NOTHING;
     `);
     console.log('Migration successful');
   } catch (err) {

@@ -188,13 +188,36 @@ export const authApi = {
 };
 
 export const superadminApi = {
+  // Workspace / Tenant Management
   getTenants: () => api.get('/superadmin/tenants'),
+  createTenant: (data) => api.post('/superadmin/tenants', data),
+  updateTenant: (id, data) => api.put(`/superadmin/tenants/${id}`, data),
+  getTenantStats: (id) => api.get(`/superadmin/tenants/${id}/stats`),
+  impersonateTenant: (id) => api.post(`/superadmin/tenants/${id}/impersonate`),
   approveTenant: (id, days) => api.post(`/superadmin/tenants/${id}/approve`, { days }),
   suspendTenant: (id) => api.post(`/superadmin/tenants/${id}/suspend`),
   extendTenant: (id, expiresAt) => api.post(`/superadmin/tenants/${id}/extend`, { expiresAt }),
   deactivateTenant: (id) => api.post(`/superadmin/tenants/${id}/deactivate`),
   activateTenant: (id) => api.post(`/superadmin/tenants/${id}/activate`),
   deleteTenant: (id) => api.delete(`/superadmin/tenants/${id}`),
+  runBillingCheck: () => api.post('/superadmin/billing/run-reminder-check'),
+
+  // Global Users Management
+  getUsers: (params) => api.get('/superadmin/users', { params }),
+  createUser: (userData) => api.post('/superadmin/users', userData),
+  updateUser: (id, userData) => api.put(`/superadmin/users/${id}`, userData),
+  resetUserPassword: (id, new_password) => api.post(`/superadmin/users/${id}/reset-password`, { new_password }),
+  getUserWorkspaces: (id) => api.get(`/superadmin/users/${id}/workspaces`),
+  setUserWorkspaces: (id, data) => api.post(`/superadmin/users/${id}/workspaces`, data),
+  deleteUser: (id) => api.delete(`/superadmin/users/${id}`),
+
+  // Platform Parameters & Settings
+  getSettings: () => api.get('/superadmin/settings'),
+  updateSettings: (settings) => api.put('/superadmin/settings', { settings }),
+
+  // Audit Logs & System Health
+  getAuditLogs: (params) => api.get('/superadmin/audit-logs', { params }),
+  getSystemHealth: () => api.get('/superadmin/system/health'),
 };
 
 export const mediaApi = {
