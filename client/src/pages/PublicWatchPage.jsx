@@ -66,11 +66,13 @@ export default function PublicWatchPage() {
   // Local optimistic reactions tracker: { [postId]: { [type]: count, userReacted: bool } }
   const [localReactions, setLocalReactions] = useState({});
 
-  // 1. Event Info Query
+  // 1. Event Info Query (Zero staleTime & refetch on focus so mobile devices always see current event)
   const { data: eventInfo, isLoading: loadingInfo, error: infoError } = useQuery({
     queryKey: ['public-event', eventSlug],
     queryFn: () => publicApi.getEventInfo(eventSlug).then(r => r.data),
     enabled: !!eventSlug,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // 2. Spectator FanZone Feed Query (Photos, Videos, Stories)

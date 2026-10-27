@@ -12,6 +12,7 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
   const { data: settings } = useSettings();
   const [copied, setCopied] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [signageMode, setSignageMode] = useState('permanent'); // 'permanent' | 'event'
   const qrRef = useRef(null);
 
   if (!isOpen) return null;
@@ -20,6 +21,11 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
   const orgName = settings?.org_name || activeOrg?.name || 'Tournament';
   const eventTitle = settings?.event_title || activeOrg?.event_title || 'Live Sports Championship';
   
+  const isPermanent = signageMode === 'permanent';
+  const displaySubtitle = isPermanent ? 'OFFICIAL LIVE SPORTS & SCORES PORTAL' : eventTitle;
+  const displayBadge = isPermanent ? 'ALL-SEASON GROUND SIGNAGE' : 'LIVE SPECTATOR FLYER';
+  const displayCta = isPermanent ? "SCAN WITH YOUR PHONE TO WATCH TODAY'S LIVE MATCHES" : 'SCAN WITH YOUR PHONE CAMERA TO WATCH LIVE';
+
   // Public Spectator Watch URL
   const spectatorUrl = `${window.location.origin}/watch/${orgSlug}`;
 
@@ -64,24 +70,24 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
     ctx.textAlign = 'center';
     ctx.fillText(orgName.toUpperCase(), width / 2, 55);
 
-    ctx.font = '18px sans-serif';
+    ctx.font = 'bold 18px sans-serif';
     ctx.fillStyle = '#e0e7ff';
-    ctx.fillText(eventTitle, width / 2, 90);
+    ctx.fillText(displaySubtitle, width / 2, 90);
 
-    ctx.font = 'bold 14px sans-serif';
+    ctx.font = 'bold 13px sans-serif';
     ctx.fillStyle = '#93c5fd';
-    ctx.fillText('LIVE SPECTATOR PORTAL', width / 2, 118);
+    ctx.fillText(displayBadge, width / 2, 118);
 
     // Callout badge
     ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(40, 165, width - 80, 50);
+    ctx.fillRect(30, 165, width - 60, 50);
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 1;
-    ctx.strokeRect(40, 165, width - 80, 50);
+    ctx.strokeRect(30, 165, width - 60, 50);
 
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText('SCAN WITH YOUR PHONE CAMERA TO WATCH LIVE', width / 2, 196);
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(displayCta, width / 2, 196);
 
     // Draw the QR Code centered
     const qrSize = 340;
@@ -106,7 +112,7 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
 
     // Download image
     const link = document.createElement('a');
-    link.download = `spectator-qr-${orgSlug}.png`;
+    link.download = `spectator-qr-${orgSlug}-${signageMode}.png`;
     link.href = printCanvas.toDataURL('image/png');
     link.click();
   };
@@ -117,7 +123,7 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
       try {
         await navigator.share({
           title: `${orgName} - Live Spectator Watch`,
-          text: `Scan or visit the link to follow live matches, results, and standings for ${orgName} - ${eventTitle}!`,
+          text: `Scan or visit the link to follow live matches, results, and standings for ${orgName}!`,
           url: spectatorUrl,
         });
         setShareSuccess(true);
@@ -143,6 +149,15 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
       alert('Please allow popups to open the printable poster.');
       return;
     }
+
+    const subTitleHtml = isPermanent
+      ? `<h2 style="color: #2563eb; font-weight: 800; font-size: 20px; letter-spacing: 1px; margin: 0 0 10px 0;">OFFICIAL LIVE SPORTS &amp; SCORES PORTAL</h2>
+         <p style="color: #64748b; font-size: 14px; margin: 0 0 24px 0;">Scan to view today's live matches, athletic heats &amp; championship standings</p>`
+      : `<h2 style="color: #0f172a; font-weight: 700; font-size: 22px; margin: 0 0 24px 0;">${eventTitle}</h2>`;
+
+    const badgeHtml = isPermanent
+      ? 'All-Season Ground Signage'
+      : 'Live Spectator Portal';
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -182,17 +197,11 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
               margin-bottom: 16px;
             }
             h1 {
-              font-size: 36px;
+              font-size: 38px;
               font-weight: 900;
               margin: 0 0 8px 0;
               color: #0f172a;
               line-height: 1.2;
-            }
-            h2 {
-              font-size: 22px;
-              font-weight: 600;
-              color: #475569;
-              margin: 0 0 24px 0;
             }
             .qr-container {
               background: #f8fafc;
@@ -274,9 +283,9 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
         </head>
         <body>
           <div class="poster-box">
-            <div class="header-badge">Live Spectator Portal</div>
+            <div class="header-badge">${badgeHtml}</div>
             <h1>${orgName}</h1>
-            <h2>${eventTitle}</h2>
+            ${subTitleHtml}
 
             <div class="qr-container">
               <img src="${qrDataUrl}" alt="Spectator QR Code" />
@@ -332,7 +341,7 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
         </button>
 
         {/* Modal Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-4">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 mb-3">
             <Trophy size={13} />
             <span>Spectator Web App Access</span>
@@ -340,9 +349,57 @@ export default function SpectatorQrModal({ isOpen, onClose }) {
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             {orgName}
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {eventTitle}
+          <p className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+            {displaySubtitle}
           </p>
+        </div>
+
+        {/* Signage Format Selector */}
+        <div className="mb-5">
+          <div className="flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700/60">
+            <button
+              type="button"
+              onClick={() => setSignageMode('permanent')}
+              className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                isPermanent
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+              }`}
+            >
+              <Shield size={13} className="shrink-0" />
+              <span>Permanent Signage</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSignageMode('event')}
+              className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                !isPermanent
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+              }`}
+            >
+              <Trophy size={13} className="shrink-0" />
+              <span>Matchday Flyer</span>
+            </button>
+          </div>
+
+          <div className="mt-2.5 px-3 py-2 rounded-xl text-[11px] leading-relaxed transition-all">
+            {isPermanent ? (
+              <p className="text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                <Check size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Recommended for physical signs &amp; posters:</strong> Excludes the specific tournament name so printed signage on noticeboards, fields, and pavilion posts remains valid year-round. Phones display today's live event dynamically once scanned.
+                </span>
+              </p>
+            ) : (
+              <p className="text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                <Zap size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Recommended for WhatsApp &amp; day-of-event flyers:</strong> Specifically prints <strong>"{eventTitle}"</strong> on the poster and downloaded graphic.
+                </span>
+              </p>
+            )}
+          </div>
         </div>
 
         {/* QR Code Card */}

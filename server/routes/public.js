@@ -3,6 +3,15 @@ import { query } from '../db.js';
 
 const router = Router();
 
+// Force no-cache headers for all public spectator routes so mobile devices never cache stale event data
+router.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+  next();
+});
+
 // GET /api/public/events/:eventSlug
 // Returns basic event info: event title, school/tenant name, creation date, and houses/teams.
 router.get('/events/:eventSlug', async (req, res) => {
