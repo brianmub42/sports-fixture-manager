@@ -1,6 +1,7 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { query } from '../db.js';
+import { query, pool } from '../db.js';
 import { authMiddleware, requireAdmin } from '../middleware/auth.js';
 import { getWorkspaceQuotaStats } from '../middleware/quota.js';
 
@@ -231,17 +232,28 @@ router.get('/current/quota', async (req, res) => {
   }
 });
 
-// POST /api/organizations (Public creation of first or standalone workspace)
+// POST /api/organizations (Atomic Public creation of workspace & administrator account)
 router.post('/', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { name, event_title, creator_email } = req.body;
-    if (!name || !creator_email) {
-      return res.status(400).json({ error: 'Organization name and creator email are required' });
+    const { name, event_title, creator_email, admin_name, password } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Organization / Host name is required' });
+    }
+    if (!creator_email || !creator_email.trim()) {
+      return res.status(400).json({ error: 'Administrator email address is required' });
+    }
+    if (!admin_name || !admin_name.trim()) {
+      return res.status(400).json({ error: 'Administrator full name is required' });
+    }
+    if (!password || password.trim().length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
     // Check if public registration is enabled in platform settings
     try {
-      const regRes = await query("SELECT value FROM platform_settings WHERE key = 'allow_public_registration'");
+      const regRes = await client.query("SELECT value FROM platform_settings WHERE key = 'allow_public_registration'");
       if (regRes.rows.length > 0 && regRes.rows[0].value === 'false') {
         return res.status(403).json({
           error: 'New workspace registration is currently disabled by platform administrators. Please contact support.',
@@ -251,9 +263,12 @@ router.post('/', async (req, res) => {
     } catch {}
 
     const cleanEmail = creator_email.trim().toLowerCase();
+    const cleanOrgName = name.trim();
+    const cleanEventTitle = (event_title || 'Championship').trim();
+    const cleanAdminName = admin_name.trim();
 
     // Check if creator_email is associated with a suspended workspace
-    const checkSuspended = await query(
+    const checkSuspended = await client.query(
       "SELECT id, name FROM organizations WHERE LOWER(TRIM(creator_email)) = $1 AND subscription_status = 'suspended'",
       [cleanEmail]
     );
@@ -267,51 +282,115 @@ router.post('/', async (req, res) => {
     // Determine default trial duration from platform settings
     let trialDays = 14;
     try {
-      const trialRes = await query("SELECT value FROM platform_settings WHERE key = 'default_trial_days'");
+      const trialRes = await client.query("SELECT value FROM platform_settings WHERE key = 'default_trial_days'");
       if (trialRes.rows.length > 0 && trialRes.rows[0].value) {
         trialDays = parseInt(trialRes.rows[0].value, 10) || 14;
       }
     } catch {}
 
-    // Generate unique slug
-    const slug = await generateUniqueSlug(name);
+    // Begin atomic database transaction
+    await client.query('BEGIN');
 
-    // Create organization with trial expiration
-    const orgRes = await query(`
+    // 1. Resolve or create user account
+    const existingUserRes = await client.query('SELECT * FROM users WHERE LOWER(TRIM(email)) = $1', [cleanEmail]);
+    let userRecord;
+
+    if (existingUserRes.rows.length > 0) {
+      const existingUser = existingUserRes.rows[0];
+      // Verify password against existing account
+      const isMatch = await bcrypt.compare(password.trim(), existingUser.password_hash);
+      if (!isMatch) {
+        await client.query('ROLLBACK');
+        return res.status(401).json({
+          error: 'An account with this email already exists, but the password provided is incorrect. Please enter your existing password to link this new workspace.',
+          code: 'INVALID_EXISTING_PASSWORD'
+        });
+      }
+      userRecord = existingUser;
+    } else {
+      // Hash password and insert new administrator
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password.trim(), salt);
+      const newUserRes = await client.query(`
+        INSERT INTO users (email, password_hash, name, role, created_at)
+        VALUES ($1, $2, $3, 'admin', NOW())
+        RETURNING id, email, name, role, organization_id
+      `, [cleanEmail, passwordHash, cleanAdminName]);
+      userRecord = newUserRes.rows[0];
+    }
+
+    // 2. Generate unique slug
+    const slug = await generateUniqueSlug(cleanOrgName);
+
+    // 3. Create organization with trial expiration
+    const orgRes = await client.query(`
       INSERT INTO organizations (
         name, slug, event_title, creator_email, 
         subscription_status, term_expires_at, 
         max_teams, max_sports, storage_quota_mb
       ) VALUES ($1, $2, $3, $4, 'active', NOW() + ($5 * INTERVAL '1 day'), 20, 10, 500)
       RETURNING *
-    `, [name, slug, event_title || 'Championship', cleanEmail, trialDays]);
+    `, [cleanOrgName, slug, cleanEventTitle, cleanEmail, trialDays]);
     const org = orgRes.rows[0];
 
-    // Seed default settings for this organization
-    await query(
-      "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'org_name', $2), ($1, 'event_title', $3)",
-      [org.id, name, event_title || 'Championship']
-    );
-
-    // Check if user account already exists with this email
-    const existingUserRes = await query('SELECT id, name, role FROM users WHERE LOWER(TRIM(email)) = $1', [cleanEmail]);
-    const hasExistingUser = existingUserRes.rows.length > 0;
-
-    if (hasExistingUser) {
-      const existingUser = existingUserRes.rows[0];
-      // Automatically associate the existing user with the new organization as admin
-      await query(
-        'INSERT INTO organization_users (organization_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (organization_id, user_id) DO NOTHING',
-        [org.id, existingUser.id, 'admin']
-      );
+    // 4. Update user's primary organization_id if unset
+    if (!userRecord.organization_id) {
+      await client.query('UPDATE users SET organization_id = $1 WHERE id = $2', [org.id, userRecord.id]);
+      userRecord.organization_id = org.id;
     }
 
+    // 5. Explicitly link administrator in organization_users
+    await client.query(`
+      INSERT INTO organization_users (organization_id, user_id, role)
+      VALUES ($1, $2, 'admin')
+      ON CONFLICT (organization_id, user_id) DO NOTHING
+    `, [org.id, userRecord.id]);
+
+    // 6. Seed default settings for this organization
+    await client.query(
+      "INSERT INTO settings (organization_id, key, value) VALUES ($1, 'org_name', $2), ($1, 'event_title', $3)",
+      [org.id, cleanOrgName, cleanEventTitle]
+    );
+
+    // 7. Commit atomic transaction
+    await client.query('COMMIT');
+
+    // 8. Generate JWT token scoped to this new workspace
+    const token = jwt.sign(
+      {
+        id: userRecord.id,
+        email: userRecord.email,
+        name: userRecord.name,
+        role: userRecord.role === 'superadmin' ? 'superadmin' : 'admin',
+        organization_id: org.id,
+        organization_slug: org.slug
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.status(201).json({
-      ...org,
-      has_existing_account: hasExistingUser
+      success: true,
+      organization: org,
+      user: {
+        id: userRecord.id,
+        email: userRecord.email,
+        name: userRecord.name,
+        role: userRecord.role === 'superadmin' ? 'superadmin' : 'admin',
+        organization_id: org.id,
+        organization_slug: org.slug
+      },
+      token,
+      message: `Workspace "${org.name}" and administrator account created successfully!`
     });
   } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {}
+    console.error('Error creating workspace and admin account:', err);
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

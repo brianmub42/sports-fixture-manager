@@ -4,7 +4,8 @@ import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { 
   Building2, Plus, ArrowRight, Loader2, Trophy, Globe, 
   Calendar, Award, Activity, BarChart3, CheckCircle2, 
-  ShieldCheck, ArrowDownRight, Zap 
+  ShieldCheck, ArrowDownRight, Zap, Search, X, Eye, EyeOff,
+  Lock, User, Mail, ChevronDown, ChevronUp, Sparkles, Filter
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 
@@ -37,9 +38,21 @@ function AnimatedCounter({ value, duration = 1500, suffix = '' }) {
 export default function SelectOrganization() {
   const navigate = useNavigate();
   const { organizations, isLoading, selectOrg, createOrg } = useOrganization();
+  
+  // Workspace search & filtering state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'schools' | 'featured'
+  const [showAllWorkspaces, setShowAllWorkspaces] = useState(false);
+  const lastVisitedSlug = typeof localStorage !== 'undefined' ? localStorage.getItem('organization_slug') : null;
+
+  // Create Workspace & Admin account form state
   const [newOrgName, setNewOrgName] = useState('');
   const [newEventTitle, setNewEventTitle] = useState('');
+  const [adminName, setAdminName] = useState('');
   const [creatorEmail, setCreatorEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -56,13 +69,30 @@ export default function SelectOrganization() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newOrgName.trim() || !creatorEmail.trim()) return;
+    if (!newOrgName.trim() || !creatorEmail.trim() || !adminName.trim() || !password) return;
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match. Please verify your password confirmation.');
+      return;
+    }
+
     setIsSubmitting(true);
     setError('');
     try {
-      await createOrg(newOrgName, newEventTitle, creatorEmail.trim());
+      await createOrg({
+        name: newOrgName.trim(),
+        event_title: newEventTitle.trim(),
+        creator_email: creatorEmail.trim(),
+        admin_name: adminName.trim(),
+        password: password
+      });
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create organization. Try again.');
+      setError(err.response?.data?.error || 'Failed to create workspace. Try again.');
       setIsSubmitting(false);
     }
   };
@@ -348,121 +378,369 @@ export default function SelectOrganization() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 items-start">
+          <div className="grid lg:grid-cols-12 gap-8 items-start">
             
-            {/* List of existing organizations */}
-            <div className="bg-slate-50 dark:bg-slate-900/30 backdrop-blur-md border border-slate-200 dark:border-slate-900 hover:border-slate-300 dark:hover:border-slate-800/80 rounded-2xl p-6 md:p-8 transition-colors duration-300 shadow-sm">
-              <h2 className="text-xl font-bold flex items-center gap-2.5 mb-6 border-b border-slate-200 dark:border-slate-900 pb-4 text-slate-900 dark:text-white">
-                <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" /> Existing Workspaces
-              </h2>
+            {/* List of existing organizations (7 cols on lg) */}
+            <div className="lg:col-span-7 bg-slate-50 dark:bg-slate-900/30 backdrop-blur-md border border-slate-200 dark:border-slate-900 hover:border-slate-300 dark:hover:border-slate-800/80 rounded-2xl p-5 sm:p-7 transition-colors duration-300 shadow-sm flex flex-col justify-between">
+              <div>
+                {/* Header & Quick Recent Pill */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-slate-200 dark:border-slate-900 pb-3.5">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Existing Workspaces</h2>
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/40">
+                      {organizations?.length || 0}
+                    </span>
+                  </div>
 
-              {organizations && organizations.length > 0 ? (
-                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                  {organizations.map((org) => (
-                    <div
-                      key={org.id}
-                      onClick={() => selectOrg(org.slug)}
-                      className="group flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-900 bg-white dark:bg-slate-950/45 hover:bg-blue-50/50 dark:hover:bg-slate-900/40 hover:border-blue-400 dark:hover:border-blue-500/50 transition-all duration-300 cursor-pointer shadow-sm"
+                  {lastVisitedSlug && organizations?.some(o => o.slug === lastVisitedSlug) && (
+                    <button
+                      type="button"
+                      onClick={() => selectOrg(lastVisitedSlug)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40 hover:bg-emerald-100 transition-colors cursor-pointer"
+                      title="Continue in your last active workspace"
                     >
-                      <div>
-                        <h3 className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {org.name}
-                        </h3>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
-                          <Globe className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> /{org.slug}
-                        </p>
-                        {org.event_title && (
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Event: {org.event_title}
-                          </p>
-                        )}
-                      </div>
-                      <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 group-hover:bg-blue-600 transition-all duration-300">
-                        <ArrowRight className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-white" />
-                      </div>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Resume: <strong className="font-bold">{organizations.find(o => o.slug === lastVisitedSlug)?.name?.slice(0, 16)}...</strong></span>
+                      <ArrowRight className="w-3 h-3 ml-0.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Instant Search Bar */}
+                <div className="relative mb-3.5">
+                  <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search school, tournament, or /slug..."
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-9 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Chips */}
+                {(() => {
+                  const totalCount = organizations?.length || 0;
+                  const schoolsCount = (organizations || []).filter(o => /school|college|high|primary|academy|convent/i.test(o.name)).length;
+                  const featuredCount = (organizations || []).filter(o => o.is_featured || o.slug === 'demo-tournament').length;
+
+                  return (
+                    <div className="flex items-center gap-1.5 mb-4 overflow-x-auto no-scrollbar pb-1">
+                      <button
+                        type="button"
+                        onClick={() => setFilterType('all')}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                          filterType === 'all'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                        }`}
+                      >
+                        All ({totalCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFilterType('schools')}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                          filterType === 'schools'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                        }`}
+                      >
+                        🏫 Schools ({schoolsCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFilterType('featured')}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                          filterType === 'featured'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                        }`}
+                      >
+                        ⭐ Featured ({featuredCount})
+                      </button>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-800 rounded-xl">
-                  <Building2 className="w-12 h-12 text-slate-400 dark:text-slate-700 mx-auto mb-3" />
-                  <p className="text-slate-600 dark:text-slate-400 font-medium text-sm">No workspaces configured yet.</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Get started by creating one on the right!</p>
-                </div>
-              )}
+                  );
+                })()}
+
+                {/* Workspaces Responsive Grid */}
+                {(() => {
+                  const filtered = (organizations || []).filter(org => {
+                    const q = searchQuery.trim().toLowerCase();
+                    const matchesSearch = !q ||
+                      org.name?.toLowerCase().includes(q) ||
+                      org.slug?.toLowerCase().includes(q) ||
+                      (org.event_title && org.event_title.toLowerCase().includes(q));
+
+                    if (!matchesSearch) return false;
+
+                    if (filterType === 'schools') {
+                      return /school|college|high|primary|academy|convent/i.test(org.name);
+                    }
+                    if (filterType === 'featured') {
+                      return org.is_featured || org.slug === 'demo-tournament';
+                    }
+                    return true;
+                  }).sort((a, b) => a.name.localeCompare(b.name));
+
+                  const displayed = showAllWorkspaces ? filtered : filtered.slice(0, 6);
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-10 px-4 border border-dashed border-slate-300 dark:border-slate-800 rounded-xl bg-white/50 dark:bg-slate-950/30">
+                        <Building2 className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto mb-2" />
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No workspaces matched "{searchQuery}"</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-500 mt-0.5">Try searching with a different term or clear filters</p>
+                        <button
+                          type="button"
+                          onClick={() => { setSearchQuery(''); setFilterType('all'); }}
+                          className="mt-3 px-3 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300 hover:bg-blue-100 transition-colors cursor-pointer"
+                        >
+                          Clear Search
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar">
+                        {displayed.map((org) => {
+                          const initials = (org.name || 'WS').trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+                          const isFeatured = org.is_featured || org.slug === 'demo-tournament';
+                          return (
+                            <div
+                              key={org.id}
+                              onClick={() => selectOrg(org.slug)}
+                              className="group p-3 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950/50 hover:bg-blue-50/50 dark:hover:bg-slate-900/60 hover:border-blue-400 dark:hover:border-blue-500/60 transition-all duration-200 cursor-pointer shadow-xs flex flex-col justify-between"
+                            >
+                              <div className="flex items-start gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950/70 border border-blue-200/60 dark:border-blue-800/40 text-blue-700 dark:text-blue-300 font-black text-xs flex items-center justify-center shrink-0">
+                                  {initials}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                                      {org.name}
+                                    </h3>
+                                    {isFeatured && (
+                                      <span className="shrink-0 text-[9px] font-extrabold px-1 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                        ⭐
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                    {org.event_title || `/${org.slug}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-900 flex items-center justify-between text-[10px] text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-semibold">
+                                <span className="font-mono">/{org.slug}</span>
+                                <span className="flex items-center gap-0.5 font-bold">Open <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Expander button if more than 6 items */}
+                      {filtered.length > 6 && (
+                        <div className="mt-3.5 pt-3 border-t border-slate-200/80 dark:border-slate-900 flex items-center justify-between">
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Showing <strong className="text-slate-700 dark:text-slate-300">{displayed.length}</strong> of {filtered.length} workspaces
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowAllWorkspaces(!showAllWorkspaces)}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                          >
+                            {showAllWorkspaces ? (
+                              <>Show Less <ChevronUp className="w-3.5 h-3.5" /></>
+                            ) : (
+                              <>View All ({filtered.length}) <ChevronDown className="w-3.5 h-3.5" /></>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
 
-            {/* Create new organization form */}
-            <div className="bg-slate-50 dark:bg-slate-900/30 backdrop-blur-md border border-slate-200 dark:border-slate-900 hover:border-slate-300 dark:hover:border-slate-800/80 rounded-2xl p-6 md:p-8 transition-colors duration-300 shadow-sm">
-              <h2 className="text-xl font-bold flex items-center gap-2.5 mb-6 border-b border-slate-200 dark:border-slate-900 pb-4 text-slate-900 dark:text-white">
-                <Plus className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> Create Workspace
-              </h2>
+            {/* Create new organization form (5 cols on lg) */}
+            <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-900/30 backdrop-blur-md border border-slate-200 dark:border-slate-900 hover:border-slate-300 dark:hover:border-slate-800/80 rounded-2xl p-5 sm:p-7 transition-colors duration-300 shadow-sm">
+              <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-900 pb-3.5">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white">Create Workspace</h2>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Set up tournament &amp; admin account</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  Instant Setup
+                </span>
+              </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 {error && (
-                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm">
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold leading-relaxed">
                     {error}
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    Organization / Host Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Oakridge High, City Sports"
-                    value={newOrgName}
-                    onChange={(e) => setNewOrgName(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                  />
+                {/* Section 1: Workspace Info */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Organization / School Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Oakridge High, City Sports Club"
+                      value={newOrgName}
+                      onChange={(e) => setNewOrgName(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Event / Tournament Title <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Annual Sports Championship"
+                      value={newEventTitle}
+                      onChange={(e) => setNewEventTitle(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    Event / Tournament Title (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Annual Sports Day, Summer Cup"
-                    value={newEventTitle}
-                    onChange={(e) => setNewEventTitle(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                  />
-                </div>
+                {/* Section 2: Administrator Credentials (Mandatory) */}
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-850 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                    <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Administrator Credentials</span>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    Creator Email Address * (For Expiration &amp; Lockout Alerts)
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. admin@school.com"
-                    value={creatorEmail}
-                    onChange={(e) => setCreatorEmail(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      Administrator Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Coach David Moyo"
+                      value={adminName}
+                      onChange={(e) => setAdminName(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !newOrgName.trim()}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-400 disabled:to-slate-400 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-slate-200 dark:disabled:text-slate-500 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-emerald-500/15 duration-300 cursor-pointer text-sm"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" /> Creating...
-                    </>
-                  ) : (
-                    <>
-                      Create Workspace <Plus className="w-4 h-4" />
-                    </>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      Administrator Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. admin@school.com"
+                      value={creatorEmail}
+                      onChange={(e) => setCreatorEmail(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                        Password *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          placeholder="Min 6 characters"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl pl-3 pr-8 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                        Confirm Password *
+                      </label>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        placeholder="Re-enter password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className={`w-full bg-white dark:bg-slate-950 border rounded-xl px-3 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none transition-all shadow-xs ${
+                          confirmPassword && password !== confirmPassword
+                            ? 'border-red-400 focus:border-red-500'
+                            : 'border-slate-300 dark:border-slate-850 focus:border-blue-500'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="text-[10px] text-red-500 font-medium">⚠️ Passwords do not match</p>
                   )}
-                </button>
+                </div>
 
-                <div className="text-center pt-2">
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !newOrgName.trim() || !creatorEmail.trim() || !adminName.trim() || !password}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-400 disabled:to-slate-400 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-slate-200 dark:disabled:text-slate-500 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-emerald-500/20 duration-300 cursor-pointer text-xs"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Creating Workspace &amp; Account...
+                      </>
+                    ) : (
+                      <>
+                        Create Workspace &amp; Launch Dashboard <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800/60 text-[10px] text-slate-500 dark:text-slate-400 flex items-start gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Atomic Setup:</strong> Your workspace and administrator login are created simultaneously. No abandoned data is saved if you leave before completing.
+                  </span>
+                </div>
+
+                <div className="text-center pt-1">
                   <button
                     type="button"
                     onClick={() => navigate('/login')}

@@ -103,19 +103,35 @@ export function OrganizationProvider({ children }) {
     return res.data;
   };
 
-  const createOrg = async (name, eventTitle, creatorEmail) => {
-    const newOrg = await createOrgMutation.mutateAsync({ name, event_title: eventTitle, creator_email: creatorEmail });
-    localStorage.setItem('organization_slug', newOrg.slug);
-    setCurrentOrgSlug(newOrg.slug);
-
-    if (newOrg.has_existing_account) {
-      // Existing user: direct to login
-      window.location.href = '/login?existing=true';
+  const createOrg = async (nameOrPayload, eventTitle, creatorEmail, adminName, password) => {
+    let payload;
+    if (typeof nameOrPayload === 'object' && nameOrPayload !== null) {
+      payload = nameOrPayload;
     } else {
-      // New user: register as admin
-      localStorage.removeItem('token');
-      window.location.href = '/login?register=true';
+      payload = {
+        name: nameOrPayload,
+        event_title: eventTitle,
+        creator_email: creatorEmail,
+        admin_name: adminName,
+        password: password
+      };
     }
+
+    const res = await createOrgMutation.mutateAsync(payload);
+    const newOrg = res.organization || res;
+    const token = res.token;
+
+    if (token) {
+      localStorage.setItem('token', token);
+    }
+    if (newOrg?.slug) {
+      localStorage.setItem('organization_slug', newOrg.slug);
+      setCurrentOrgSlug(newOrg.slug);
+    }
+
+    // Immediately enter dashboard as authenticated administrator
+    window.location.href = `/?workspace=${newOrg.slug}`;
+    return res;
   };
 
   return (
