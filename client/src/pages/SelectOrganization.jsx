@@ -47,6 +47,9 @@ export default function SelectOrganization() {
   const [showAllWorkspaces, setShowAllWorkspaces] = useState(false);
   const lastVisitedSlug = typeof localStorage !== 'undefined' ? localStorage.getItem('organization_slug') : null;
 
+  // Segmented Tab Switcher State: 'create' (Dominant Default) | 'existing'
+  const [activeTab, setActiveTab] = useState('create');
+
   // Create Workspace & Admin account form state
   const [newOrgName, setNewOrgName] = useState('');
   const [newEventTitle, setNewEventTitle] = useState('');
@@ -60,7 +63,8 @@ export default function SelectOrganization() {
 
   const workspaceSectionRef = useRef(null);
 
-  const scrollToWorkspaces = () => {
+  const scrollToWorkspaces = (targetTab = 'create') => {
+    setActiveTab(targetTab);
     workspaceSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -167,7 +171,7 @@ export default function SelectOrganization() {
               </button>
             )}
             <button 
-              onClick={scrollToWorkspaces}
+              onClick={() => scrollToWorkspaces('create')}
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-blue-600/20 hover:shadow-blue-600/35 transition-all cursor-pointer"
             >
               Create Workspace
@@ -229,16 +233,16 @@ export default function SelectOrganization() {
             Watch Live Spectator FanZone <ArrowRight className="w-4 h-4" />
           </button>
           <button 
-            onClick={scrollToWorkspaces}
+            onClick={() => scrollToWorkspaces('create')}
             className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-extrabold text-sm text-white shadow-xl shadow-indigo-600/25 hover:shadow-indigo-600/40 transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             Create your workspace <ArrowRight className="w-4 h-4" />
           </button>
           <button 
-            onClick={handleViewSample}
+            onClick={() => scrollToWorkspaces('existing')}
             className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80 font-bold text-sm text-slate-800 dark:text-slate-200 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
           >
-            View sample dashboard <ArrowDownRight className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+            Browse workspaces ({organizations?.length || 0}) <Building2 className="w-4 h-4 text-blue-500" />
           </button>
         </div>
 
@@ -417,63 +421,369 @@ export default function SelectOrganization() {
       </section>
 
       {/* Interactive Workspaces & Registration Hub */}
-      <section ref={workspaceSectionRef} className="border-t border-slate-200 dark:border-slate-900 bg-white dark:bg-slate-950 py-24 transition-colors">
+      <section ref={workspaceSectionRef} className="border-t border-slate-200 dark:border-slate-900 bg-white dark:bg-slate-950 py-20 transition-colors">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-extrabold mb-4 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-              Access Workspace Hub
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-xs font-bold mb-3">
+              <Sparkles className="w-3.5 h-3.5" /> Workspace Portal Hub
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold mb-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 dark:from-white dark:via-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+              {activeTab === 'create' ? 'Launch Your Tournament Workspace' : 'Find Your Organization Workspace'}
             </h2>
-            <p className="text-slate-600 dark:text-slate-400 max-w-lg mx-auto text-sm sm:text-base">
-              Choose an existing organization workspace or register a new one to launch your dashboard.
+            <p className="text-slate-600 dark:text-slate-400 max-w-lg mx-auto text-xs sm:text-sm">
+              {activeTab === 'create'
+                ? 'Create your dedicated competition space and administrator account in 30 seconds.'
+                : 'Browse registered schools, clubs, and sports tournaments across the platform.'}
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-12 gap-8 items-start">
-            
-            {/* List of existing organizations (7 cols on lg) */}
-            <div className="lg:col-span-7 bg-slate-50 dark:bg-slate-900/30 backdrop-blur-md border border-slate-200 dark:border-slate-900 hover:border-slate-300 dark:hover:border-slate-800/80 rounded-2xl p-5 sm:p-7 transition-colors duration-300 shadow-sm flex flex-col justify-between">
-              <div>
-                {/* Header & Quick Recent Pill */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-slate-200 dark:border-slate-900 pb-3.5">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Existing Workspaces</h2>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/40">
-                      {organizations?.length || 0}
-                    </span>
+          {/* Segmented Tab Switcher */}
+          <div className="flex justify-center mb-10">
+            <div className="inline-flex p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setActiveTab('create')}
+                className={`flex items-center gap-2 px-5 sm:px-7 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
+                  activeTab === 'create'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 ring-1 ring-blue-500/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Workspace</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider ${
+                  activeTab === 'create'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                }`}>
+                  Instant
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('existing')}
+                className={`flex items-center gap-2 px-5 sm:px-7 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
+                  activeTab === 'existing'
+                    ? 'bg-slate-900 dark:bg-slate-800 text-white shadow-md shadow-slate-900/20 ring-1 ring-slate-700'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Existing Workspaces</span>
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                  activeTab === 'existing'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-250 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                }`}>
+                  {organizations?.length || 0}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* TAB 1: CREATE WORKSPACE (DOMINANT FULL-WIDTH HERO VIEW) */}
+          {activeTab === 'create' && (
+            <div className="max-w-4xl mx-auto">
+              <div className="relative bg-white dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl shadow-blue-500/5 transition-all">
+                {/* Glowing top line accent */}
+                <div className="absolute top-0 left-8 right-8 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full" />
+
+                {/* Card Top Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-150 dark:border-slate-800/80">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                        Launch Your Tournament Workspace
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        Set up your organization, tournament title, and administrator credentials in 30 seconds.
+                      </p>
+                    </div>
                   </div>
 
                   {lastVisitedSlug && organizations?.some(o => o.slug === lastVisitedSlug) && (
                     <button
                       type="button"
                       onClick={() => selectOrg(lastVisitedSlug)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40 hover:bg-emerald-100 transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40 hover:bg-emerald-100 transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
                       title="Continue in your last active workspace"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Resume: <strong className="font-bold">{organizations.find(o => o.slug === lastVisitedSlug)?.name?.slice(0, 16)}...</strong></span>
-                      <ArrowRight className="w-3 h-3 ml-0.5" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Resume: <strong className="font-bold">{organizations.find(o => o.slug === lastVisitedSlug)?.name?.slice(0, 18)}...</strong></span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
 
+                <form onSubmit={handleSubmit} className="space-y-8">
+                  {error && (
+                    <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold leading-relaxed flex items-center gap-2">
+                      <X className="w-4 h-4 shrink-0 text-red-500" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  {/* 2-Column Responsive Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                    
+                    {/* Left Column: Organization & Event Details */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                        <Building2 className="w-4 h-4" />
+                        <span>1. Organization &amp; Event</span>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Organization / School Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Oakridge High, Prince Edward School"
+                          value={newOrgName}
+                          onChange={(e) => setNewOrgName(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Event / Tournament Title <span className="text-[11px] font-normal text-slate-400">(Optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Annual Inter-Schools Derby 2026"
+                          value={newEventTitle}
+                          onChange={(e) => setNewEventTitle(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-xs"
+                        />
+                      </div>
+
+                      {/* Live URL Preview Pill */}
+                      <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-slate-950/60 border border-blue-200/50 dark:border-slate-800 text-xs">
+                        <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 mb-1 font-medium">
+                          <Globe className="w-3.5 h-3.5 text-blue-500" />
+                          <span>Your tournament URL preview:</span>
+                        </div>
+                        <p className="font-mono text-xs font-semibold text-blue-700 dark:text-blue-300 truncate">
+                          fixturegrid.live/<span className="underline decoration-blue-400">{newOrgName.trim() ? newOrgName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : 'your-school'}</span>
+                        </p>
+                      </div>
+
+                      {/* Feature Perks */}
+                      <div className="pt-2 space-y-2">
+                        <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span>Automated fixtures, brackets, and dynamic pools</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span>Real-time spectator FanZone &amp; live scorekeeping</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span>Instant multi-device access without installations</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Administrator Account Credentials */}
+                    <div className="space-y-4 md:border-l md:border-slate-200 md:dark:border-slate-800 md:pl-8">
+                      <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        <User className="w-4 h-4" />
+                        <span>2. Administrator Account</span>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Administrator Full Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Coach David Moyo"
+                          value={adminName}
+                          onChange={(e) => setAdminName(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Administrator Email Address <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          placeholder="e.g. admin@school.com"
+                          value={creatorEmail}
+                          onChange={(e) => setCreatorEmail(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-xs"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Password <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              required
+                              placeholder="Min 6 characters"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl pl-3.5 pr-8 py-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
+                            >
+                              {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Confirm Password <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            required
+                            placeholder="Re-enter password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-xl px-3.5 py-3 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none transition-all shadow-xs ${
+                              confirmPassword && password !== confirmPassword
+                                ? 'border-red-400 focus:border-red-500 ring-1 ring-red-400'
+                                : 'border-slate-300 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      {confirmPassword && password !== confirmPassword && (
+                        <p className="text-[11px] text-red-500 font-medium">⚠️ Passwords do not match</p>
+                      )}
+
+                      <div className="p-3 rounded-xl bg-slate-100/70 dark:bg-slate-950/80 border border-slate-200/70 dark:border-slate-800/70 text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-2">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Atomic Setup:</strong> Your workspace and administrator login are created simultaneously in one secure transaction.
+                        </span>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Submit Action */}
+                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || !newOrgName.trim() || !creatorEmail.trim() || !adminName.trim() || !password}
+                      className="w-full flex items-center justify-center gap-2.5 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-500 hover:via-indigo-500 hover:to-emerald-500 disabled:from-slate-400 disabled:to-slate-400 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-slate-200 dark:disabled:text-slate-500 text-white rounded-2xl font-black text-sm sm:text-base transition-all shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 duration-300 cursor-pointer transform hover:-translate-y-0.5"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" /> Creating Workspace &amp; Administrator Account...
+                        </>
+                      ) : (
+                        <>
+                          Create Workspace &amp; Launch Dashboard <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
+
+                    {/* Secondary Navigation Row */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('existing')}
+                        className="text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Building2 className="w-4 h-4 text-blue-500" />
+                        <span>Looking for an existing tournament? <strong className="underline">Browse all {organizations?.length || 0} workspaces →</strong></span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => navigate('/login')}
+                        className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium transition-colors cursor-pointer"
+                      >
+                        Already have an account? <span className="underline">Sign in</span>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: EXISTING WORKSPACES (ELEGANT DIRECTORY BROWSER) */}
+          {activeTab === 'existing' && (
+            <div className="max-w-5xl mx-auto">
+              <div className="bg-white dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-900/5 transition-all">
+                
+                {/* Directory Top Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-150 dark:border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Organization Directory</h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/50">
+                      {organizations?.length || 0} Workspaces
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    {lastVisitedSlug && organizations?.some(o => o.slug === lastVisitedSlug) && (
+                      <button
+                        type="button"
+                        onClick={() => selectOrg(lastVisitedSlug)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        title="Continue in your last active workspace"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Resume: <strong className="font-bold">{organizations.find(o => o.slug === lastVisitedSlug)?.name?.slice(0, 16)}...</strong></span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('create')}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Create New Workspace</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Instant Search Bar */}
-                <div className="relative mb-3.5">
-                  <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <div className="relative mb-4">
+                  <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search school, tournament, or /slug..."
-                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-9 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
+                    placeholder="Search by school name, tournament title, or /slug..."
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-10 py-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-xs"
                   />
                   {searchQuery && (
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md cursor-pointer"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
                   )}
                 </div>
@@ -485,45 +795,45 @@ export default function SelectOrganization() {
                   const featuredCount = (organizations || []).filter(o => o.is_featured || o.slug === 'demo-tournament').length;
 
                   return (
-                    <div className="flex items-center gap-1.5 mb-4 overflow-x-auto no-scrollbar pb-1">
+                    <div className="flex items-center gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
                       <button
                         type="button"
                         onClick={() => setFilterType('all')}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                           filterType === 'all'
                             ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                            : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                         }`}
                       >
-                        All ({totalCount})
+                        All Workspaces ({totalCount})
                       </button>
                       <button
                         type="button"
                         onClick={() => setFilterType('schools')}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                           filterType === 'schools'
                             ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                            : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                         }`}
                       >
-                        🏫 Schools ({schoolsCount})
+                        🏫 Schools &amp; Colleges ({schoolsCount})
                       </button>
                       <button
                         type="button"
                         onClick={() => setFilterType('featured')}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                           filterType === 'featured'
                             ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                            : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                         }`}
                       >
-                        ⭐ Featured ({featuredCount})
+                        ⭐ Featured Leagues ({featuredCount})
                       </button>
                     </div>
                   );
                 })()}
 
-                {/* Workspaces Responsive Grid */}
+                {/* Workspaces Responsive 3-Column Grid */}
                 {(() => {
                   const filtered = (organizations || []).filter(org => {
                     const q = searchQuery.trim().toLowerCase();
@@ -543,28 +853,39 @@ export default function SelectOrganization() {
                     return true;
                   }).sort((a, b) => a.name.localeCompare(b.name));
 
-                  const displayed = showAllWorkspaces ? filtered : filtered.slice(0, 6);
+                  const displayed = showAllWorkspaces ? filtered : filtered.slice(0, 9);
 
                   if (filtered.length === 0) {
                     return (
-                      <div className="text-center py-10 px-4 border border-dashed border-slate-300 dark:border-slate-800 rounded-xl bg-white/50 dark:bg-slate-950/30">
-                        <Building2 className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto mb-2" />
-                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No workspaces matched "{searchQuery}"</p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-500 mt-0.5">Try searching with a different term or clear filters</p>
-                        <button
-                          type="button"
-                          onClick={() => { setSearchQuery(''); setFilterType('all'); }}
-                          className="mt-3 px-3 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300 hover:bg-blue-100 transition-colors cursor-pointer"
-                        >
-                          Clear Search
-                        </button>
+                      <div className="text-center py-12 px-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-950/30">
+                        <Building2 className="w-10 h-10 text-slate-400 dark:text-slate-600 mx-auto mb-3" />
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No workspaces found matching "{searchQuery}"</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+                          Try searching by another school name or create a brand new workspace right now.
+                        </p>
+                        <div className="flex items-center justify-center gap-3 mt-4">
+                          <button
+                            type="button"
+                            onClick={() => { setSearchQuery(''); setFilterType('all'); }}
+                            className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-300 transition-colors cursor-pointer"
+                          >
+                            Clear Search
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('create')}
+                            className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer"
+                          >
+                            Create This Workspace
+                          </button>
+                        </div>
                       </div>
                     );
                   }
 
                   return (
                     <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[580px] overflow-y-auto pr-1 custom-scrollbar">
                         {displayed.map((org) => {
                           const initials = (org.name || 'WS').trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
                           const isFeatured = org.is_featured || org.slug === 'demo-tournament';
@@ -572,41 +893,44 @@ export default function SelectOrganization() {
                             <div
                               key={org.id}
                               onClick={() => selectOrg(org.slug)}
-                              className="group p-3 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950/50 hover:bg-blue-50/50 dark:hover:bg-slate-900/60 hover:border-blue-400 dark:hover:border-blue-500/60 transition-all duration-200 cursor-pointer shadow-xs flex flex-col justify-between"
+                              className="group p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 hover:bg-white dark:hover:bg-slate-900 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
                             >
-                              <div className="flex items-start gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950/70 border border-blue-200/60 dark:border-blue-800/40 text-blue-700 dark:text-blue-300 font-black text-xs flex items-center justify-center shrink-0">
+                              <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/20">
                                   {initials}
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-1.5">
-                                    <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                                    <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
                                       {org.name}
-                                    </h3>
+                                    </h4>
                                     {isFeatured && (
-                                      <span className="shrink-0 text-[9px] font-extrabold px-1 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                                        ⭐
+                                      <span className="shrink-0 text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                        ⭐ Featured
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                                    {org.event_title || `/${org.slug}`}
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-1">
+                                    {org.event_title || `Tournament Portal`}
                                   </p>
                                 </div>
                               </div>
-                              <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-900 flex items-center justify-between text-[10px] text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-semibold">
-                                <span className="font-mono">/{org.slug}</span>
-                                <span className="flex items-center gap-0.5 font-bold">Open <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></span>
+
+                              <div className="mt-4 pt-2.5 border-t border-slate-200/70 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-semibold">
+                                <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 group-hover:text-blue-500">/{org.slug}</span>
+                                <span className="flex items-center gap-1 font-bold">
+                                  Launch <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                                </span>
                               </div>
                             </div>
                           );
                         })}
                       </div>
 
-                      {/* Expander button if more than 6 items */}
-                      {filtered.length > 6 && (
-                        <div className="mt-3.5 pt-3 border-t border-slate-200/80 dark:border-slate-900 flex items-center justify-between">
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {/* Expander if more than 9 items */}
+                      {filtered.length > 9 && (
+                        <div className="mt-4 pt-3 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
                             Showing <strong className="text-slate-700 dark:text-slate-300">{displayed.length}</strong> of {filtered.length} workspaces
                           </span>
                           <button
@@ -625,184 +949,10 @@ export default function SelectOrganization() {
                     </>
                   );
                 })()}
+
               </div>
             </div>
-
-            {/* Create new organization form (5 cols on lg) */}
-            <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-900/30 backdrop-blur-md border border-slate-200 dark:border-slate-900 hover:border-slate-300 dark:hover:border-slate-800/80 rounded-2xl p-5 sm:p-7 transition-colors duration-300 shadow-sm">
-              <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-900 pb-3.5">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                    <Plus className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-slate-900 dark:text-white">Create Workspace</h2>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Set up tournament &amp; admin account</p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  Instant Setup
-                </span>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-3.5">
-                {error && (
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold leading-relaxed">
-                    {error}
-                  </div>
-                )}
-
-                {/* Section 1: Workspace Info */}
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Organization / School Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Oakridge High, City Sports Club"
-                      value={newOrgName}
-                      onChange={(e) => setNewOrgName(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Event / Tournament Title <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Annual Sports Championship"
-                      value={newEventTitle}
-                      onChange={(e) => setNewEventTitle(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
-                    />
-                  </div>
-                </div>
-
-                {/* Section 2: Administrator Credentials (Mandatory) */}
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-850 space-y-3">
-                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                    <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Administrator Credentials</span>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                      Administrator Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Coach David Moyo"
-                      value={adminName}
-                      onChange={(e) => setAdminName(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                      Administrator Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. admin@school.com"
-                      value={creatorEmail}
-                      onChange={(e) => setCreatorEmail(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                        Password *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          required
-                          placeholder="Min 6 characters"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-850 rounded-xl pl-3 pr-8 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                        >
-                          {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                        Confirm Password *
-                      </label>
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        placeholder="Re-enter password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className={`w-full bg-white dark:bg-slate-950 border rounded-xl px-3 py-2.5 text-slate-900 dark:text-white text-xs focus:outline-none transition-all shadow-xs ${
-                          confirmPassword && password !== confirmPassword
-                            ? 'border-red-400 focus:border-red-500'
-                            : 'border-slate-300 dark:border-slate-850 focus:border-blue-500'
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  {confirmPassword && password !== confirmPassword && (
-                    <p className="text-[10px] text-red-500 font-medium">⚠️ Passwords do not match</p>
-                  )}
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !newOrgName.trim() || !creatorEmail.trim() || !adminName.trim() || !password}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-400 disabled:to-slate-400 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-slate-200 dark:disabled:text-slate-500 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-emerald-500/20 duration-300 cursor-pointer text-xs"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" /> Creating Workspace &amp; Account...
-                      </>
-                    ) : (
-                      <>
-                        Create Workspace &amp; Launch Dashboard <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800/60 text-[10px] text-slate-500 dark:text-slate-400 flex items-start gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                  <span>
-                    <strong>Atomic Setup:</strong> Your workspace and administrator login are created simultaneously. No abandoned data is saved if you leave before completing.
-                  </span>
-                </div>
-
-                <div className="text-center pt-1">
-                  <button
-                    type="button"
-                    onClick={() => navigate('/login')}
-                    className="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
-                  >
-                    Already have an account? <span className="underline">Sign in here</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-
-          </div>
+          )}
         </div>
       </section>
 

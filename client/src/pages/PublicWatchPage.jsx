@@ -11,6 +11,7 @@ import {
   Play, Flame, Heart, Camera, Video, Check, Copy, ExternalLink, ArrowRight
 } from 'lucide-react';
 import { usePushNotifications } from '../hooks/usePushNotifications.js';
+import ThemePillToggle from '../components/ThemePillToggle.jsx';
 
 const Skeleton = ({ className = '' }) => (
   <div className={`animate-pulse bg-slate-200 dark:bg-slate-800 rounded-lg ${className}`} />
@@ -278,18 +279,18 @@ export default function PublicWatchPage() {
 
   if (loadingInfo) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col p-4 space-y-4 max-w-2xl mx-auto pt-8">
-        <Skeleton className="h-12 w-full bg-slate-800" />
-        <Skeleton className="h-20 w-full bg-slate-800" />
-        <Skeleton className="h-48 w-full bg-slate-800" />
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col p-4 space-y-4 max-w-2xl mx-auto pt-8 transition-colors">
+        <Skeleton className="h-12 w-full bg-slate-200 dark:bg-slate-800" />
+        <Skeleton className="h-20 w-full bg-slate-200 dark:bg-slate-800" />
+        <Skeleton className="h-48 w-full bg-slate-200 dark:bg-slate-800" />
       </div>
     );
   }
 
   if (infoError || !eventInfo) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-6 text-center text-white">
-        <div className="w-16 h-16 bg-rose-500/20 text-rose-400 rounded-full flex items-center justify-center mb-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 p-6 text-center text-slate-900 dark:text-white transition-colors">
+        <div className="w-16 h-16 bg-rose-500/20 text-rose-500 dark:text-rose-400 rounded-full flex items-center justify-center mb-4">
           <Trophy size={32} />
         </div>
         <h2 className="text-xl font-bold mb-2">Event Not Found</h2>
@@ -297,7 +298,7 @@ export default function PublicWatchPage() {
           <button onClick={() => navigate('/watch/demo-tournament')} className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer shadow-lg shadow-rose-600/30">
             Open Demo Tournament FanZone
           </button>
-          <button onClick={() => navigate('/')} className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer">
+          <button onClick={() => navigate('/')} className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-semibold text-sm rounded-xl transition-all cursor-pointer">
             Go to Home
           </button>
         </div>
@@ -335,30 +336,34 @@ export default function PublicWatchPage() {
   const top3 = (standings || []).slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-24 selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans pb-24 selection:bg-blue-500 selection:text-white transition-colors duration-200">
       
-      {/* 1. COMPACT STICKY HEADER (Saves 150px of vertical height compared to old design) */}
-      <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-2.5">
+      {/* 1. COMPACT STICKY HEADER WITH THEME PILL TOGGLE */}
+      <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 py-2.5 transition-colors">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider shrink-0">
+            <span className="inline-flex items-center gap-1.5 bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" /> LIVE
             </span>
             <div className="min-w-0">
-              <h1 className="text-sm font-black text-white truncate leading-tight">{eventInfo.name}</h1>
-              <p className="text-[11px] text-slate-400 truncate">{eventInfo.school_name}</p>
+              <h1 className="text-sm font-black text-slate-900 dark:text-white truncate leading-tight">{eventInfo.name}</h1>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{eventInfo.school_name}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {followedEntity && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30">
                 <BellRing size={11} className="animate-pulse" /> {followedEntity.name}
               </span>
             )}
+
+            {/* Pill Toggle for switching between Light and Dark mode */}
+            <ThemePillToggle />
+
             <button
               onClick={() => handleOpenShare(eventInfo.name, window.location.href)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold rounded-full transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-full transition-all cursor-pointer shadow-xs"
             >
               <Share2 size={12} />
               <span className="hidden sm:inline">Share</span>
@@ -368,7 +373,7 @@ export default function PublicWatchPage() {
       </header>
 
       {/* 2. LIVE STORIES / REELS CAROUSEL (Instagram-style tap-to-view highlight clips) */}
-      <section className="border-b border-slate-800/60 bg-slate-900/40 py-2.5">
+      <section className="border-b border-slate-200 dark:border-slate-800/60 bg-slate-100/50 dark:bg-slate-900/40 py-2.5 transition-colors">
         <div className="max-w-2xl mx-auto px-4">
           <div className="flex items-center gap-3.5 overflow-x-auto scrollbar-none py-1">
             {storiesList.map((story, idx) => (
@@ -381,16 +386,16 @@ export default function PublicWatchPage() {
                   <img
                     src={story.thumbnail_url || story.media_url}
                     alt={story.story_title || 'Story'}
-                    className="w-full h-full object-cover rounded-full border-2 border-slate-900 bg-slate-800"
+                    className="w-full h-full object-cover rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 dark:bg-slate-800"
                     onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=100&q=80'; }}
                   />
                   {story.media_type === 'video' && (
-                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-600 border border-slate-900 rounded-full flex items-center justify-center text-[8px] text-white">
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-600 border border-white dark:border-slate-900 rounded-full flex items-center justify-center text-[8px] text-white">
                       ▶
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-bold text-slate-300 max-w-[64px] truncate text-center group-hover:text-white">
+                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 max-w-[64px] truncate text-center group-hover:text-blue-600 dark:group-hover:text-white">
                   {story.story_title || story.caption?.slice(0, 10) || 'Moment'}
                 </span>
               </button>
@@ -401,7 +406,7 @@ export default function PublicWatchPage() {
 
       {/* 3. HORIZONTAL LIVE MATCH TICKER (Glanceable Scores - No Vertical Scrolling) */}
       {tickerCards.length > 0 && (
-        <section className="bg-slate-900/20 border-b border-slate-800/60 py-2.5">
+        <section className="bg-slate-100/60 dark:bg-slate-900/20 border-b border-slate-200 dark:border-slate-800/60 py-2.5 transition-colors">
           <div className="max-w-2xl mx-auto px-4">
             <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-none py-0.5">
               {tickerCards.map((f) => {
@@ -411,28 +416,28 @@ export default function PublicWatchPage() {
                   <div
                     key={f.id}
                     onClick={() => setActiveTab('fixtures')}
-                    className="min-w-[175px] max-w-[200px] shrink-0 bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl p-2.5 shadow-sm transition-all cursor-pointer hover:bg-slate-800/80"
+                    className="min-w-[175px] max-w-[200px] shrink-0 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl p-2.5 shadow-xs transition-all cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80"
                   >
-                    <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                    <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
                       <span className="truncate">{f.sport_name || 'Match'}</span>
                       {isLive ? (
-                        <span className="text-rose-400 flex items-center gap-1">
+                        <span className="text-rose-500 dark:text-rose-400 flex items-center gap-1 font-bold">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" /> LIVE
                         </span>
                       ) : isFinal ? (
-                        <span className="text-slate-500">FINAL</span>
+                        <span className="text-slate-400 dark:text-slate-500">FINAL</span>
                       ) : (
-                        <span className="text-blue-400">UPCOMING</span>
+                        <span className="text-blue-600 dark:text-blue-400">UPCOMING</span>
                       )}
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-white truncate max-w-[110px]">{f.team_a_name}</span>
-                        <span className="font-mono text-slate-200">{f.score_a ?? '—'}</span>
+                        <span className="text-slate-800 dark:text-white truncate max-w-[110px]">{f.team_a_name}</span>
+                        <span className="font-mono text-slate-600 dark:text-slate-200">{f.score_a ?? '—'}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-white truncate max-w-[110px]">{f.team_b_name}</span>
-                        <span className="font-mono text-slate-200">{f.score_b ?? '—'}</span>
+                        <span className="text-slate-800 dark:text-white truncate max-w-[110px]">{f.team_b_name}</span>
+                        <span className="font-mono text-slate-600 dark:text-slate-200">{f.score_b ?? '—'}</span>
                       </div>
                     </div>
                   </div>
@@ -447,13 +452,13 @@ export default function PublicWatchPage() {
       <main className="max-w-2xl mx-auto px-4 pt-3.5 space-y-3.5">
 
         {/* Tab Selector Bar */}
-        <div className="bg-slate-900/90 border border-slate-800 p-1 rounded-2xl flex gap-1 shadow-md">
+        <div className="bg-slate-200/80 dark:bg-slate-900/90 border border-slate-300/80 dark:border-slate-800 p-1 rounded-2xl flex gap-1 shadow-sm transition-colors">
           <button
             onClick={() => setActiveTab('feed')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'feed'
                 ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/50'
             }`}
           >
             <Camera size={13} />
@@ -466,7 +471,7 @@ export default function PublicWatchPage() {
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'standings'
                 ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/50'
             }`}
           >
             <Trophy size={13} />
@@ -478,7 +483,7 @@ export default function PublicWatchPage() {
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'fixtures'
                 ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/50'
             }`}
           >
             <Calendar size={13} />
@@ -487,16 +492,16 @@ export default function PublicWatchPage() {
         </div>
 
         {/* Quick Follow Team Box */}
-        <div className="bg-slate-900/60 border border-slate-800/90 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs">
+        <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/90 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs shadow-xs transition-colors">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className={`p-1.5 rounded-lg ${followedEntity ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+            <div className={`p-1.5 rounded-lg ${followedEntity ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
               <Bell size={13} />
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-white truncate">
+              <p className="font-bold text-slate-900 dark:text-white truncate">
                 {followedEntity ? `Following ${followedEntity.name}` : 'Live Score Alerts'}
               </p>
-              <p className="text-[11px] text-slate-400 truncate">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                 {followedEntity ? 'Receiving real-time push score alerts' : 'Select your team to get instant score alerts'}
               </p>
             </div>
@@ -506,7 +511,7 @@ export default function PublicWatchPage() {
               <button
                 onClick={unfollowEntity}
                 disabled={pushLoading}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-800 text-slate-300 hover:text-rose-400 transition-colors"
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-rose-500 transition-colors"
               >
                 Unfollow
               </button>
@@ -521,7 +526,7 @@ export default function PublicWatchPage() {
                   if (t) followEntity({ type: 'team', id: t.id, name: t.name });
                   e.target.value = '';
                 }}
-                className="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-2.5 py-1 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-xl px-2.5 py-1 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="" disabled>Follow Team...</option>
                 {eventInfo?.teams?.map(t => (
@@ -560,14 +565,14 @@ export default function PublicWatchPage() {
           <div className="space-y-4">
             {loadingFeed ? (
               <div className="space-y-3">
-                <Skeleton className="h-44 w-full bg-slate-900" />
-                <Skeleton className="h-44 w-full bg-slate-900" />
+                <Skeleton className="h-44 w-full bg-slate-200 dark:bg-slate-900" />
+                <Skeleton className="h-44 w-full bg-slate-200 dark:bg-slate-900" />
               </div>
             ) : (!feedData?.feed || feedData.feed.length === 0) ? (
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center text-slate-400">
-                <Camera size={36} className="mx-auto mb-3 opacity-30 text-blue-400" />
-                <h3 className="text-sm font-bold text-slate-200 mb-1">FanZone Feed is Live</h3>
-                <p className="text-xs max-w-sm mx-auto text-slate-400">
+              <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center text-slate-500 dark:text-slate-400 shadow-xs">
+                <Camera size={36} className="mx-auto mb-3 opacity-30 text-blue-500" />
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">FanZone Feed is Live</h3>
+                <p className="text-xs max-w-sm mx-auto text-slate-500 dark:text-slate-400">
                   Media managers and scorekeepers will publish match action photos and short video clips here throughout the tournament.
                 </p>
               </div>
@@ -580,16 +585,16 @@ export default function PublicWatchPage() {
                 const hasReactedTrophy = localReactions[`${post.id}-trophy`];
 
                 return (
-                  <article key={post.id} className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-lg transition-all">
+                  <article key={post.id} className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-md transition-all">
                     {/* Post Header */}
                     <div className="p-3.5 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/40 text-blue-400 font-black text-xs flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 font-black text-xs flex items-center justify-center shrink-0">
                           {post.author_name?.slice(0, 2).toUpperCase() || 'MD'}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-white truncate">{post.author_name || 'Official Media Desk'}</p>
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{post.author_name || 'Official Media Desk'}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400">
                             {post.sport_name ? `${post.sport_name} · ` : ''}
                             {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
@@ -597,7 +602,7 @@ export default function PublicWatchPage() {
                       </div>
 
                       {post.is_story_highlight && (
-                        <span className="bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
+                        <span className="bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
                           ⭐ Highlight
                         </span>
                       )}
@@ -605,7 +610,7 @@ export default function PublicWatchPage() {
 
                     {/* Post Caption */}
                     {post.caption && (
-                      <p className="px-3.5 pb-2.5 text-xs text-slate-200 leading-relaxed font-normal">
+                      <p className="px-3.5 pb-2.5 text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-normal">
                         {post.caption}
                       </p>
                     )}
@@ -639,14 +644,14 @@ export default function PublicWatchPage() {
                     </div>
 
                     {/* Action Bar: Reactions & Share Button */}
-                    <div className="p-3 flex items-center justify-between gap-2 border-t border-slate-800/80 bg-slate-900/40">
+                    <div className="p-3 flex items-center justify-between gap-2 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-900/40">
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleReact(post, 'fire')}
                           className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                             hasReactedFire
-                              ? 'bg-amber-500/20 border-amber-500 text-amber-300 scale-105'
-                              : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-700'
+                              ? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-300 scale-105'
+                              : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                           }`}
                         >
                           <span>🔥</span>
@@ -657,8 +662,8 @@ export default function PublicWatchPage() {
                           onClick={() => handleReact(post, 'clap')}
                           className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                             hasReactedClap
-                              ? 'bg-blue-500/20 border-blue-500 text-blue-300 scale-105'
-                              : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-700'
+                              ? 'bg-blue-500/20 border-blue-500 text-blue-600 dark:text-blue-300 scale-105'
+                              : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                           }`}
                         >
                           <span>👏</span>
@@ -669,8 +674,8 @@ export default function PublicWatchPage() {
                           onClick={() => handleReact(post, 'trophy')}
                           className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                             hasReactedTrophy
-                              ? 'bg-amber-500/20 border-amber-500 text-amber-300 scale-105'
-                              : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-700'
+                              ? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-300 scale-105'
+                              : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                           }`}
                         >
                           <span>🏆</span>
@@ -709,10 +714,10 @@ export default function PublicWatchPage() {
                   className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
                     standingsSport === 'championship'
                       ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
+                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <Trophy size={11} className={standingsSport === 'championship' ? 'text-slate-950' : 'text-amber-400'} />
+                  <Trophy size={11} className={standingsSport === 'championship' ? 'text-slate-950' : 'text-amber-500'} />
                   <span>Overall Shield</span>
                 </button>
                 {sportsList.map(s => (
@@ -722,7 +727,7 @@ export default function PublicWatchPage() {
                     className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
                       standingsSport === s.name
                         ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <span>{s.name}</span>
@@ -730,57 +735,57 @@ export default function PublicWatchPage() {
                 ))}
               </div>
 
-              {/* Micro-Podium Strip (Saves 250px vertical height compared to old design) */}
+              {/* Micro-Podium Strip */}
               {top3.length > 0 && !loadingStandings && (
                 <div className="grid grid-cols-3 gap-2 items-end pt-2">
                   {/* 2nd Place */}
                   {top3[1] && (
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-col items-center text-center">
-                      <span className="text-[9px] font-black uppercase text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full mb-1">🥈 2nd</span>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 flex flex-col items-center text-center shadow-xs">
+                      <span className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full mb-1">🥈 2nd</span>
                       <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs text-white mb-1 shadow-sm" style={{ backgroundColor: top3[1].color || '#64748b' }}>
                         {(top3[1].code || top3[1].name || '?').slice(0, 2).toUpperCase()}
                       </div>
-                      <p className="text-xs font-bold text-white truncate w-full">{top3[1].name}</p>
-                      <p className="text-sm font-black text-slate-300">{top3[1].total ?? top3[1].total_points ?? top3[1].points ?? 0} <span className="text-[10px] font-normal text-slate-500">pts</span></p>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate w-full">{top3[1].name}</p>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-300">{top3[1].total ?? top3[1].total_points ?? top3[1].points ?? 0} <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">pts</span></p>
                     </div>
                   )}
 
                   {/* 1st Place */}
                   {top3[0] && (
-                    <div className="bg-gradient-to-b from-amber-500/20 via-slate-900 to-slate-900 border-2 border-amber-500/50 rounded-2xl p-3 flex flex-col items-center text-center shadow-md">
-                      <span className="text-[9px] font-black uppercase text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2.5 py-0.5 rounded-full mb-1">👑 1st Place</span>
+                    <div className="bg-gradient-to-b from-amber-500/15 via-amber-500/5 to-white dark:from-amber-500/20 dark:via-slate-900 dark:to-slate-900 border-2 border-amber-500/40 rounded-2xl p-3 flex flex-col items-center text-center shadow-sm">
+                      <span className="text-[9px] font-black uppercase text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/20 border border-amber-300 dark:border-amber-500/30 px-2.5 py-0.5 rounded-full mb-1">👑 1st Place</span>
                       <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white mb-1 shadow-md border-2 border-amber-400" style={{ backgroundColor: top3[0].color || '#2563eb' }}>
                         {(top3[0].code || top3[0].name || '?').slice(0, 2).toUpperCase()}
                       </div>
-                      <p className="text-xs font-black text-white truncate w-full">{top3[0].name}</p>
-                      <p className="text-base font-black text-amber-400">{top3[0].total ?? top3[0].total_points ?? top3[0].points ?? 0} <span className="text-[10px] font-normal text-slate-400">pts</span></p>
+                      <p className="text-xs font-black text-slate-900 dark:text-white truncate w-full">{top3[0].name}</p>
+                      <p className="text-base font-black text-amber-600 dark:text-amber-400">{top3[0].total ?? top3[0].total_points ?? top3[0].points ?? 0} <span className="text-[10px] font-normal text-slate-400">pts</span></p>
                     </div>
                   )}
 
                   {/* 3rd Place */}
                   {top3[2] && (
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-col items-center text-center">
-                      <span className="text-[9px] font-black uppercase text-orange-400 bg-orange-950/60 px-2 py-0.5 rounded-full mb-1">🥉 3rd</span>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 flex flex-col items-center text-center shadow-xs">
+                      <span className="text-[9px] font-black uppercase text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/60 px-2 py-0.5 rounded-full mb-1">🥉 3rd</span>
                       <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs text-white mb-1 shadow-sm" style={{ backgroundColor: top3[2].color || '#ea580c' }}>
                         {(top3[2].code || top3[2].name || '?').slice(0, 2).toUpperCase()}
                       </div>
-                      <p className="text-xs font-bold text-white truncate w-full">{top3[2].name}</p>
-                      <p className="text-sm font-black text-slate-300">{top3[2].total ?? top3[2].total_points ?? top3[2].points ?? 0} <span className="text-[10px] font-normal text-slate-500">pts</span></p>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate w-full">{top3[2].name}</p>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-300">{top3[2].total ?? top3[2].total_points ?? top3[2].points ?? 0} <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">pts</span></p>
                     </div>
                   )}
                 </div>
               )}
 
               {/* High-Density Compact Table */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-md">
-                <div className="px-3.5 py-2.5 border-b border-slate-800 flex items-center justify-between">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-md">
+                <div className="px-3.5 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">{currentSportTitle}</h3>
-                    {standingsSport === 'championship' && <Sparkles size={12} className="text-amber-400" />}
+                    <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{currentSportTitle}</h3>
+                    {standingsSport === 'championship' && <Sparkles size={12} className="text-amber-500" />}
                   </div>
                   <button
                     onClick={() => handleOpenShare(currentSportTitle, window.location.href)}
-                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     <Share2 size={11} /> Share
                   </button>
@@ -788,15 +793,15 @@ export default function PublicWatchPage() {
 
                 {loadingStandings ? (
                   <div className="p-4 space-y-2">
-                    <Skeleton className="h-8 w-full bg-slate-800" />
-                    <Skeleton className="h-8 w-full bg-slate-800" />
-                    <Skeleton className="h-8 w-full bg-slate-800" />
+                    <Skeleton className="h-8 w-full bg-slate-200 dark:bg-slate-800" />
+                    <Skeleton className="h-8 w-full bg-slate-200 dark:bg-slate-800" />
+                    <Skeleton className="h-8 w-full bg-slate-200 dark:bg-slate-800" />
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-slate-950/95 backdrop-blur-md z-10">
-                        <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                      <thead className="sticky top-0 bg-slate-100/90 dark:bg-slate-950/95 backdrop-blur-md z-10">
+                        <tr className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                           <th className="py-2.5 px-3 text-center w-10">#</th>
                           <th className="py-2.5 px-3 text-left">Team</th>
                           {isPlacement ? (
@@ -814,10 +819,10 @@ export default function PublicWatchPage() {
                               <th className="py-2.5 px-2 text-center">+/-</th>
                             </>
                           )}
-                          <th className="py-2.5 px-3 text-right text-blue-400">PTS</th>
+                          <th className="py-2.5 px-3 text-right text-blue-600 dark:text-blue-400">PTS</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                         {standings?.map((team, idx) => {
                           const rank = idx + 1;
                           const teamObj = eventInfo?.teams?.find(t => t.code === team.code || String(t.id) === String(team.id)) || team;
@@ -828,34 +833,34 @@ export default function PublicWatchPage() {
                           return (
                             <tr
                               key={team.code || team.id || idx}
-                              className={`transition-colors ${isFollowed ? 'bg-blue-600/15' : 'hover:bg-slate-800/40'}`}
+                              className={`transition-colors ${isFollowed ? 'bg-blue-500/10 dark:bg-blue-600/15' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}
                             >
                               <td className="py-2 px-3 text-center"><RankBadge rank={rank} /></td>
                               <td className="py-2 px-3">
                                 <div className="flex items-center gap-2">
                                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: team.color || '#3b82f6' }} />
-                                  <span className="font-bold text-white truncate max-w-[130px]">{team.name}</span>
+                                  <span className="font-bold text-slate-900 dark:text-white truncate max-w-[130px]">{team.name}</span>
                                   {isFollowed && (
-                                    <span className="text-[9px] font-bold text-blue-400 bg-blue-500/15 px-1.5 py-0.5 rounded shrink-0">★</span>
+                                    <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/15 px-1.5 py-0.5 rounded shrink-0">★</span>
                                   )}
                                 </div>
                               </td>
                               {isPlacement ? (
                                 <>
-                                  <td className="py-2 px-2 text-center font-semibold text-slate-300">{team.gold ?? team.gold_count ?? 0}</td>
-                                  <td className="py-2 px-2 text-center font-semibold text-slate-300">{team.silver ?? team.silver_count ?? 0}</td>
-                                  <td className="py-2 px-2 text-center font-semibold text-slate-300">{team.bronze ?? team.bronze_count ?? 0}</td>
+                                  <td className="py-2 px-2 text-center font-semibold text-slate-700 dark:text-slate-300">{team.gold ?? team.gold_count ?? 0}</td>
+                                  <td className="py-2 px-2 text-center font-semibold text-slate-700 dark:text-slate-300">{team.silver ?? team.silver_count ?? 0}</td>
+                                  <td className="py-2 px-2 text-center font-semibold text-slate-700 dark:text-slate-300">{team.bronze ?? team.bronze_count ?? 0}</td>
                                 </>
                               ) : (
                                 <>
-                                  <td className="py-2 px-2 text-center font-semibold text-slate-300">{team.played ?? 0}</td>
-                                  <td className="py-2 px-2 text-center font-semibold text-slate-300">{team.won ?? 0}</td>
-                                  <td className="py-2 px-2 text-center font-semibold text-slate-300">{team.drawn ?? 0}</td>
-                                  <td className="py-2 px-2 text-center font-semibold text-slate-300">{team.lost ?? 0}</td>
-                                  <td className="py-2 px-2 text-center font-semibold text-slate-400 font-mono">{gd > 0 ? `+${gd}` : gd}</td>
+                                  <td className="py-2 px-2 text-center font-semibold text-slate-700 dark:text-slate-300">{team.played ?? 0}</td>
+                                  <td className="py-2 px-2 text-center font-semibold text-slate-700 dark:text-slate-300">{team.won ?? 0}</td>
+                                  <td className="py-2 px-2 text-center font-semibold text-slate-700 dark:text-slate-300">{team.drawn ?? 0}</td>
+                                  <td className="py-2 px-2 text-center font-semibold text-slate-700 dark:text-slate-300">{team.lost ?? 0}</td>
+                                  <td className="py-2 px-2 text-center font-semibold text-slate-500 dark:text-slate-400 font-mono">{gd > 0 ? `+${gd}` : gd}</td>
                                 </>
                               )}
-                              <td className="py-2 px-3 text-right font-black font-mono text-sm text-blue-400">
+                              <td className="py-2 px-3 text-right font-black font-mono text-sm text-blue-600 dark:text-blue-400">
                                 {pointsVal}
                               </td>
                             </tr>
@@ -880,7 +885,7 @@ export default function PublicWatchPage() {
               <button
                 onClick={() => setFixtureFilter('All')}
                 className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                  fixtureFilter === 'All' ? 'bg-blue-600 text-white' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
+                  fixtureFilter === 'All' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 All Sports
@@ -890,7 +895,7 @@ export default function PublicWatchPage() {
                   key={s.id}
                   onClick={() => setFixtureFilter(s.name)}
                   className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                    fixtureFilter === s.name ? 'bg-blue-600 text-white' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
+                    fixtureFilter === s.name ? 'bg-blue-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   {s.name}
@@ -901,11 +906,11 @@ export default function PublicWatchPage() {
             {/* Fixtures List */}
             {loadingFixtures ? (
               <div className="space-y-2">
-                <Skeleton className="h-16 w-full bg-slate-900" />
-                <Skeleton className="h-16 w-full bg-slate-900" />
+                <Skeleton className="h-16 w-full bg-slate-200 dark:bg-slate-900" />
+                <Skeleton className="h-16 w-full bg-slate-200 dark:bg-slate-900" />
               </div>
             ) : (!fixtures || fixtures.length === 0) ? (
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center text-slate-400 text-xs">
+              <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 text-center text-slate-500 dark:text-slate-400 text-xs shadow-xs">
                 No fixtures scheduled for this filter.
               </div>
             ) : (
@@ -917,20 +922,22 @@ export default function PublicWatchPage() {
                   return (
                     <div
                       key={f.id}
-                      className={`bg-slate-900 border rounded-2xl p-3 shadow-sm hover:border-slate-700 transition-all ${
-                        isLive ? 'border-rose-500/60 shadow-lg shadow-rose-500/10 ring-1 ring-rose-500/30 bg-gradient-to-r from-rose-950/20 to-slate-900' : 'border-slate-800'
+                      className={`border rounded-2xl p-3 shadow-xs hover:border-blue-400 dark:hover:border-slate-700 transition-all ${
+                        isLive
+                          ? 'border-rose-500/60 shadow-md shadow-rose-500/10 ring-1 ring-rose-500/30 bg-rose-50/40 dark:bg-gradient-to-r dark:from-rose-950/20 dark:to-slate-900'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
                       }`}
                     >
-                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="truncate">{f.sport_name} · {f.venue_name || 'Main Field'}</span>
                           {f.round && (
-                            <span className="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded text-[9px] font-semibold shrink-0">
+                            <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded text-[9px] font-semibold shrink-0">
                               {f.round}
                             </span>
                           )}
                         </div>
-                        <span className={isLive ? 'text-rose-400 font-black animate-pulse flex items-center gap-1' : isFinal ? 'text-slate-400' : 'text-blue-400 font-semibold'}>
+                        <span className={isLive ? 'text-rose-500 dark:text-rose-400 font-black animate-pulse flex items-center gap-1' : isFinal ? 'text-slate-400 dark:text-slate-500' : 'text-blue-600 dark:text-blue-400 font-semibold'}>
                           {isLive ? (
                             <>
                               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
@@ -943,17 +950,17 @@ export default function PublicWatchPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: f.team_a_color || '#3b82f6' }} />
-                          <span className="font-bold text-xs text-white truncate max-w-[140px]">{f.team_a_name}</span>
+                          <span className="font-bold text-xs text-slate-900 dark:text-white truncate max-w-[140px]">{f.team_a_name}</span>
                         </div>
-                        <span className="font-mono text-sm font-black text-white">{f.score_a ?? '—'}</span>
+                        <span className="font-mono text-sm font-black text-slate-900 dark:text-white">{f.score_a ?? '—'}</span>
                       </div>
 
                       <div className="flex items-center justify-between mt-1">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: f.team_b_color || '#ef4444' }} />
-                          <span className="font-bold text-xs text-white truncate max-w-[140px]">{f.team_b_name}</span>
+                          <span className="font-bold text-xs text-slate-900 dark:text-white truncate max-w-[140px]">{f.team_b_name}</span>
                         </div>
-                        <span className="font-mono text-sm font-black text-white">{f.score_b ?? '—'}</span>
+                        <span className="font-mono text-sm font-black text-slate-900 dark:text-white">{f.score_b ?? '—'}</span>
                       </div>
                     </div>
                   );
@@ -967,7 +974,7 @@ export default function PublicWatchPage() {
         {/* TAB 4: LATEST OFFICIAL RESULT DETAILS */}
         {/* ============================================================ */}
         {activeTab === 'latest' && latestResult && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-lg transition-colors">
             <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-4 text-slate-950 flex items-start justify-between">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-amber-950">Official Result</span>
@@ -976,7 +983,7 @@ export default function PublicWatchPage() {
               </div>
               <button
                 onClick={() => setActiveTab('standings')}
-                className="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-950 text-white cursor-pointer"
+                className="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-950 text-white cursor-pointer hover:bg-slate-800 transition-colors"
               >
                 Standings →
               </button>
@@ -984,34 +991,34 @@ export default function PublicWatchPage() {
 
             <table className="w-full text-xs">
               <thead>
-                <tr className="bg-slate-950/60 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                <tr className="bg-slate-100 dark:bg-slate-950/60 text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                   <th className="py-2.5 px-3 text-left">Place</th>
                   <th className="py-2.5 px-3 text-left">Team &amp; Competitor</th>
                   <th className="py-2.5 px-3 text-right">Mark / Time</th>
                   <th className="py-2.5 px-3 text-right">Points</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {latestResult.results?.map((r, rIdx) => (
-                  <tr key={`${r.placement || 'P'}-${r.teamId}-${rIdx}`} className="hover:bg-slate-800/40">
-                    <td className="py-2 px-3 font-bold text-white whitespace-nowrap">
+                  <tr key={`${r.placement || 'P'}-${r.teamId}-${rIdx}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <td className="py-2 px-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
                       {r.placement === 1 ? '🥇 1st' : r.placement === 2 ? '🥈 2nd' : r.placement === 3 ? '🥉 3rd' : `#${r.placement}`}
                     </td>
                     <td className="py-2 px-3">
                       <div className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: r.teamColor || '#64748b' }} />
-                        <span className="font-bold text-white">{r.teamName}</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{r.teamName}</span>
                       </div>
                       {(r.athleteName || r.athlete_name) && (
-                        <div className="text-[10px] text-slate-400 pl-4 font-normal">
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 pl-4 font-normal">
                           🏃 {r.athleteName || r.athlete_name}
                         </div>
                       )}
                     </td>
-                    <td className="py-2 px-3 text-right font-mono text-slate-400 whitespace-nowrap">
+                    <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
                       {r.distanceFormatted || r.timeFormatted || '—'}
                     </td>
-                    <td className="py-2 px-3 text-right font-black text-amber-400 whitespace-nowrap">
+                    <td className="py-2 px-3 text-right font-black text-amber-600 dark:text-amber-400 whitespace-nowrap">
                       +{r.points}
                     </td>
                   </tr>
@@ -1150,19 +1157,19 @@ export default function PublicWatchPage() {
       {/* 6. 1-TAP SOCIAL SHARING MODAL SHEET */}
       {shareDialog && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 animate-in fade-in duration-150">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-white">Share Live Moment 📤</h3>
-              <button onClick={() => setShareDialog(null)} className="text-slate-400 hover:text-white text-base">✕</button>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white">Share Live Moment 📤</h3>
+              <button onClick={() => setShareDialog(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-base cursor-pointer">✕</button>
             </div>
-            <p className="text-xs text-slate-300 font-medium line-clamp-2">
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium line-clamp-2">
               "{shareDialog.title}"
             </p>
 
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={handleShareToWhatsApp}
-                className="p-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 rounded-2xl flex flex-col items-center gap-1.5 text-xs font-bold text-emerald-300 cursor-pointer transition-all active:scale-95"
+                className="p-3 bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 border border-emerald-300 dark:border-emerald-500/40 rounded-2xl flex flex-col items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 cursor-pointer transition-all active:scale-95"
               >
                 <span className="text-xl">💬</span>
                 <span>WhatsApp</span>
@@ -1170,7 +1177,7 @@ export default function PublicWatchPage() {
 
               <button
                 onClick={handleCopyLink}
-                className="p-3 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 rounded-2xl flex flex-col items-center gap-1.5 text-xs font-bold text-blue-300 cursor-pointer transition-all active:scale-95"
+                className="p-3 bg-blue-50 dark:bg-blue-600/20 hover:bg-blue-100 dark:hover:bg-blue-600/30 border border-blue-300 dark:border-blue-500/40 rounded-2xl flex flex-col items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 cursor-pointer transition-all active:scale-95"
               >
                 <span className="text-xl">{copied ? '✓' : '🔗'}</span>
                 <span>{copied ? 'Copied!' : 'Copy Link'}</span>
@@ -1181,18 +1188,18 @@ export default function PublicWatchPage() {
       )}
 
       {/* 7. FLOATING MOBILE-FIRST THUMB DOCK (Visible on mobile viewports < 640px) */}
-      <nav className="sm:hidden fixed bottom-3 left-4 right-4 z-40 max-w-sm mx-auto bg-slate-900/95 backdrop-blur-xl border border-slate-800/90 rounded-2xl p-1.5 shadow-2xl flex items-center justify-around">
+      <nav className="sm:hidden fixed bottom-3 left-4 right-4 z-40 max-w-sm mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800/90 rounded-2xl p-1.5 shadow-2xl flex items-center justify-around transition-colors">
         <button
           onClick={() => setActiveTab('feed')}
           className={`flex-1 py-1.5 rounded-xl flex flex-col items-center gap-0.5 transition-all cursor-pointer active:scale-90 ${
             activeTab === 'feed'
-              ? 'text-blue-400 font-black'
-              : 'text-slate-400 font-semibold hover:text-slate-200'
+              ? 'text-blue-600 dark:text-blue-400 font-black'
+              : 'text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
           <div className="relative">
             <Camera size={17} />
-            <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
           </div>
           <span className="text-[10px] tracking-tight">FanZone</span>
         </button>
@@ -1201,8 +1208,8 @@ export default function PublicWatchPage() {
           onClick={() => setActiveTab('standings')}
           className={`flex-1 py-1.5 rounded-xl flex flex-col items-center gap-0.5 transition-all cursor-pointer active:scale-90 ${
             activeTab === 'standings'
-              ? 'text-blue-400 font-black'
-              : 'text-slate-400 font-semibold hover:text-slate-200'
+              ? 'text-blue-600 dark:text-blue-400 font-black'
+              : 'text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
           <Trophy size={17} />
@@ -1213,8 +1220,8 @@ export default function PublicWatchPage() {
           onClick={() => setActiveTab('fixtures')}
           className={`flex-1 py-1.5 rounded-xl flex flex-col items-center gap-0.5 transition-all cursor-pointer active:scale-90 ${
             activeTab === 'fixtures'
-              ? 'text-blue-400 font-black'
-              : 'text-slate-400 font-semibold hover:text-slate-200'
+              ? 'text-blue-600 dark:text-blue-400 font-black'
+              : 'text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
           <Calendar size={17} />
@@ -1226,11 +1233,11 @@ export default function PublicWatchPage() {
             onClick={() => setActiveTab('latest')}
             className={`flex-1 py-1.5 rounded-xl flex flex-col items-center gap-0.5 transition-all cursor-pointer active:scale-90 ${
               activeTab === 'latest'
-                ? 'text-amber-400 font-black'
-                : 'text-amber-400/70 font-semibold hover:text-amber-300'
+                ? 'text-amber-600 dark:text-amber-400 font-black'
+                : 'text-amber-600/70 dark:text-amber-400/70 font-semibold hover:text-amber-700 dark:hover:text-amber-300'
             }`}
           >
-            <Zap size={17} className="fill-amber-400/20" />
+            <Zap size={17} className="fill-amber-500/20" />
             <span className="text-[10px] tracking-tight">Result</span>
           </button>
         )}
