@@ -8,11 +8,18 @@ import { Lock, Mail, User, ShieldAlert, ArrowLeft, Loader2, Eye, EyeOff, KeyRoun
 import ThemeToggle from '../components/ThemeToggle.jsx';
 
 export default function Login() {
-  const { login, register } = useAuth();
+  const { login, register, user } = useAuth();
   const { activeOrg, setActiveOrgSlug, organizations } = useOrganization();
   const navigate = useNavigate();
   const { data: settings } = useSettings();
  
+  // If already logged in as superadmin, redirect directly to superadmin console
+  useEffect(() => {
+    if (user?.role === 'superadmin') {
+      navigate('/superadmin');
+    }
+  }, [user, navigate]);
+
   const [isRegister, setIsRegister] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('register') === 'true' && params.get('existing') !== 'true';
@@ -59,16 +66,22 @@ export default function Login() {
     setError('');
 
     try {
+      let res;
+      const cleanEmail = email.trim().toLowerCase();
       if (isRegister) {
-        const res = await register(name, email, password);
-        if (res?.organization?.slug && setActiveOrgSlug) {
-          setActiveOrgSlug(res.organization.slug);
-        }
+        res = await register(name.trim(), cleanEmail, password);
       } else {
-        const res = await login(email, password);
-        if (res?.organization?.slug && setActiveOrgSlug) {
-          setActiveOrgSlug(res.organization.slug);
-        }
+        res = await login(cleanEmail, password);
+      }
+
+      // If user is Superadmin, go directly to Superadmin Console
+      if (res?.user?.role === 'superadmin') {
+        navigate('/superadmin');
+        return;
+      }
+
+      if (res?.organization?.slug && setActiveOrgSlug) {
+        setActiveOrgSlug(res.organization.slug);
       }
       navigate('/');
     } catch (err) {

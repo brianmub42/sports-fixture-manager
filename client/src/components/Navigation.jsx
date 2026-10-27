@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, FolderKanban, Play, BarChart3, Settings, Trophy, Calendar, Activity, List, MapPin, Upload, Wand2, Network, Tv, LineChart, Award, ShieldCheck, Megaphone, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
@@ -56,15 +56,6 @@ const categories = [
       { to: '/media', label: 'Media & Adverts', icon: Megaphone, mediaOnly: true },
       { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
     ]
-  },
-  {
-    type: 'dropdown',
-    label: 'Superadmin',
-    icon: ShieldCheck,
-    superadminOnly: true,
-    links: [
-      { to: '/superadmin', label: 'Superadmin Console', icon: ShieldCheck }
-    ]
   }
 ];
 
@@ -72,6 +63,7 @@ export default function Navigation() {
   const { isAdmin, isMediaManager, user } = useAuth();
   const isSuperadmin = user?.role === 'superadmin';
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [openDropdown, setOpenDropdown] = useState(null);
 
   useEffect(() => {
@@ -98,6 +90,19 @@ export default function Navigation() {
   return (
     <nav className="mb-6 relative z-30 flex justify-center">
       <div className="flex items-center gap-1.5 sm:gap-2.5 p-1.5 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border border-gray-200/80 dark:border-gray-800/80 rounded-2xl shadow-lg shadow-gray-200/5 dark:shadow-black/40 overflow-x-auto sm:overflow-x-visible no-scrollbar max-w-full sm:max-w-max mx-auto">
+        {/* Prominent Superadmin Console Button */}
+        {isSuperadmin && (
+          <button
+            type="button"
+            onClick={() => navigate('/superadmin')}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-black rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md shadow-purple-600/30 transition-all cursor-pointer select-none ring-2 ring-purple-400/40 hover:scale-[1.02] active:scale-[0.98]"
+            title="Open Superadmin Console"
+          >
+            <ShieldCheck size={16} className="shrink-0 text-purple-200" />
+            <span className="whitespace-nowrap tracking-wide">Superadmin Console</span>
+          </button>
+        )}
+
         {categories.map((cat, idx) => {
           if (cat.superadminOnly && !isSuperadmin) return null;
 

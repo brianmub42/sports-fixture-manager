@@ -8,7 +8,7 @@ import { useSettings } from '../hooks/useFixtures.js';
 import { useLiveUpdates } from '../hooks/useLiveUpdates.js';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { LogOut, Key, UserCheck, Settings as SettingsIcon, QrCode } from 'lucide-react';
+import { LogOut, Key, UserCheck, Settings as SettingsIcon, QrCode, ShieldCheck } from 'lucide-react';
 import SpectatorQrModal from './SpectatorQrModal.jsx';
 import TournamentSwitcher from './TournamentSwitcher.jsx';
 
@@ -67,6 +67,16 @@ export default function Layout() {
                 <UserCheck className="w-3.5 h-3.5 text-blue-500" />
                 Logged in: <strong className="text-gray-800 dark:text-gray-200">{user.name}</strong> ({user.role})
               </span>
+              {user.role === 'superadmin' && (
+                <button 
+                  onClick={() => navigate('/superadmin')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-sm shadow-purple-600/30 transition-all cursor-pointer"
+                  title="Open Superadmin Console"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-purple-200" />
+                  <span>Superadmin Console</span>
+                </button>
+              )}
               {user.role === 'admin' && (
                 <button 
                   onClick={() => navigate('/settings')}
@@ -119,6 +129,34 @@ export default function Layout() {
           </div>
         </div>
       </header>
+
+      {/* Prominent Superadmin Banner when inspecting any workspace */}
+      {user?.role === 'superadmin' && (
+        <div className="mb-4 p-3.5 bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 border border-purple-500/40 rounded-2xl shadow-xl text-white flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-purple-600/30 border border-purple-400/40 text-purple-300">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-purple-300">Super Administrator Mode</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-800/60 text-purple-200 border border-purple-600/50">Root Access</span>
+              </div>
+              <p className="text-xs text-purple-200/80 mt-0.5">
+                You are currently inspecting workspace: <strong className="text-white">{orgName}</strong>. You have unrestricted root management rights.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/superadmin')}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black rounded-xl shadow-lg shadow-purple-600/30 transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Return to Superadmin Console</span>
+          </button>
+        </div>
+      )}
+
       <Navigation />
 
       {user?.role === 'admin' && isBillingLow && (

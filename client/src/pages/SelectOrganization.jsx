@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '../contexts/OrganizationContext.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import { 
   Building2, Plus, ArrowRight, Loader2, Trophy, Globe, 
   Calendar, Award, Activity, BarChart3, CheckCircle2, 
@@ -38,6 +39,7 @@ function AnimatedCounter({ value, duration = 1500, suffix = '' }) {
 export default function SelectOrganization() {
   const navigate = useNavigate();
   const { organizations, isLoading, selectOrg, createOrg } = useOrganization();
+  const { user, isAuthenticated, logout } = useAuth();
   
   // Workspace search & filtering state
   const [searchQuery, setSearchQuery] = useState('');
@@ -139,12 +141,31 @@ export default function SelectOrganization() {
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
               Live FanZone
             </button>
-            <button 
-              onClick={() => navigate('/login')}
-              className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-            >
-              Sign In
-            </button>
+            {user?.role === 'superadmin' && (
+              <button 
+                onClick={() => navigate('/superadmin')}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black shadow-md shadow-purple-600/30 flex items-center gap-1.5 transition-all cursor-pointer"
+                title="Superadmin Command Center"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-200" />
+                <span>Superadmin Console</span>
+              </button>
+            )}
+            {isAuthenticated ? (
+              <button 
+                onClick={logout}
+                className="px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+              >
+                Sign Out
+              </button>
+            ) : (
+              <button 
+                onClick={() => navigate('/login')}
+                className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              >
+                Sign In
+              </button>
+            )}
             <button 
               onClick={scrollToWorkspaces}
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-blue-600/20 hover:shadow-blue-600/35 transition-all cursor-pointer"
@@ -154,6 +175,35 @@ export default function SelectOrganization() {
           </nav>
         </div>
       </header>
+
+      {/* Prominent Superadmin Access Bar */}
+      {user?.role === 'superadmin' && (
+        <div className="max-w-6xl mx-auto px-4 pt-4">
+          <div className="p-4 bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 border border-purple-500/40 rounded-2xl shadow-xl text-white flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-purple-600/30 border border-purple-400/40 rounded-xl text-purple-300">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-black uppercase tracking-wider text-purple-300">Platform Super Administrator</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-800/60 text-purple-200">Root Access</span>
+                </div>
+                <p className="text-xs text-purple-200/80 mt-0.5">
+                  Logged in as <strong className="text-white">{user.email}</strong>. Manage the entire platform or select a tournament below.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/superadmin')}
+              className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black rounded-xl shadow-lg shadow-purple-600/30 transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Open Superadmin Console</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="relative max-w-6xl mx-auto px-4 pt-16 pb-20 text-center">

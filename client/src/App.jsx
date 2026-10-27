@@ -42,13 +42,15 @@ import MobileViewerEvent from './mobile-app/pages/viewer/MobileViewerEvent.jsx';
 function App() {
   const { activeOrg } = useOrganization();
   const location = useLocation();
+  const isSuperadminRoute = location.pathname.startsWith('/superadmin');
   const isPublicBypassRoute =
     location.pathname.startsWith('/watch') ||
     location.pathname.startsWith('/events') ||
     location.pathname.startsWith('/fanzone') ||
     location.pathname.startsWith('/reset-password') ||
     location.pathname.startsWith('/app') ||
-    location.pathname.startsWith('/login');
+    location.pathname.startsWith('/login') ||
+    isSuperadminRoute;
 
   if (!activeOrg && !isPublicBypassRoute) {
     return <SelectOrganization />;
@@ -74,8 +76,8 @@ function App() {
               <Route path="/brackets" element={<Brackets />} />
               <Route path="/athletics" element={<AthleticsPage />} />
               <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/superadmin" element={<SuperadminDashboard />} />
             </Route>
+            <Route path="/superadmin" element={<SuperadminDashboard />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/tv" element={<TvMode />} />
