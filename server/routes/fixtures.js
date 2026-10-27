@@ -116,9 +116,20 @@ router.get('/', async (req, res) => {
     }
 
     // Execute queries and merge results
+    const statusRank = { live: 1, in_progress: 1, upcoming: 2, completed: 3, cancelled: 4 };
     let finalRows = [];
     if (sqlParts.length === 1) {
-      const queryRes = await query(sqlParts[0].sql + ' ORDER BY status ASC, scheduled_at ASC', sqlParts[0].params);
+      const orderSql = `
+        ORDER BY 
+          CASE 
+            WHEN status IN ('live', 'in_progress') THEN 1
+            WHEN status = 'upcoming' THEN 2
+            WHEN status = 'completed' THEN 3
+            ELSE 4
+          END ASC, 
+          scheduled_at ASC
+      `;
+      const queryRes = await query(sqlParts[0].sql + orderSql, sqlParts[0].params);
       finalRows = queryRes.rows;
     } else {
       // Execute both separately to avoid param index conflicts in union
@@ -126,8 +137,10 @@ router.get('/', async (req, res) => {
       const resAthletics = await query(sqlParts[1].sql, sqlParts[1].params);
       finalRows = [...resFixtures.rows, ...resAthletics.rows];
       finalRows.sort((a, b) => {
-        if (a.status !== b.status) {
-          return String(a.status).localeCompare(String(b.status));
+        const rankA = statusRank[a.status] || 99;
+        const rankB = statusRank[b.status] || 99;
+        if (rankA !== rankB) {
+          return rankA - rankB;
         }
         return new Date(a.scheduled_at) - new Date(b.scheduled_at);
       });
@@ -214,7 +227,14 @@ router.get('/team/:code/schedule', async (req, res) => {
           WHERE ar.event_id = ae.id AND t2.code = $1
         )
 
-      ORDER BY status ASC, scheduled_at ASC
+      ORDER BY 
+        CASE 
+          WHEN status IN ('live', 'in_progress') THEN 1
+          WHEN status = 'upcoming' THEN 2
+          WHEN status = 'completed' THEN 3
+          ELSE 4
+        END ASC, 
+        scheduled_at ASC
     `, [req.params.code, req.orgId]);
     res.json(result.rows);
   } catch (err) {
@@ -279,7 +299,14 @@ router.get('/district/:code/schedule', async (req, res) => {
           WHERE ar.event_id = ae.id AND t2.code = $1
         )
 
-      ORDER BY status ASC, scheduled_at ASC
+      ORDER BY 
+        CASE 
+          WHEN status IN ('live', 'in_progress') THEN 1
+          WHEN status = 'upcoming' THEN 2
+          WHEN status = 'completed' THEN 3
+          ELSE 4
+        END ASC, 
+        scheduled_at ASC
     `, [req.params.code, req.orgId]);
     res.json(result.rows);
   } catch (err) {

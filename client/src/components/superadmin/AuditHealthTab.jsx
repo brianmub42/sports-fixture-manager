@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { superadminApi } from '../../api.js';
 import { 
   Activity, Database, Server, Clock, RefreshCw, 
-  ShieldCheck, AlertCircle, Play, Cpu, Check, Users 
+  ShieldCheck, AlertCircle, Play, Cpu, Check, Users, Download 
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext.jsx';
+import { downloadCSV } from '../../utils/tournamentReports.js';
 
 export default function AuditHealthTab() {
   const queryClient = useQueryClient();
@@ -58,6 +59,28 @@ export default function AuditHealthTab() {
     const mins = Math.floor((seconds % 3600) / 60);
     if (hrs === 0) return `${mins}m`;
     return `${hrs}h ${mins}m`;
+  };
+
+  const handleExportAuditCSV = () => {
+    if (!logs || logs.length === 0) {
+      alert('No audit logs available to export');
+      return;
+    }
+    const headers = ['Log ID', 'Timestamp', 'Action', 'Actor Name', 'Actor Email', 'Target Type', 'Target ID', 'Details', 'IP Address'];
+    const rows = logs.map(l => [
+      l.id,
+      new Date(l.created_at).toISOString(),
+      l.action,
+      l.actor_name || 'System',
+      l.actor_email || '',
+      l.target_type || '',
+      l.target_id || '',
+      JSON.stringify(l.details || {}),
+      l.ip_address || ''
+    ]);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCSV(`superadmin-audit-logs-${dateStr}`, headers, rows);
+    showToast('Audit trail exported to CSV successfully!', 'success');
   };
 
   return (
@@ -157,7 +180,19 @@ export default function AuditHealthTab() {
             <ShieldCheck size={18} className="text-purple-600 dark:text-purple-400" />
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Superadmin Action Audit Trail</h3>
           </div>
-          <span className="text-xs text-slate-400 font-semibold">Latest 50 actions</span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs text-slate-400 font-semibold hidden sm:inline">Latest 50 actions</span>
+            <button
+              type="button"
+              onClick={handleExportAuditCSV}
+              disabled={logs.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-xl border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors disabled:opacity-40 cursor-pointer shadow-sm"
+              title="Download audit trail as CSV"
+            >
+              <Download size={13} />
+              <span>Export CSV</span>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
