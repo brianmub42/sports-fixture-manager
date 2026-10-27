@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { superadminApi } from '../../api.js';
 import { 
   Users, Search, Plus, Key, Building2, Edit3, Trash2, 
-  Lock, Unlock, Shield, ShieldCheck, RefreshCw, UserCheck 
+  Lock, Unlock, Shield, ShieldCheck, RefreshCw, UserCheck, Check 
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext.jsx';
 import UserModal from './modals/UserModal.jsx';
