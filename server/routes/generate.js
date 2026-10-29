@@ -116,19 +116,19 @@ router.post('/', authMiddleware, async (req, res) => {
       const sportId = sportRes.rows[0].id;
       const scoringType = sportRes.rows[0].scoring_type;
 
-      if (scoringType === 'placement' || format === 'placement') {
-        for (const e of customFixtures) {
+      for (const item of customFixtures) {
+        const itemSportId = item.sport_id || sportId;
+        const isAthletic = item.is_athletics || item.category !== undefined || scoringType === 'placement' || format === 'placement';
+        if (isAthletic) {
           await query(`
             INSERT INTO athletics_events (organization_id, sport_id, venue_id, name, category, scheduled_at, duration_minutes, status)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          `, [req.orgId, sportId, e.venue_id, e.name, e.category, e.scheduled_at, e.duration || 15, e.status || 'upcoming']);
-        }
-      } else {
-        for (const f of customFixtures) {
+          `, [req.orgId, itemSportId, item.venue_id, item.name || item.team_a_name, item.category || 'Open', item.scheduled_at, item.duration || 15, item.status || 'upcoming']);
+        } else {
           await query(`
             INSERT INTO fixtures (organization_id, sport_id, venue_id, round, team_a_id, team_b_id, scheduled_at, duration_minutes, status, notes, score_details)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          `, [req.orgId, sportId, f.venue_id, f.round, f.team_a_id, f.team_b_id, f.scheduled_at, f.duration || 10, f.status || 'upcoming', f.notes, f.score_details ? JSON.stringify(f.score_details) : null]);
+          `, [req.orgId, itemSportId, item.venue_id, item.round, item.team_a_id, item.team_b_id, item.scheduled_at, item.duration || 10, item.status || 'upcoming', item.notes, item.score_details ? JSON.stringify(item.score_details) : null]);
         }
       }
 

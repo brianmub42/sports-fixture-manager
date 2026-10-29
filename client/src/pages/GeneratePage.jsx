@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateApi } from '../api.js';
-import { Wand2, Save, Clock, Users, MapPin, Calendar, RotateCcw, CheckCircle, AlertTriangle, ShieldAlert, Trophy, HelpCircle, BookOpen, Zap, Layers, Lightbulb, ArrowRight } from 'lucide-react';
+import { Wand2, Save, Clock, Users, MapPin, Calendar, RotateCcw, CheckCircle, AlertTriangle, ShieldAlert, Trophy, HelpCircle, BookOpen, Zap, Layers, Lightbulb, ArrowRight, ArrowUpDown, ChevronUp, ChevronDown, Sparkles, GripVertical } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useVenues, useSports, useTeams } from '../hooks/useFixtures.js';
 import { useToast } from '../contexts/ToastContext.jsx';
@@ -1996,6 +1996,10 @@ export default function GeneratePage() {
   const isPlacementSport = selectedSportObj?.scoring_type === 'placement' || schedulerMode === 'dual_athletics';
 
   const [preview, setPreview] = useState(null);
+  const [originalFixtures, setOriginalFixtures] = useState(null);
+  const [sortPreset, setSortPreset] = useState('original');
+  const [autoRecalculateTimes, setAutoRecalculateTimes] = useState(true);
+  const [draggedIndex, setDraggedIndex] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
@@ -2240,7 +2244,10 @@ export default function GeneratePage() {
           format: multiFormat || 'single',
           concurrent: parseInt(multiConcurrent) || 1
         });
-        setPreview(res.data);
+        const pData = res.data;
+        setPreview(pData);
+        setOriginalFixtures(pData?.fixtures ? [...pData.fixtures] : []);
+        setSortPreset('original');
       } else if (schedulerMode === 'dual_athletics') {
         const tVenues = trackVenues.split(',').map(x => x.trim()).filter(Boolean);
         const fVenues = fieldVenues.split(',').map(x => x.trim()).filter(Boolean);
@@ -2254,16 +2261,212 @@ export default function GeneratePage() {
           venues: combinedVenues,
           concurrent: combinedVenues.length
         });
-        setPreview(res.data);
+        const pData = res.data;
+        setPreview(pData);
+        setOriginalFixtures(pData?.fixtures ? [...pData.fixtures] : []);
+        setSortPreset('original');
       } else {
         const res = await generateApi.preview(buildPayload());
-        setPreview(res.data);
+        const pData = res.data;
+        setPreview(pData);
+        setOriginalFixtures(pData?.fixtures ? [...pData.fixtures] : []);
+        setSortPreset('original');
       }
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Smart Schedule Ordering & Re-timing Helpers ──
+  const extractAgeValue = (categoryOrName) => {
+    const str = String(categoryOrName || '').toLowerCase();
+    if (str.includes('open') || str.includes('senior') || str.includes('masters')) return 999;
+    const gradeMatch = str.match(/(?:grade|gr)[\s-_]*(\d+)/i);
+    if (gradeMatch) return parseInt(gradeMatch[1], 10);
+    const uMatch = str.match(/(?:under|u)[\s-_]*(\d+)/i);
+    if (uMatch) return parseInt(uMatch[1], 10);
+    const numMatch = str.match(/\b(\d+)\b/);
+    if (numMatch) return parseInt(numMatch[1], 10);
+    return 50;
+  };
+
+  const getGenderPriority = (categoryOrName, girlsFirst = true) => {
+    const str = String(categoryOrName || '').toLowerCase();
+    const isGirl = str.includes('girl') || str.includes('female') || str.includes('women') || str.includes('ladies');
+    const isBoy = str.includes('boy') || str.includes('male') || str.includes('men');
+    if (isGirl && !isBoy) return girlsFirst ? 1 : 2;
+    if (isBoy && !isGirl) return girlsFirst ? 2 : 1;
+    return 3;
+  };
+
+  const getEventProgressionPriority = (eventName) => {
+    const s = String(eventName || '').toLowerCase();
+    if (s.includes('1500m') || s.includes('3000m') || s.includes('5000m') || s.includes('cross') || s.includes('distance')) return 1;
+    if (s.includes('800m')) return 2;
+    if (s.includes('hurdle')) return 3;
+    if (s.includes('100m')) return 4;
+    if (s.includes('200m')) return 5;
+    if (s.includes('400m')) return 6;
+    if (s.includes('high jump') || s.includes('long jump') || s.includes('triple jump') || s.includes('pole vault')) return 7;
+    if (s.includes('shot put') || s.includes('discus') || s.includes('javelin') || s.includes('hammer')) return 8;
+    if (s.includes('relay') || s.includes('4x100') || s.includes('4x400') || s.includes('medley')) return 9;
+    return 5;
+  };
+
+  const recalculateScheduleTimes = (fixturesList, baseStartDate, durationMins, breakMins, concurrentCount) => {
+    if (!fixturesList || fixturesList.length === 0) return fixturesList;
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const formatISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+
+    const parseBase = (dateStr) => {
+      if (!dateStr) return new Date();
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? new Date() : d;
+    };
+
+    const dur = Math.max(1, parseInt(durationMins) || 15);
+    const brk = Math.max(0, parseInt(breakMins) || 0);
+    const conc = Math.max(1, parseInt(concurrentCount) || 1);
+
+    const startObj = parseBase(baseStartDate || fixturesList[0]?.scheduled_at);
+    let currentTime = new Date(startObj.getTime());
+
+    const result = [];
+    for (let i = 0; i < fixturesList.length; i += conc) {
+      const roundIdx = Math.floor(i / conc) + 1;
+      const roundLabel = `Round ${roundIdx}`;
+      const roundStartTimeStr = formatISO(currentTime);
+      const roundEndTime = new Date(currentTime.getTime() + dur * 60000);
+      const roundEndTimeStr = formatISO(roundEndTime);
+
+      for (let j = 0; j < conc && i + j < fixturesList.length; j++) {
+        const item = { ...fixturesList[i + j] };
+        item.scheduled_at = roundStartTimeStr;
+        item.end_time = roundEndTimeStr;
+        item.duration = dur;
+        if (!item.round || item.round.startsWith('Round ') || item.round.startsWith('R')) {
+          item.round = roundLabel;
+        }
+        result.push(item);
+      }
+
+      currentTime = new Date(currentTime.getTime() + (dur + brk) * 60000);
+    }
+
+    return result;
+  };
+
+  const applySortPreset = (presetKey) => {
+    if (!preview || !preview.fixtures) return;
+    setSortPreset(presetKey);
+
+    if (presetKey === 'original') {
+      if (originalFixtures) {
+        const resetItems = autoRecalculateTimes
+          ? recalculateScheduleTimes(originalFixtures, form.startDate, form.duration, form.breakTime, form.concurrent)
+          : [...originalFixtures];
+        setPreview(prev => ({ ...prev, fixtures: resetItems }));
+        showToast('Restored original generated sequence.', 'info');
+      }
+      return;
+    }
+
+    const items = [...preview.fixtures];
+
+    items.sort((a, b) => {
+      const nameA = a.name || a.team_a_name || '';
+      const nameB = b.name || b.team_b_name || '';
+      const catA = a.category || a.team_a_name || '';
+      const catB = b.category || b.team_b_name || '';
+
+      if (presetKey === 'age_asc') {
+        const evDiff = (a.name || '').localeCompare(b.name || '');
+        if (evDiff !== 0) return evDiff;
+        const ageDiff = extractAgeValue(catA) - extractAgeValue(catB);
+        if (ageDiff !== 0) return ageDiff;
+        return getGenderPriority(catA, true) - getGenderPriority(catB, true);
+      }
+
+      if (presetKey === 'age_desc') {
+        const evDiff = (a.name || '').localeCompare(b.name || '');
+        if (evDiff !== 0) return evDiff;
+        const ageDiff = extractAgeValue(catB) - extractAgeValue(catA);
+        if (ageDiff !== 0) return ageDiff;
+        return getGenderPriority(catA, true) - getGenderPriority(catB, true);
+      }
+
+      if (presetKey === 'girls_first') {
+        const evDiff = (a.name || '').localeCompare(b.name || '');
+        if (evDiff !== 0) return evDiff;
+        const gDiff = getGenderPriority(catA, true) - getGenderPriority(catB, true);
+        if (gDiff !== 0) return gDiff;
+        return extractAgeValue(catA) - extractAgeValue(catB);
+      }
+
+      if (presetKey === 'boys_first') {
+        const evDiff = (a.name || '').localeCompare(b.name || '');
+        if (evDiff !== 0) return evDiff;
+        const gDiff = getGenderPriority(catA, false) - getGenderPriority(catB, false);
+        if (gDiff !== 0) return gDiff;
+        return extractAgeValue(catA) - extractAgeValue(catB);
+      }
+
+      if (presetKey === 'event_flow') {
+        const flowA = getEventProgressionPriority(a.name || a.team_a_name);
+        const flowB = getEventProgressionPriority(b.name || b.team_b_name);
+        if (flowA !== flowB) return flowA - flowB;
+        const evDiff = (a.name || '').localeCompare(b.name || '');
+        if (evDiff !== 0) return evDiff;
+        const ageDiff = extractAgeValue(catA) - extractAgeValue(catB);
+        if (ageDiff !== 0) return ageDiff;
+        return getGenderPriority(catA, true) - getGenderPriority(catB, true);
+      }
+
+      if (presetKey === 'venue_group') {
+        const vA = a.venue || '';
+        const vB = b.venue || '';
+        const vDiff = vA.localeCompare(vB);
+        if (vDiff !== 0) return vDiff;
+        return extractAgeValue(catA) - extractAgeValue(catB);
+      }
+
+      if (presetKey === 'sport_group') {
+        const spA = a.sport || '';
+        const spB = b.sport || '';
+        const spDiff = spA.localeCompare(spB);
+        if (spDiff !== 0) return spDiff;
+        return extractAgeValue(catA) - extractAgeValue(catB);
+      }
+
+      return 0;
+    });
+
+    const updated = autoRecalculateTimes
+      ? recalculateScheduleTimes(items, form.startDate, form.duration, form.breakTime, form.concurrent)
+      : items;
+
+    setPreview(prev => ({ ...prev, fixtures: updated }));
+    showToast(`Applied preset sort: ${presetKey.replace('_', ' ').toUpperCase()}`, 'success');
+  };
+
+  const handleMoveRow = (fromIndex, toIndex) => {
+    if (!preview || !preview.fixtures) return;
+    if (toIndex < 0 || toIndex >= preview.fixtures.length) return;
+
+    setPreview(prev => {
+      const items = [...prev.fixtures];
+      const [moved] = items.splice(fromIndex, 1);
+      items.splice(toIndex, 0, moved);
+
+      const updated = autoRecalculateTimes
+        ? recalculateScheduleTimes(items, form.startDate, form.duration, form.breakTime, form.concurrent)
+        : items;
+
+      return { ...prev, fixtures: updated };
+    });
   };
 
   const handleUpdateFixture = (index, field, value) => {
@@ -2300,6 +2503,25 @@ export default function GeneratePage() {
     setLoading(true);
     setError(null);
     try {
+      if (preview?.fixtures && preview.fixtures.length > 0) {
+        const effectiveSport = schedulerMode === 'multi_sport'
+          ? 'Multi-Sport'
+          : (form.sport || (isPlacementSport || schedulerMode === 'dual_athletics' ? 'Athletics' : (sports?.[0]?.name || '')));
+        if (!effectiveSport) {
+          throw new Error('Sport name is required to save fixtures. Please select or add a sport.');
+        }
+        await generateApi.saveCustom({
+          fixtures: preview.fixtures,
+          sport: effectiveSport,
+        });
+        setSaved(true);
+        showToast('Generated fixtures saved to database successfully!', 'success');
+        if (schedulerMode !== 'multi_sport') {
+          setShowNextSportModal(true);
+        }
+        return;
+      }
+
       if (schedulerMode === 'multi_sport') {
         const activeSports = multiSports.filter(s => s.enabled).map(s => {
           if (s.name === 'Athletics') {
@@ -3492,10 +3714,92 @@ export default function GeneratePage() {
             </div>
           )}
 
+          {/* Interactive Ordering Toolbar */}
+          <div className="p-3.5 mb-4 rounded-xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/60 shadow-xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900 dark:text-purple-200">
+                  <ArrowUpDown size={14} className="text-purple-600 dark:text-purple-400" />
+                  <span>Order Schedule By:</span>
+                </div>
+
+                <select
+                  value={sortPreset}
+                  onChange={(e) => applySortPreset(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-gray-850 text-xs font-semibold text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-2xs cursor-pointer"
+                >
+                  <option value="original">Original (Generated Sequence)</option>
+                  <option value="age_asc">👶 Age: Youngest → Oldest (U9 → Open / Grade 1 → 7)</option>
+                  <option value="age_desc">🧑 Age: Oldest → Youngest (Open → U9 / Grade 7 → 1)</option>
+                  <option value="girls_first">🎀 Gender: Girls First, then Boys</option>
+                  <option value="boys_first">⚽ Gender: Boys First, then Girls</option>
+                  <option value="event_flow">🏃 Track & Field Flow (Distance → Sprints → Jumps → Throws → Relays)</option>
+                  <option value="venue_group">📍 Group by Venue</option>
+                  {(schedulerMode === 'multi_sport' || preview.fixtures?.some(f => f.sport)) && (
+                    <option value="sport_group">🏆 Group by Sport</option>
+                  )}
+                </select>
+
+                {sortPreset !== 'original' && (
+                  <button
+                    type="button"
+                    onClick={() => applySortPreset('original')}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-white dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-pointer transition-colors"
+                    title="Reset to initial generated sequence"
+                  >
+                    <RotateCcw size={11} />
+                    Reset
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={autoRecalculateTimes}
+                    onChange={(e) => {
+                      const val = e.target.checked;
+                      setAutoRecalculateTimes(val);
+                      if (val && preview?.fixtures) {
+                        const reTimed = recalculateScheduleTimes(preview.fixtures, form.startDate, form.duration, form.breakTime, form.concurrent);
+                        setPreview(prev => ({ ...prev, fixtures: reTimed }));
+                      }
+                    }}
+                    className="rounded text-purple-600 focus:ring-purple-500 h-3.5 w-3.5 cursor-pointer"
+                  />
+                  <span>Auto-sync timetable on reorder</span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (preview?.fixtures) {
+                      const reTimed = recalculateScheduleTimes(preview.fixtures, form.startDate, form.duration, form.breakTime, form.concurrent);
+                      setPreview(prev => ({ ...prev, fixtures: reTimed }));
+                      showToast('Timetable successfully recalculated contiguously!', 'success');
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-gray-850 hover:bg-gray-100 dark:hover:bg-gray-800 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 shadow-2xs transition-all cursor-pointer"
+                  title="Recalculate start and end times contiguously across all rounds"
+                >
+                  <Clock size={12} />
+                  Re-time Timetable
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-purple-800/80 dark:text-purple-300/80 bg-white/60 dark:bg-gray-900/40 px-2.5 py-1 rounded-lg border border-purple-100 dark:border-purple-900/40">
+              <Sparkles size={12} className="text-purple-500 shrink-0" />
+              <span>Use the <strong>Order Schedule By</strong> presets, click <strong>▲ / ▼</strong> to nudge items, or <strong>drag & drop</strong> any row. Timetable times update automatically before saving!</span>
+            </div>
+          </div>
+
           <div className="overflow-x-auto md:max-h-[500px] md:overflow-y-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-800">
+                  <th className="text-center py-2 px-1 font-medium text-gray-500 w-16">Reorder</th>
                   <th className="text-left py-2 px-3 font-medium text-gray-500">#</th>
                   {(schedulerMode === 'multi_sport' || preview.fixtures?.some(f => f.sport)) && (
                     <th className="text-left py-2 px-3 font-medium text-gray-500">Sport</th>
@@ -3504,15 +3808,52 @@ export default function GeneratePage() {
                   <th className="text-left py-2 px-3 font-medium text-gray-500">Time</th>
                   <th className="text-left py-2 px-3 font-medium text-gray-500">{isPlacementSport ? 'Event Name & Category' : 'Matchup / Event'}</th>
                   <th className="text-left py-2 px-3 font-medium text-gray-500">Venue</th>
-                  {preview.fixtures[0]?.notes && <th className="text-left py-2 px-3 font-medium text-gray-500">Group</th>}
+                  {preview.fixtures[0]?.notes !== undefined && <th className="text-left py-2 px-3 font-medium text-gray-500">Group</th>}
                 </tr>
               </thead>
               <tbody>
                 {preview.fixtures.map((f, i) => {
                   const isAthleticsEvent = f.discipline || isPlacementSport || f.sport === 'Athletics';
                   return (
-                    <tr key={i} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 animate-in fade-in duration-150">
-                      <td className="py-2 px-3 text-gray-400">{i + 1}</td>
+                    <tr
+                      key={f.id || i}
+                      draggable
+                      onDragStart={() => setDraggedIndex(i)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (draggedIndex !== null && draggedIndex !== i) {
+                          handleMoveRow(draggedIndex, i);
+                          setDraggedIndex(null);
+                        }
+                      }}
+                      className={`border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors ${
+                        draggedIndex === i ? 'opacity-40 bg-purple-100/50 dark:bg-purple-950/50' : ''
+                      }`}
+                    >
+                      <td className="py-2 px-1 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <GripVertical size={13} className="text-gray-300 dark:text-gray-600 cursor-grab hover:text-purple-500 mr-0.5" title="Drag to reorder" />
+                          <button
+                            type="button"
+                            onClick={() => handleMoveRow(i, i - 1)}
+                            disabled={i === 0}
+                            title="Move Up"
+                            className="p-1 rounded text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                          >
+                            <ChevronUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveRow(i, i + 1)}
+                            disabled={i === preview.fixtures.length - 1}
+                            title="Move Down"
+                            className="p-1 rounded text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                          >
+                            <ChevronDown size={14} />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-gray-400 font-mono text-xs">{i + 1}</td>
                       {(schedulerMode === 'multi_sport' || preview.fixtures?.some(fx => fx.sport)) && (
                         <td className="py-2 px-3 whitespace-nowrap">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
@@ -3558,7 +3899,7 @@ export default function GeneratePage() {
                               </span>
                             )}
                             <span className="font-semibold text-xs md:text-sm text-gray-800 dark:text-gray-200">
-                              {f.team_a_name || f.event_name}
+                              {f.team_a_name || f.name || f.event_name}
                             </span>
                           </div>
                         ) : (
